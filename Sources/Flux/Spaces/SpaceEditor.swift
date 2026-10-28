@@ -9,6 +9,7 @@ struct SpaceEditor: View {
     @State private var name: String
     @State private var icon: String
     @State private var color: String
+    @FocusState private var isEditingIcon: Bool
 
     init(
         title: String,
@@ -31,6 +32,13 @@ struct SpaceEditor: View {
             HStack {
                 TextField("Emoji", text: $icon)
                     .frame(width: 52)
+                    .focused($isEditingIcon)
+                    // Every click, not only the one that focuses the field. The system emoji
+                    // picker types into the focused field.
+                    .simultaneousGesture(TapGesture().onEnded {
+                        isEditingIcon = true
+                        NSApp.orderFrontCharacterPalette(nil)
+                    })
                     .onChange(of: icon) { _, value in
                         // One emoji at most: keep the last character typed.
                         if value.count > 1 { icon = String(value.suffix(1)) }
