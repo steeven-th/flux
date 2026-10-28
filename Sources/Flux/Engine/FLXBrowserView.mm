@@ -271,6 +271,10 @@ void TrackPageWindow(NSWindow *window) {
   // everywhere here since Chromium draws the page in a layer of its own. Setting this explicitly
   // makes the whole window take clicks.
   _pageNSWindow.ignoresMouseEvents = NO;
+  // Window managers such as AeroSpace move every standard window on its own, and would leave the
+  // page behind when Flux's window goes to another workspace. They leave alone windows that don't
+  // present themselves as standard windows.
+  _pageNSWindow.accessibilitySubrole = NSAccessibilityUnknownSubrole;
   TrackPageWindow(_pageNSWindow);
   NSView *rootView = _pageNSWindow.contentView;
   rootView.wantsLayer = YES;
@@ -293,15 +297,15 @@ void TrackPageWindow(NSWindow *window) {
     return;
   }
   NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
-  if (_observedWindow) {
-    [center removeObserver:self name:NSWindowDidResizeNotification object:_observedWindow];
+  NSArray<NSNotificationName> *names = @[ NSWindowDidResizeNotification, NSWindowDidMoveNotification ];
+  for (NSNotificationName name in names) {
+    if (_observedWindow) [center removeObserver:self name:name object:_observedWindow];
   }
   _observedWindow = self.window;
-  if (_observedWindow) {
-    [center addObserver:self
-               selector:@selector(updatePageWindow)
-                   name:NSWindowDidResizeNotification
-                 object:_observedWindow];
+  for (NSNotificationName name in names) {
+    if (_observedWindow) {
+      [center addObserver:self selector:@selector(updatePageWindow) name:name object:_observedWindow];
+    }
   }
   [self updatePageWindow];
 }
@@ -326,8 +330,8 @@ void TrackPageWindow(NSWindow *window) {
   [self updatePageWindow];
 }
 
-// The page window is a child of Flux's window, so it moves with it. Only its size and offset have
-// to follow this view.
+// The page window is a child of Flux's window, so it normally moves with it. Its frame is still set
+// again whenever Flux's window moves or resizes, in case something moved one without the other.
 - (void)updatePageWindow {
   if (_embedded || !_pageWindow || !_pageNSWindow) return;
   NSWindow *host = self.window;
