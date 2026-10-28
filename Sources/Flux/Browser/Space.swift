@@ -2,12 +2,31 @@ import SwiftUI
 
 struct Space: Identifiable, Hashable {
     let id: UUID
-    let name: String
-    let color: Color
+    var name: String
+    var color: Color
+    /// The Chromium profile folder. Several spaces can share one.
+    var profileFolder: URL
 
-    // Fixed ids, so each space finds its profile folder again on the next launch.
-    static let defaults = [
-        Space(id: UUID(uuidString: "6F1C2B7E-3D4A-4C1E-9B2F-1A2B3C4D5E01")!, name: "Personal", color: .orange),
-        Space(id: UUID(uuidString: "6F1C2B7E-3D4A-4C1E-9B2F-1A2B3C4D5E02")!, name: "Work", color: .blue),
-    ]
+    init(record: SpaceRecord) {
+        id = record.id
+        name = record.name
+        color = Color(hex: record.color)
+        profileFolder = AppPaths.profileFolder(named: record.profileFolder)
+    }
+}
+
+extension Color {
+    /// Parses "#RRGGBB". Anything else gives gray.
+    init(hex: String) {
+        let digits = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        guard digits.count == 6, let value = UInt32(digits, radix: 16) else {
+            self = .gray
+            return
+        }
+        self.init(
+            red: Double((value >> 16) & 0xFF) / 255,
+            green: Double((value >> 8) & 0xFF) / 255,
+            blue: Double(value & 0xFF) / 255
+        )
+    }
 }

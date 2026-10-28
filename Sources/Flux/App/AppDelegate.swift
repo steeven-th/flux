@@ -10,7 +10,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = MainMenu.make()
         dialogFixer = ChromiumDialogFixer()
 
-        let state = BrowserState(spaces: Space.defaults)
+        let state: BrowserState
+        do {
+            state = try BrowserState(appDatabase: AppDatabase(url: AppPaths.database))
+        } catch {
+            let alert = NSAlert(error: error)
+            alert.messageText = "Flux couldn't open its data"
+            alert.runModal()
+            NSApp.terminate(nil)
+            return
+        }
         FLXEngine.externalPageHandler = { [weak state] url, profilePath in
             state?.openExternalPage(url, profilePath: profilePath)
         }

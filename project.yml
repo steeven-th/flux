@@ -6,6 +6,11 @@ options:
     macOS: "14.0"
   createIntermediateGroups: true
 
+packages:
+  GRDB:
+    url: https://github.com/groue/GRDB.swift
+    from: 7.11.0
+
 settings:
   base:
     MACOSX_DEPLOYMENT_TARGET: "14.0"
@@ -64,6 +69,7 @@ targets:
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSSupportsAutomaticGraphicsSwitching: true
     dependencies:
+      - package: GRDB
       - target: Flux Helper
         embed: true
         copy: { destination: frameworks }
