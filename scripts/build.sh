@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds Flux.app into build/DerivedData. Pass "release" for a release build, and --run to launch it.
+# Builds Flux.app. Pass "release" for a release build, and --run to launch it.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -13,13 +13,17 @@ for ARG in "$@"; do
     esac
 done
 
+# Outside the source folder: when it sits in ~/Documents, macOS asks for access to Documents on
+# every launch, because the app reads its own bundle from there.
+DERIVED_DATA="$HOME/Library/Developer/Xcode/DerivedData/Flux"
+
 "$ROOT/scripts/fetch-cef.sh"
 cd "$ROOT"
 xcodegen generate --quiet
 xcodebuild -project Flux.xcodeproj -scheme Flux -configuration "$CONFIGURATION" \
-    -derivedDataPath build/DerivedData -quiet build
+    -derivedDataPath "$DERIVED_DATA" -quiet build
 
-APP="$ROOT/build/DerivedData/Build/Products/$CONFIGURATION/Flux.app"
+APP="$DERIVED_DATA/Build/Products/$CONFIGURATION/Flux.app"
 echo "Built $APP"
 if $RUN; then
     open "$APP"

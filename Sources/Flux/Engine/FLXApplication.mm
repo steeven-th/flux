@@ -20,6 +20,14 @@
 
 - (void)sendEvent:(NSEvent *)event {
   CefScopedSendingEvent sendingEventScoper;
+  // Chromium's page windows take ⌘Q as their own "Exit" command, which CEF ignores, so it would
+  // never reach the Quit menu item.
+  if (event.type == NSEventTypeKeyDown &&
+      (event.modifierFlags & NSEventModifierFlagDeviceIndependentFlagsMask) == NSEventModifierFlagCommand &&
+      [event.charactersIgnoringModifiers isEqualToString:@"q"]) {
+    [self terminate:self];
+    return;
+  }
   [super sendEvent:event];
 }
 

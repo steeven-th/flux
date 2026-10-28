@@ -152,6 +152,24 @@ class PageWindowDelegate : public CefWindowDelegate {
 
 const CGFloat FLXPageCornerRadius = 10;
 
+NSHashTable<NSWindow *> *g_page_windows = nil;
+
+// To the user a page is part of Flux's window, so the first click on it has to reach the page.
+// AppKit would only use it to make the page window key, so that is done before the click is
+// dispatched.
+void TrackPageWindow(NSWindow *window) {
+  if (!g_page_windows) {
+    g_page_windows = [NSHashTable weakObjectsHashTable];
+    [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskLeftMouseDown | NSEventMaskRightMouseDown
+                                          handler:^NSEvent *(NSEvent *event) {
+      NSWindow *target = event.window;
+      if ([g_page_windows containsObject:target] && !target.isKeyWindow) [target makeKeyWindow];
+      return event;
+    }];
+  }
+  [g_page_windows addObject:window];
+}
+
 }  // namespace
 
 @implementation FLXBrowserView {
@@ -249,6 +267,11 @@ const CGFloat FLXPageCornerRadius = 10;
   _pageNSWindow = contentView.window;
   _pageNSWindow.opaque = NO;
   _pageNSWindow.backgroundColor = NSColor.clearColor;
+  // A non-opaque window lets clicks through wherever its own backing is transparent, which is
+  // everywhere here since Chromium draws the page in a layer of its own. Setting this explicitly
+  // makes the whole window take clicks.
+  _pageNSWindow.ignoresMouseEvents = NO;
+  TrackPageWindow(_pageNSWindow);
   NSView *rootView = _pageNSWindow.contentView;
   rootView.wantsLayer = YES;
   rootView.layer.cornerRadius = FLXPageCornerRadius;
