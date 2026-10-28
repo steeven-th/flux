@@ -16,6 +16,10 @@ NS_SWIFT_UI_ACTOR
 /// Opens Chromium's extension manager for this profile in a window of its own.
 - (void)showExtensionsWindowWithTitle:(NSString *)title;
 
+/// Opens `url` in a stock Chrome window of this profile, toolbar included. Used to compare how a
+/// page behaves as a real Chrome tab.
+- (void)showChromeWindowWithURL:(NSString *)url title:(NSString *)title;
+
 - (instancetype)init NS_UNAVAILABLE;
 
 @end

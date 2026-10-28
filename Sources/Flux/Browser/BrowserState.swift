@@ -11,18 +11,29 @@ final class BrowserState {
     var selectedSpaceID: UUID
     private var selectedTabIDs: [UUID: UUID] = [:]
     @ObservationIgnored private var profiles: [UUID: FLXProfile] = [:]
+    @ObservationIgnored private var extensionLists: [UUID: ExtensionList] = [:]
 
     init(spaces: [Space]) {
         self.spaces = spaces
         selectedSpaceID = spaces[0].id
         for space in spaces {
-            profiles[space.id] = FLXProfile(atPath: AppPaths.profileFolder(for: space.id).path)
+            let folder = AppPaths.profileFolder(for: space.id)
+            profiles[space.id] = FLXProfile(atPath: folder.path)
+            extensionLists[space.id] = ExtensionList(profileFolder: folder)
             newTab(url: "https://accounts.google.com", in: space.id)
         }
     }
 
     var selectedSpace: Space {
         spaces.first { $0.id == selectedSpaceID } ?? spaces[0]
+    }
+
+    var selectedProfile: FLXProfile {
+        profiles[selectedSpaceID]!
+    }
+
+    var extensionsInSelectedSpace: [InstalledExtension] {
+        extensionLists[selectedSpaceID]?.extensions ?? []
     }
 
     var tabsInSelectedSpace: [Tab] {
@@ -56,8 +67,13 @@ final class BrowserState {
         }
     }
 
+    func openSelectedTabInChromeWindow() {
+        guard let tab = selectedTab else { return }
+        selectedProfile.showChromeWindow(withURL: tab.url, title: "Chrome - \(selectedSpace.name)")
+    }
+
     func showExtensionsOfSelectedSpace() {
-        profiles[selectedSpaceID]?.showExtensionsWindow(withTitle: "Extensions - \(selectedSpace.name)")
+        selectedProfile.showExtensionsWindow(withTitle: "Extensions - \(selectedSpace.name)")
     }
 
     /// Opens a page Chromium wanted to show in a window of its own, as a tab of the space that uses

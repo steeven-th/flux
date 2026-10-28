@@ -18,6 +18,10 @@ struct SidebarView: View {
                 .textFieldStyle(.roundedBorder)
                 .onSubmit { state.open(address) }
 
+            if !state.extensionsInSelectedSpace.isEmpty {
+                ExtensionsBar(extensions: state.extensionsInSelectedSpace, profile: state.selectedProfile)
+            }
+
             List(selection: selection) {
                 ForEach(state.tabsInSelectedSpace) { tab in
                     Text(tab.displayTitle)

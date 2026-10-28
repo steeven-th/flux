@@ -35,6 +35,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state.close(tab)
     }
 
+    @objc func openInChromeWindow(_ sender: Any?) {
+        state?.openSelectedTabInChromeWindow()
+    }
+
     @objc func showExtensions(_ sender: Any?) {
         state?.showExtensionsOfSelectedSpace()
     }

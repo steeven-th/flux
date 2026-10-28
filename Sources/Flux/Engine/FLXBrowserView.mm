@@ -39,6 +39,18 @@ class BrowserClient : public CefClient,
     if (browser->IsPopup()) return false;
     NSView *view = (__bridge NSView *)browser->GetHost()->GetWindowHandle();
     [view removeFromSuperview];
+    FLXBrowserView *owner = owner_;
+    if ([owner.delegate respondsToSelector:@selector(browserViewDidClose:)]) {
+      [owner.delegate browserViewDidClose:owner];
+    }
+    return true;
+  }
+
+  bool OnAutoResize(CefRefPtr<CefBrowser> browser, const CefSize &new_size) override {
+    FLXBrowserView *owner = owner_;
+    if ([owner.delegate respondsToSelector:@selector(browserView:didResizeToFit:)]) {
+      [owner.delegate browserView:owner didResizeToFit:NSMakeSize(new_size.width, new_size.height)];
+    }
     return true;
   }
 
@@ -95,6 +107,9 @@ class BrowserClient : public CefClient,
 @implementation FLXBrowserView {
   CefRefPtr<BrowserClient> _client;
   CefRefPtr<CefBrowser> _browser;
+  BOOL _fitsContent;
+  NSSize _minimumSize;
+  NSSize _maximumSize;
 }
 
 - (instancetype)initWithURL:(NSString *)url profile:(FLXProfile *)profile {
@@ -127,6 +142,20 @@ class BrowserClient : public CefClient,
   NSView *browserView = (__bridge NSView *)browser->GetHost()->GetWindowHandle();
   browserView.frame = self.bounds;
   browserView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+  if (_fitsContent) [self applyFitToContent];
+}
+
+- (void)fitToContentWithMinimumSize:(NSSize)minimumSize maximumSize:(NSSize)maximumSize {
+  _fitsContent = YES;
+  _minimumSize = minimumSize;
+  _maximumSize = maximumSize;
+  if (_browser) [self applyFitToContent];
+}
+
+- (void)applyFitToContent {
+  _browser->GetHost()->SetAutoResizeEnabled(
+      true, CefSize((int)_minimumSize.width, (int)_minimumSize.height),
+      CefSize((int)_maximumSize.width, (int)_maximumSize.height));
 }
 
 - (void)detachBrowser {

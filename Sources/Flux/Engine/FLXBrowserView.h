@@ -10,6 +10,10 @@ NS_SWIFT_UI_ACTOR
 @optional
 - (void)browserView:(FLXBrowserView *)browserView didChangeURL:(NSString *)url;
 - (void)browserView:(FLXBrowserView *)browserView didChangeTitle:(NSString *)title;
+/// Sent when automatic resizing is on and the page's content size changed.
+- (void)browserView:(FLXBrowserView *)browserView didResizeToFit:(NSSize)size;
+/// Sent when the page closes itself, with window.close() for example.
+- (void)browserViewDidClose:(FLXBrowserView *)browserView;
 @end
 
 /// A view showing one web page, in the given profile.
@@ -22,6 +26,9 @@ NS_SWIFT_UI_ACTOR
 @property (nonatomic, readonly, strong) FLXProfile *profile;
 @property (nonatomic, readonly, copy) NSString *currentURL;
 @property (nonatomic, readonly, copy) NSString *title;
+
+/// Makes the page size itself to its content, between the two sizes. Extension popups need this.
+- (void)fitToContentWithMinimumSize:(NSSize)minimumSize maximumSize:(NSSize)maximumSize;
 
 - (void)loadURL:(NSString *)url;
 - (void)goBack;

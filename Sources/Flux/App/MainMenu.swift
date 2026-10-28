@@ -26,6 +26,9 @@ enum MainMenu {
             NSMenuItem(title: "Back", action: #selector(AppDelegate.goBack(_:)), keyEquivalent: "["),
             NSMenuItem(title: "Forward", action: #selector(AppDelegate.goForward(_:)), keyEquivalent: "]"),
         ]))
+        menu.addItem(submenu(title: "Debug", items: [
+            NSMenuItem(title: "Open Tab in Chrome Window", action: #selector(AppDelegate.openInChromeWindow(_:)), keyEquivalent: ""),
+        ]))
         return menu
     }
 

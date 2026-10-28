@@ -2,6 +2,7 @@
 #import "FLXEngine+Internal.h"
 
 #include "include/cef_client.h"
+#include "include/views/cef_box_layout.h"
 #include "include/views/cef_browser_view.h"
 #include "include/views/cef_window.h"
 
@@ -47,12 +48,29 @@ class ExtensionsWindowClient : public CefClient, public CefLifeSpanHandler {
 
 class ChromeStyleBrowserViewDelegate : public CefBrowserViewDelegate {
  public:
+  explicit ChromeStyleBrowserViewDelegate(ChromeToolbarType toolbar = CEF_CTT_NONE) : toolbar_(toolbar) {}
+
   cef_runtime_style_t GetBrowserRuntimeStyle() override { return CEF_RUNTIME_STYLE_CHROME; }
   ChromeToolbarType GetChromeToolbarType(CefRefPtr<CefBrowserView> browser_view) override {
-    return CEF_CTT_NONE;
+    return toolbar_;
+  }
+
+  // CEF creates the toolbar but leaves placing it to the window's owner, once the browser view is
+  // in a window.
+  void OnWindowChanged(CefRefPtr<CefView> view, bool added) override {
+    if (!added || toolbar_ == CEF_CTT_NONE) return;
+    CefRefPtr<CefView> toolbar = view->AsBrowserView()->GetChromeToolbar();
+    CefRefPtr<CefWindow> window = view->GetWindow();
+    if (!toolbar || !window) return;
+    CefBoxLayoutSettings settings;
+    settings.horizontal = false;
+    CefRefPtr<CefBoxLayout> layout = window->SetToBoxLayout(settings);
+    window->AddChildViewAt(toolbar, 0);
+    layout->SetFlexForView(view, 1);
   }
 
  private:
+  ChromeToolbarType toolbar_;
   IMPLEMENT_REFCOUNTING(ChromeStyleBrowserViewDelegate);
 };
 
@@ -124,6 +142,16 @@ class ExtensionsWindowDelegate : public CefWindowDelegate {
     CefRefPtr<CefBrowserView> browser_view = CefBrowserView::CreateBrowserView(
         new ExtensionsWindowClient(), "chrome://extensions", settings, nullptr, self->_requestContext,
         new ChromeStyleBrowserViewDelegate());
+    CefWindow::CreateTopLevelWindow(new ExtensionsWindowDelegate(browser_view, title.UTF8String));
+  }];
+}
+
+- (void)showChromeWindowWithURL:(NSString *)url title:(NSString *)title {
+  [self whenReady:^{
+    CefBrowserSettings settings;
+    CefRefPtr<CefBrowserView> browser_view = CefBrowserView::CreateBrowserView(
+        new ExtensionsWindowClient(), url.UTF8String, settings, nullptr, self->_requestContext,
+        new ChromeStyleBrowserViewDelegate(CEF_CTT_NORMAL));
     CefWindow::CreateTopLevelWindow(new ExtensionsWindowDelegate(browser_view, title.UTF8String));
   }];
 }
