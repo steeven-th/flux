@@ -15,6 +15,15 @@ Flux is at an early stage and not usable yet.
 - Xcode 16 or later
 - XcodeGen and CMake: `brew install xcodegen cmake`
 
+## Building
+
+    scripts/build.sh          # downloads CEF on first run, then builds a debug Flux.app
+    scripts/build.sh --run    # same, then opens the app
+    scripts/build.sh release  # release build
+
+The first run downloads about 135 MB and builds CEF's C++ wrapper. Browsing data goes to
+`~/Library/Application Support/Flux`.
+
 ## Documentation
 
 Architecture decisions are recorded in [docs/decisions](docs/decisions).

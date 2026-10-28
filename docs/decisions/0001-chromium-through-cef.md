@@ -13,9 +13,21 @@ lives in the `//chrome` layer of Chromium, above the `//content` rendering layer
 
 ## Decision
 
-Use Chromium through the Chromium Embedded Framework (CEF) with the Chrome style runtime, which
-includes the `//chrome` layer. Start with the standard binary builds published on the CEF build
-server and pin the version in the repository.
+Use Chromium through the Chromium Embedded Framework (CEF). Start with the standard binary builds
+published on the CEF build server and pin the version in the repository.
+
+CEF always runs on the Chrome bootstrap, so profiles, saved passwords and installed extensions are
+Chrome's own. Each browser then uses one of two styles:
+
+- **Alloy style** is the only style available when a page is embedded in one of our own views on
+  macOS. Pages render and Chrome features run underneath, but Chrome's UI around them (password
+  save bubble, autofill dropdown, permission prompts, extension popups) is not shown. Flux has to
+  provide that UI itself.
+- **Chrome style** brings that UI, but only in windows created by CEF's own Views framework, which
+  don't fit inside an AppKit layout.
+
+Flux embeds pages in Alloy style. The first prototype has to confirm which Chrome features keep
+working there (password saving and filling, extension popups) and how much UI has to be rebuilt.
 
 ## Alternatives considered
 
