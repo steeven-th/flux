@@ -28,6 +28,8 @@ final class MainWindowController: NSWindowController {
         let content = NSView()
         content.addSubview(sidebar)
         content.addSubview(pageContainer)
+        window.contentView = content
+        let belowTitleBar = (window.contentLayoutGuide as? NSLayoutGuide)?.topAnchor ?? content.topAnchor
         NSLayoutConstraint.activate([
             sidebar.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             sidebar.topAnchor.constraint(equalTo: content.topAnchor),
@@ -35,10 +37,11 @@ final class MainWindowController: NSWindowController {
             sidebar.widthAnchor.constraint(equalToConstant: Self.sidebarWidth),
             pageContainer.leadingAnchor.constraint(equalTo: sidebar.trailingAnchor),
             pageContainer.trailingAnchor.constraint(equalTo: content.trailingAnchor),
-            pageContainer.topAnchor.constraint(equalTo: content.topAnchor),
+            // Below the title bar: Chromium places its dialogs at the top of the page, where the
+            // transparent title bar would cover them.
+            pageContainer.topAnchor.constraint(equalTo: belowTitleBar),
             pageContainer.bottomAnchor.constraint(equalTo: content.bottomAnchor),
         ])
-        window.contentView = content
 
         showSelectedTab()
         observeSelectedTab()

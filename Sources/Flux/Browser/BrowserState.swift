@@ -56,6 +56,21 @@ final class BrowserState {
         }
     }
 
+    func showExtensionsOfSelectedSpace() {
+        profiles[selectedSpaceID]?.showExtensionsWindow(withTitle: "Extensions - \(selectedSpace.name)")
+    }
+
+    /// Opens a page Chromium wanted to show in a window of its own, as a tab of the space that uses
+    /// the same profile.
+    func openExternalPage(_ url: String, profilePath: String) {
+        let profileFolder = URL(filePath: profilePath).standardizedFileURL
+        guard let space = spaces.first(where: {
+            AppPaths.profileFolder(for: $0.id).standardizedFileURL == profileFolder
+        }) else { return }
+        selectedSpaceID = space.id
+        newTab(url: url, in: space.id)
+    }
+
     /// Opens what was typed in the address field: a URL when it looks like one, a search otherwise.
     func open(_ input: String) {
         let url = Self.url(for: input)

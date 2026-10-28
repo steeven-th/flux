@@ -13,6 +13,9 @@ NS_SWIFT_UI_ACTOR
 
 @property (nonatomic, readonly, copy) NSString *path;
 
+/// Opens Chromium's extension manager for this profile in a window of its own.
+- (void)showExtensionsWindowWithTitle:(NSString *)title;
+
 - (instancetype)init NS_UNAVAILABLE;
 
 @end

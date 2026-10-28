@@ -20,6 +20,11 @@ NS_SWIFT_UI_ACTOR
 /// Runs `block` once the engine's global context is ready, right away if it already is.
 + (void)whenReady:(void (^)(void))block;
 
+/// Chromium sometimes opens pages in windows of its own, for example the page an extension shows
+/// after it is installed. Flux closes those windows and hands the page to this handler instead,
+/// with the folder of the profile it belongs to.
+@property (class, nonatomic, copy, nullable) void (^externalPageHandler)(NSString *url, NSString *profilePath);
+
 @end
 
 NS_ASSUME_NONNULL_END

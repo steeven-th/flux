@@ -17,12 +17,16 @@ NSString *ToNSString(const CefString &string) {
   return [NSString stringWithUTF8String:string.ToString().c_str()] ?: @"";
 }
 
-class BrowserClient : public CefClient, public CefLifeSpanHandler, public CefDisplayHandler {
+class BrowserClient : public CefClient,
+                      public CefLifeSpanHandler,
+                      public CefDisplayHandler,
+                      public CefDownloadHandler {
  public:
   explicit BrowserClient(FLXBrowserView *owner) : owner_(owner) {}
 
   CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
+  CefRefPtr<CefDownloadHandler> GetDownloadHandler() override { return this; }
 
   void OnAfterCreated(CefRefPtr<CefBrowser> browser) override {
     FLXEngineBrowserCreated(browser);
@@ -52,6 +56,24 @@ class BrowserClient : public CefClient, public CefLifeSpanHandler, public CefDis
     if ([owner.delegate respondsToSelector:@selector(browserView:didChangeURL:)]) {
       [owner.delegate browserView:owner didChangeURL:owner.currentURL];
     }
+  }
+
+  // Without this handler every download is canceled, including the extension packages that the
+  // Chrome Web Store downloads when installing.
+  bool OnBeforeDownload(CefRefPtr<CefBrowser> browser,
+                        CefRefPtr<CefDownloadItem> download_item,
+                        const CefString &suggested_name,
+                        CefRefPtr<CefBeforeDownloadCallback> callback) override {
+    if (download_item->GetMimeType() == "application/x-chrome-extension") {
+      // An empty path keeps the package in Chromium's temporary folder, where the installer reads it.
+      callback->Continue("", false);
+      return true;
+    }
+    NSURL *downloads = [NSFileManager.defaultManager URLsForDirectory:NSDownloadsDirectory
+                                                            inDomains:NSUserDomainMask].firstObject;
+    NSString *path = [downloads URLByAppendingPathComponent:ToNSString(suggested_name)].path;
+    callback->Continue(path.UTF8String, false);
+    return true;
   }
 
   void OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString &title) override {

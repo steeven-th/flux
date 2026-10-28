@@ -4,6 +4,8 @@ enum MainMenu {
     static func make() -> NSMenu {
         let menu = NSMenu()
         menu.addItem(submenu(title: "Flux", items: [
+            shifted(NSMenuItem(title: "Extensions…", action: #selector(AppDelegate.showExtensions(_:)), keyEquivalent: "e")),
+            .separator(),
             NSMenuItem(title: "Quit Flux", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"),
         ]))
         menu.addItem(submenu(title: "File", items: [
