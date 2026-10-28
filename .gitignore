@@ -1,0 +1,7 @@
+/vendor/
+/build/
+/DerivedData/
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+.DS_Store
