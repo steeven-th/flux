@@ -5,14 +5,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var state: BrowserState?
     private var windowController: MainWindowController?
     private var dialogFixer: ChromiumDialogFixer?
+    private let database: Result<AppDatabase, any Error>
+
+    init(database: Result<AppDatabase, any Error>) {
+        self.database = database
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.mainMenu = MainMenu.make()
+        NSApp.mainMenu = MainMenu.make(spacesMenuDelegate: self)
         dialogFixer = ChromiumDialogFixer()
 
         let state: BrowserState
         do {
-            state = try BrowserState(appDatabase: AppDatabase(url: AppPaths.database))
+            state = try BrowserState(appDatabase: database.get())
         } catch {
             let alert = NSAlert(error: error)
             alert.messageText = "Flux couldn't open its data"
@@ -44,6 +49,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state.close(tab)
     }
 
+    @objc func selectSpace(_ sender: NSMenuItem) {
+        state?.selectSpace(at: sender.tag)
+    }
+
     @objc func openInChromeWindow(_ sender: Any?) {
         state?.openSelectedTabInChromeWindow()
     }
@@ -62,5 +71,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func goForward(_ sender: Any?) {
         state?.selectedTab?.browserView.goForward()
+    }
+}
+
+extension AppDelegate: NSMenuDelegate, NSMenuItemValidation {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard let spaces = state?.spaces else { return }
+        for item in menu.items where item.action == #selector(selectSpace(_:)) {
+            item.title = spaces.indices.contains(item.tag) ? spaces[item.tag].name : "Space \(item.tag + 1)"
+            item.isHidden = !spaces.indices.contains(item.tag)
+        }
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(selectSpace(_:)) {
+            return state?.spaces.indices.contains(menuItem.tag) ?? false
+        }
+        return true
     }
 }

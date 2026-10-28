@@ -6,14 +6,6 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Picker("Space", selection: $state.selectedSpaceID) {
-                ForEach(state.spaces) { space in
-                    Text(space.name).tag(space.id)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-
             TextField("Search or enter address", text: $address)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit { state.open(address) }
@@ -41,6 +33,8 @@ struct SidebarView: View {
                 Label("New Tab", systemImage: "plus")
             }
             .buttonStyle(.borderless)
+
+            SpaceBar(state: state)
         }
         .padding(.horizontal, 12)
         .padding(.top, 36)

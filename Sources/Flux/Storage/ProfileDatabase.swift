@@ -74,6 +74,10 @@ final class ProfileDatabase: Sendable {
         try queue.write { db in try node.save(db) }
     }
 
+    func deleteNodes(in spaceID: UUID) throws {
+        _ = try queue.write { db in try SidebarNode.filter(Column("spaceID") == spaceID).deleteAll(db) }
+    }
+
     func delete(nodeID: UUID) throws {
         _ = try queue.write { db in try SidebarNode.deleteOne(db, key: nodeID) }
     }

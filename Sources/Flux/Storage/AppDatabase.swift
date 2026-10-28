@@ -6,6 +6,8 @@ struct SpaceRecord: Codable, Identifiable, FetchableRecord, PersistableRecord {
 
     var id: UUID
     var name: String
+    /// An emoji shown instead of the space's initial.
+    var icon: String?
     /// Hex color, "#RRGGBB".
     var color: String
     var position: String
@@ -43,6 +45,11 @@ final class AppDatabase: Sendable {
                 t.column("value", .text).notNull()
             }
         }
+        migrator.registerMigration("v2 space icon") { db in
+            try db.alter(table: "space") { t in
+                t.add(column: "icon", .text)
+            }
+        }
         return migrator
     }()
 
@@ -54,6 +61,10 @@ final class AppDatabase: Sendable {
 
     func save(_ space: SpaceRecord) throws {
         try queue.write { db in try space.save(db) }
+    }
+
+    func delete(_ space: SpaceRecord) throws {
+        _ = try queue.write { db in try space.delete(db) }
     }
 
     func setting(_ key: String) throws -> String? {
@@ -70,5 +81,32 @@ final class AppDatabase: Sendable {
                 try db.execute(sql: "DELETE FROM setting WHERE key = ?", arguments: [key])
             }
         }
+    }
+}
+
+extension AppDatabase {
+    private static let pendingDeletionsKey = "profileFoldersToDelete"
+
+    /// Chromium keeps a profile's files open while it runs, so a deleted space's profile folder is
+    /// removed at the next launch, before Chromium starts.
+    func scheduleDeletion(ofProfileFolder name: String) throws {
+        var names = try pendingProfileDeletions()
+        names.append(name)
+        try setSetting(Self.pendingDeletionsKey, to: String(data: try JSONEncoder().encode(names), encoding: .utf8))
+    }
+
+    func deletePendingProfileFolders() throws {
+        for name in try pendingProfileDeletions() where !name.isEmpty && !name.contains("/") {
+            let folder = AppPaths.profileFolder(named: name)
+            if FileManager.default.fileExists(atPath: folder.path) {
+                try FileManager.default.removeItem(at: folder)
+            }
+        }
+        try setSetting(Self.pendingDeletionsKey, to: nil)
+    }
+
+    private func pendingProfileDeletions() throws -> [String] {
+        guard let json = try setting(Self.pendingDeletionsKey) else { return [] }
+        return try JSONDecoder().decode([String].self, from: Data(json.utf8))
     }
 }

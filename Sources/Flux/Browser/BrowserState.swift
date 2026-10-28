@@ -6,6 +6,7 @@ import os
 @Observable
 final class BrowserState {
     static let newTabURL = "https://www.google.com"
+    static let spaceColors = ["#F97316", "#3B82F6", "#22C55E", "#A855F7", "#EC4899", "#EAB308", "#14B8A6", "#EF4444"]
     private static let selectedSpaceKey = "selectedSpaceID"
     private static let logger = Logger(subsystem: "com.flux-browser.Flux", category: "storage")
 
@@ -47,7 +48,7 @@ final class BrowserState {
         return try first.map { id, name, color in
             position = FractionalIndex.between(position, nil)
             let record = SpaceRecord(
-                id: UUID(uuidString: id)!, name: name, color: color, position: position!,
+                id: UUID(uuidString: id)!, name: name, icon: nil, color: color, position: position!,
                 profileFolder: "Space \(id)", selectedTabID: nil, createdAt: Date()
             )
             try database.save(record)
@@ -81,6 +82,69 @@ final class BrowserState {
             self?.save { try self?.profileDatabases[tab.spaceID]?.save(tab.node) }
         }
         return tab
+    }
+
+    /// A new space gets a profile of its own, so nothing is shared with other spaces.
+    func createSpace(name: String, icon: String?, color: String) {
+        let id = UUID()
+        let lastPosition = spaces.last.flatMap { spaceRecords[$0.id]?.position }
+        let record = SpaceRecord(
+            id: id, name: name, icon: icon, color: color,
+            position: FractionalIndex.between(lastPosition, nil),
+            profileFolder: "Profile \(id.uuidString)", selectedTabID: nil, createdAt: Date()
+        )
+        save { try appDatabase.save(record) }
+        save { try open(record) }
+        selectedSpaceID = id
+    }
+
+    func updateSpace(_ id: UUID, name: String, icon: String?, color: String) {
+        guard var record = spaceRecords[id], let index = spaces.firstIndex(where: { $0.id == id }) else { return }
+        record.name = name
+        record.icon = icon
+        record.color = color
+        spaceRecords[id] = record
+        spaces[index] = Space(record: record)
+        save { try appDatabase.save(record) }
+    }
+
+    /// True when no other space uses this space's profile, so deleting the space deletes the
+    /// profile's sign-ins, passwords and extensions too.
+    func ownsProfile(_ id: UUID) -> Bool {
+        guard let folder = spaceRecords[id]?.profileFolder else { return false }
+        return !spaceRecords.values.contains { $0.id != id && $0.profileFolder == folder }
+    }
+
+    func deleteSpace(_ id: UUID) {
+        guard spaces.count > 1, let record = spaceRecords[id] else { return }
+        let ownsProfile = ownsProfile(id)
+        let database = profileDatabases[id]
+
+        for tab in tabs where tab.spaceID == id {
+            tab.close()
+        }
+        tabs.removeAll { $0.spaceID == id }
+        spaces.removeAll { $0.id == id }
+        spaceRecords[id] = nil
+        selectedTabIDs[id] = nil
+        profiles[id] = nil
+        profileDatabases[id] = nil
+        extensionLists[id] = nil
+        if selectedSpaceID == id {
+            selectedSpaceID = spaces[0].id
+        }
+
+        save { try appDatabase.delete(record) }
+        if ownsProfile {
+            save { try appDatabase.scheduleDeletion(ofProfileFolder: record.profileFolder) }
+        } else {
+            save { try database?.deleteNodes(in: id) }
+        }
+    }
+
+    func selectSpace(at index: Int) {
+        guard spaces.indices.contains(index) else { return }
+        selectedSpaceID = spaces[index].id
     }
 
     var selectedSpace: Space {

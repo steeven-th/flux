@@ -1,7 +1,9 @@
 import AppKit
 
+@MainActor
 enum MainMenu {
-    static func make() -> NSMenu {
+    /// `spacesMenuDelegate` fills in the spaces' names each time the Spaces menu opens.
+    static func make(spacesMenuDelegate: NSMenuDelegate) -> NSMenu {
         let menu = NSMenu()
         menu.addItem(submenu(title: "Flux", items: [
             shifted(NSMenuItem(title: "Extensions…", action: #selector(AppDelegate.showExtensions(_:)), keyEquivalent: "e")),
@@ -26,10 +28,25 @@ enum MainMenu {
             NSMenuItem(title: "Back", action: #selector(AppDelegate.goBack(_:)), keyEquivalent: "["),
             NSMenuItem(title: "Forward", action: #selector(AppDelegate.goForward(_:)), keyEquivalent: "]"),
         ]))
+        menu.addItem(spacesMenu(delegate: spacesMenuDelegate))
         menu.addItem(submenu(title: "Debug", items: [
             NSMenuItem(title: "Open Tab in Chrome Window", action: #selector(AppDelegate.openInChromeWindow(_:)), keyEquivalent: ""),
         ]))
         return menu
+    }
+
+    /// ⌃1 to ⌃9 select the first nine spaces. The items exist up front so the shortcuts work
+    /// without opening the menu.
+    private static func spacesMenu(delegate: NSMenuDelegate) -> NSMenuItem {
+        let items = (1...9).map { number in
+            let item = NSMenuItem(title: "Space \(number)", action: #selector(AppDelegate.selectSpace(_:)), keyEquivalent: "\(number)")
+            item.keyEquivalentModifierMask = .control
+            item.tag = number - 1
+            return item
+        }
+        let item = submenu(title: "Spaces", items: items)
+        item.submenu?.delegate = delegate
+        return item
     }
 
     private static func submenu(title: String, items: [NSMenuItem]) -> NSMenuItem {
