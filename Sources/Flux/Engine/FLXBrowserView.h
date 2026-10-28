@@ -17,10 +17,17 @@ NS_SWIFT_UI_ACTOR
 @end
 
 /// A view showing one web page, in the given profile.
+///
+/// A page is a real Chrome tab, so extensions see it. On macOS Chromium only shows those in windows
+/// of its own, so the page lives in a borderless child window kept exactly over this view.
 NS_SWIFT_UI_ACTOR
 @interface FLXBrowserView : NSView
 
 - (instancetype)initWithURL:(NSString *)url profile:(FLXProfile *)profile;
+
+/// A page drawn inside the view itself. Extensions don't see it as a tab, which suits pages that
+/// are not tabs, like extension popups.
+- (instancetype)initEmbeddedWithURL:(NSString *)url profile:(FLXProfile *)profile;
 
 @property (nonatomic, weak, nullable) id<FLXBrowserViewDelegate> delegate;
 @property (nonatomic, readonly, strong) FLXProfile *profile;
@@ -34,6 +41,9 @@ NS_SWIFT_UI_ACTOR
 - (void)goBack;
 - (void)goForward;
 - (void)reload;
+
+/// Gives the keyboard to the page.
+- (void)focus;
 
 /// Closes the page for good. The view can't be reused afterwards.
 - (void)close;

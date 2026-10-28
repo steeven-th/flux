@@ -45,7 +45,6 @@ struct SidebarView: View {
         .padding(.horizontal, 12)
         .padding(.top, 36)
         .padding(.bottom, 12)
-        .background(state.selectedSpace.color.opacity(0.12))
         .onChange(of: state.selectedTab?.url, initial: true) { _, url in
             address = url ?? ""
         }
@@ -60,5 +59,15 @@ struct SidebarView: View {
                 }
             }
         )
+    }
+}
+
+/// The selected space's tint behind the whole window, sidebar and page margins included.
+struct SpaceBackground: View {
+    let state: BrowserState
+
+    var body: some View {
+        state.selectedSpace.color.opacity(0.12)
+            .ignoresSafeArea()
     }
 }

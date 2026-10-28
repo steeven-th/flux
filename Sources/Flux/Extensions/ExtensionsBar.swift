@@ -5,20 +5,27 @@ struct ExtensionsBar: View {
     let extensions: [InstalledExtension]
     let profile: FLXProfile
 
-    @State private var openPopupID: String?
-
     var body: some View {
         HStack(spacing: 4) {
             ForEach(extensions) { item in
-                button(for: item)
+                ExtensionButton(item: item, profile: profile)
             }
             Spacer(minLength: 0)
         }
     }
+}
 
-    private func button(for item: InstalledExtension) -> some View {
+private struct ExtensionButton: View {
+    let item: InstalledExtension
+    let profile: FLXProfile
+
+    @State private var anchor = AnchorView()
+
+    var body: some View {
         Button {
-            openPopupID = item.id
+            if let url = item.popupURL {
+                ExtensionPopupPanel.show(url: url, profile: profile, below: anchor)
+            }
         } label: {
             Group {
                 if let icon = item.icon {
@@ -34,13 +41,16 @@ struct ExtensionsBar: View {
         .buttonStyle(.borderless)
         .help(item.name)
         .disabled(item.popupURL == nil)
-        .popover(isPresented: Binding(
-            get: { openPopupID == item.id },
-            set: { if !$0 { openPopupID = nil } }
-        ), arrowEdge: .bottom) {
-            if let url = item.popupURL {
-                ExtensionPopupView(url: url, profile: profile) { openPopupID = nil }
-            }
-        }
+        .background(AnchorReader(view: anchor))
     }
+}
+
+/// An AppKit view laid out behind a SwiftUI view, to know where that view is on screen.
+final class AnchorView: NSView {}
+
+private struct AnchorReader: NSViewRepresentable {
+    let view: AnchorView
+
+    func makeNSView(context: Context) -> AnchorView { view }
+    func updateNSView(_ nsView: AnchorView, context: Context) {}
 }

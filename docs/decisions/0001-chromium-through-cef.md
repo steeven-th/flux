@@ -4,8 +4,8 @@ Status: Accepted
 
 ## Context
 
-Flux needs Chrome extensions from the Chrome Web Store, a built-in password manager for people who
-don't use a third-party one, and separate profiles with their own logins, history and extensions.
+Flux needs Chrome extensions from the Chrome Web Store and separate profiles with their own logins,
+history, passwords and extensions.
 It also has to work with Google sign-in, which rejects some embedded browsers.
 
 Most of what makes Chrome a browser (password manager, autofill, extensions, profiles, settings)
@@ -20,14 +20,19 @@ CEF always runs on the Chrome bootstrap, so profiles, saved passwords and instal
 Chrome's own. Each browser then uses one of two styles:
 
 - **Alloy style** is the only style available when a page is embedded in one of our own views on
-  macOS. Pages render and Chrome features run underneath, but Chrome's UI around them (password
-  save bubble, autofill dropdown, permission prompts, extension popups) is not shown. Flux has to
-  provide that UI itself.
-- **Chrome style** brings that UI, but only in windows created by CEF's own Views framework, which
-  don't fit inside an AppKit layout.
+  macOS. The page renders, but it is not a Chrome tab: extensions can't see it (a popup asking for
+  the active tab gets nothing), and Chrome's UI around it (password bubble, permission prompts) is
+  not shown.
+- **Chrome style** makes the page a real Chrome tab, but only in windows created by CEF's Views
+  framework, which can't be nested in an AppKit view.
 
-Flux embeds pages in Alloy style. The first prototype has to confirm which Chrome features keep
-working there (password saving and filling, extension popups) and how much UI has to be rebuilt.
+Pages use Chrome style. Each page lives in a borderless CEF window with no toolbar, added as a child
+window of the Flux window and kept exactly over the page area of the layout. Child windows move with
+their parent, so Flux only keeps their size and offset in sync. Alloy style is kept for pages that
+are not tabs, such as extension popups shown in Flux's own toolbar.
+
+Chromium also opens windows of its own, for example after an extension is installed. Flux takes
+their pages as tabs and keeps those windows off screen.
 
 ## Alternatives considered
 
@@ -39,10 +44,17 @@ working there (password saving and filling, extension popups) and how much UI ha
   extensions.
 - **Chromium fork.** Full control, but a multi-hour build and a patch series to rebase on every
   Chromium release. Too much maintenance for a small project.
+- **Pages in Alloy style with patched CEF.** Teaching Chromium's extension APIs about Alloy pages
+  means building CEF and Chromium ourselves, with the same maintenance cost as a fork.
+- **Flux's main window as a CEF Views window.** Avoids child windows, but a Chrome style window
+  hosts at most one Chrome style page, which rules out split view.
 
 ## Consequences
 
 - Sites, extensions and DevTools behave as in Chrome.
+- Focus moves to the page's window when the page is clicked, so Flux's window controls look
+  inactive. This needs handling.
+- Anything drawn over a page (overlays, previews) has to be a window above the page's window.
 - Updates follow CEF releases. The pinned version has to be bumped quickly after Chromium security
   releases.
 - Standard CEF builds don't ship proprietary codecs (H.264, AAC). Some videos won't play until we

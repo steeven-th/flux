@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor
 final class MainWindowController: NSWindowController {
     private static let sidebarWidth: CGFloat = 260
+    private static let pageMargin: CGFloat = 8
 
     private let state: BrowserState
     private let pageContainer = NSView()
@@ -21,26 +22,31 @@ final class MainWindowController: NSWindowController {
         window.center()
         super.init(window: window)
 
+        let background = NSHostingView(rootView: SpaceBackground(state: state))
         let sidebar = NSHostingView(rootView: SidebarView(state: state))
-        sidebar.translatesAutoresizingMaskIntoConstraints = false
-        pageContainer.translatesAutoresizingMaskIntoConstraints = false
+        for view in [background, sidebar, pageContainer] as [NSView] {
+            view.translatesAutoresizingMaskIntoConstraints = false
+        }
 
         let content = NSView()
+        content.addSubview(background)
         content.addSubview(sidebar)
         content.addSubview(pageContainer)
         window.contentView = content
-        let belowTitleBar = (window.contentLayoutGuide as? NSLayoutGuide)?.topAnchor ?? content.topAnchor
         NSLayoutConstraint.activate([
+            background.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            background.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            background.topAnchor.constraint(equalTo: content.topAnchor),
+            background.bottomAnchor.constraint(equalTo: content.bottomAnchor),
             sidebar.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             sidebar.topAnchor.constraint(equalTo: content.topAnchor),
             sidebar.bottomAnchor.constraint(equalTo: content.bottomAnchor),
             sidebar.widthAnchor.constraint(equalToConstant: Self.sidebarWidth),
+            // The page sits in its own window above this one, so the title bar doesn't cover it.
             pageContainer.leadingAnchor.constraint(equalTo: sidebar.trailingAnchor),
-            pageContainer.trailingAnchor.constraint(equalTo: content.trailingAnchor),
-            // Below the title bar: Chromium places its dialogs at the top of the page, where the
-            // transparent title bar would cover them.
-            pageContainer.topAnchor.constraint(equalTo: belowTitleBar),
-            pageContainer.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            pageContainer.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -Self.pageMargin),
+            pageContainer.topAnchor.constraint(equalTo: content.topAnchor, constant: Self.pageMargin),
+            pageContainer.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -Self.pageMargin),
         ])
 
         showSelectedTab()
@@ -62,7 +68,7 @@ final class MainWindowController: NSWindowController {
         selected.frame = pageContainer.bounds
         selected.autoresizingMask = [.width, .height]
         pageContainer.addSubview(selected)
-        window?.makeFirstResponder(selected)
+        selected.focus()
     }
 
     private func observeSelectedTab() {
