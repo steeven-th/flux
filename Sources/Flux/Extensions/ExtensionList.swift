@@ -7,6 +7,8 @@ import Observation
 @Observable
 final class ExtensionList {
     private(set) var extensions: [InstalledExtension] = []
+    /// Enabled or not.
+    private(set) var installedIDs: Set<String> = []
 
     @ObservationIgnored private let extensionsFolder: URL
 
@@ -15,7 +17,9 @@ final class ExtensionList {
         profile.observePreference("extensions.settings") { [weak self] value in
             MainActor.assumeIsolated {
                 guard let self else { return }
-                self.extensions = Self.enabledExtensions(in: value as? [String: Any] ?? [:], folder: self.extensionsFolder)
+                let settings = value as? [String: Any] ?? [:]
+                self.extensions = Self.enabledExtensions(in: settings, folder: self.extensionsFolder)
+                self.installedIDs = Set(settings.filter { ($0.value as? [String: Any])?["location"] as? Int == 1 }.keys)
             }
         }
     }

@@ -32,6 +32,7 @@ final class BrowserState {
     @ObservationIgnored private var extensionLists: [UUID: ExtensionList] = [:]
     @ObservationIgnored private var faviconCaches: [UUID: FaviconCache] = [:]
     @ObservationIgnored private var histories: [UUID: ChromiumHistory] = [:]
+    @ObservationIgnored private var passwordManagers: [UUID: ChromiumPasswordManager] = [:]
 
     init(appDatabase: AppDatabase) throws {
         self.appDatabase = appDatabase
@@ -77,6 +78,7 @@ final class BrowserState {
         extensionLists[space.id] = ExtensionList(profile: profile, profileFolder: space.profileFolder)
         faviconCaches[space.id] = FaviconCache(profileFolder: space.profileFolder)
         histories[space.id] = ChromiumHistory(profileFolder: space.profileFolder)
+        passwordManagers[space.id] = ChromiumPasswordManager(profile: profile)
 
         let nodes = try database.nodes(in: space.id)
         for node in nodes {
@@ -146,6 +148,7 @@ final class BrowserState {
         extensionLists[id] = nil
         faviconCaches[id] = nil
         histories[id] = nil
+        passwordManagers[id] = nil
         folders.removeAll { $0.spaceID == id }
         sidebarRevision += 1
         if selectedSpaceID == id {
@@ -238,6 +241,18 @@ final class BrowserState {
         var name: String {
             spaces.map(\.name).joined(separator: ", ")
         }
+    }
+
+    func extensionList(forProfile folder: URL) -> ExtensionList? {
+        firstSpace(usingProfile: folder).flatMap { extensionLists[$0.id] }
+    }
+
+    func passwordManager(forProfile folder: URL) -> ChromiumPasswordManager? {
+        firstSpace(usingProfile: folder).flatMap { passwordManagers[$0.id] }
+    }
+
+    private func firstSpace(usingProfile folder: URL) -> Space? {
+        spaces.first { $0.profileFolder.standardizedFileURL == folder.standardizedFileURL }
     }
 
     /// The profiles in use, in the order of their first space.

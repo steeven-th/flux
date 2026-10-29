@@ -18,6 +18,9 @@ NS_SWIFT_UI_ACTOR
 /// seconds, so files can't be relied on for this. The first call waits for the profile to load.
 - (void)observePreference:(NSString *)name handler:(void (^)(id _Nullable value))handler;
 
+/// Sets a Chromium preference of this profile, once the profile has loaded.
+- (void)setPreference:(NSString *)name boolValue:(BOOL)value;
+
 /// Opens Chromium's extension manager for this profile in a window of its own.
 - (void)showExtensionsWindowWithTitle:(NSString *)title;
 

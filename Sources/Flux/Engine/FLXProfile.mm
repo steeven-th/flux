@@ -221,6 +221,20 @@ class PreferenceObserver : public CefPreferenceObserver {
   }];
 }
 
+- (void)setPreference:(NSString *)name boolValue:(BOOL)value {
+  __weak FLXProfile *weakSelf = self;
+  [self whenReady:^{
+    FLXProfile *profile = weakSelf;
+    if (!profile || !profile->_requestContext) return;
+    CefRefPtr<CefValue> preference = CefValue::Create();
+    preference->SetBool(value);
+    CefString error;
+    if (!profile->_requestContext->SetPreference(name.UTF8String, preference, error)) {
+      NSLog(@"Couldn't set %@: %s", name, error.ToString().c_str());
+    }
+  }];
+}
+
 - (id)preferenceValue:(NSString *)name {
   if (!_requestContext) return nil;
   return FoundationValue(_requestContext->GetPreference(name.UTF8String));

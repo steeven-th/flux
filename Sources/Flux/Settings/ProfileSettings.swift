@@ -68,6 +68,10 @@ private struct ProfileDetail: View {
                         .foregroundStyle(isValid(customTemplate) ? Color.secondary : Color.red)
                 }
             }
+            if let passwords = state.passwordManager(forProfile: profile.folder),
+               let extensions = state.extensionList(forProfile: profile.folder) {
+                PasswordsSection(passwords: passwords, extensions: extensions, show: show)
+            }
             Section("Your Data and Settings") {
                 ChromePageRow(title: "Privacy and Security", symbol: "lock.fill", color: .blue) {
                     show("chrome://settings/privacy")
@@ -122,6 +126,74 @@ private struct ProfileDetail: View {
     private func show(_ url: String) {
         state.showChromePage(url, forProfile: profile.folder)
         NSApp.windows.first { $0 is MainWindow }?.makeKeyAndOrderFront(nil)
+    }
+}
+
+private struct PasswordsSection: View {
+    let passwords: ChromiumPasswordManager
+    let extensions: ExtensionList
+    let show: (String) -> Void
+
+    var body: some View {
+        Section("Passwords") {
+            Toggle(isOn: Binding(get: { passwords.isEnabled }, set: { passwords.setEnabled($0) })) {
+                Text("Chromium Password Manager")
+                Text("Saves passwords on this Mac, in this profile. No account needed.")
+            }
+            if passwords.isEnabled, let other = enabledManagers.first {
+                LabeledContent("\(other.name) also offers to save passwords, so you may be asked twice.") {
+                    Button("Turn Off Chromium's") { passwords.setEnabled(false) }
+                }
+                .font(.callout)
+            }
+            ForEach(PasswordManagerExtension.all) { manager in
+                PasswordManagerRow(
+                    manager: manager,
+                    installed: extensions.extensions.first { $0.id == manager.id },
+                    isInstalled: extensions.installedIDs.contains(manager.id),
+                    show: show
+                )
+            }
+        }
+    }
+
+    private var enabledManagers: [PasswordManagerExtension] {
+        PasswordManagerExtension.all.filter { manager in extensions.extensions.contains { $0.id == manager.id } }
+    }
+}
+
+/// A password manager extension: greyed out with a link to the Chrome Web Store until it is
+/// installed. Chromium has no API to turn an extension on or off from outside its own extension
+/// page, so installed ones link there.
+private struct PasswordManagerRow: View {
+    let manager: PasswordManagerExtension
+    /// Set while the extension is enabled.
+    let installed: InstalledExtension?
+    let isInstalled: Bool
+    let show: (String) -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Group {
+                if let icon = installed?.icon {
+                    Image(nsImage: icon).resizable().aspectRatio(contentMode: .fit)
+                } else {
+                    Image(systemName: "key.fill").foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 18, height: 18)
+            Text(manager.name)
+                .foregroundStyle(isInstalled ? .primary : .secondary)
+            Spacer()
+            if isInstalled {
+                Text(installed == nil ? "Off" : "On")
+                    .font(.callout)
+                    .foregroundStyle(installed == nil ? Color.secondary : Color.green)
+                Button("Manage") { show(manager.manageURL) }
+            } else {
+                Button("Get") { show(manager.storeURL) }
+            }
+        }
     }
 }
 
