@@ -12,6 +12,7 @@ enum MainMenu {
         ]))
         menu.addItem(submenu(title: "File", items: [
             NSMenuItem(title: "New Tab", action: #selector(AppDelegate.newTab(_:)), keyEquivalent: "t"),
+            NSMenuItem(title: "Open Location…", action: #selector(AppDelegate.openLocation(_:)), keyEquivalent: "l"),
             NSMenuItem(title: "Close Tab", action: #selector(AppDelegate.closeTab(_:)), keyEquivalent: "w"),
             NSMenuItem(title: "Pin or Unpin Tab", action: #selector(AppDelegate.togglePin(_:)), keyEquivalent: "d"),
             NSMenuItem(title: "New Folder", action: #selector(AppDelegate.newFolder(_:)), keyEquivalent: ""),

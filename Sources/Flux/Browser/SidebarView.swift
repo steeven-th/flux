@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SidebarView: View {
     @Bindable var state: BrowserState
-    @State private var address = ""
+    let showCommandBar: (CommandBarModel.Target) -> Void
 
     private var pinnedCount: Int {
         _ = state.sidebarRevision
@@ -11,9 +11,9 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            TextField("Search or enter address", text: $address)
-                .textFieldStyle(.roundedBorder)
-                .onSubmit { state.open(address) }
+            AddressButton(url: state.selectedTab?.url) {
+                showCommandBar(.selectedTab)
+            }
 
             if !state.extensionsInSelectedSpace.isEmpty {
                 ExtensionsBar(extensions: state.extensionsInSelectedSpace, profile: state.selectedProfile) {
@@ -27,7 +27,7 @@ struct SidebarView: View {
             SidebarOutline(state: state)
 
             Button {
-                state.newTab()
+                showCommandBar(.newTab)
             } label: {
                 Label("New Tab", systemImage: "plus")
             }
@@ -38,9 +38,35 @@ struct SidebarView: View {
         .padding(.horizontal, 12)
         .padding(.top, 36)
         .padding(.bottom, 12)
-        .onChange(of: state.selectedTab?.url, initial: true) { _, url in
-            address = url ?? ""
+    }
+}
+
+/// The selected tab's site. Clicking it opens the command bar to go elsewhere, like in Arc.
+private struct AddressButton: View {
+    let url: String?
+    let action: () -> Void
+
+    private var text: String {
+        guard let url else { return "Search or Enter URL" }
+        guard let host = URL(string: url)?.host() else { return url }
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(text)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 28)
+            .background(RoundedRectangle(cornerRadius: 7).fill(.primary.opacity(0.06)))
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
     }
 }
 

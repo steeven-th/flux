@@ -23,7 +23,7 @@ final class MainWindowController: NSWindowController {
         super.init(window: window)
 
         let background = NSHostingView(rootView: SpaceBackground(state: state))
-        let sidebar = NSHostingView(rootView: SidebarView(state: state))
+        let sidebar = NSHostingView(rootView: SidebarView(state: state) { [weak self] target in self?.showCommandBar(target) })
         for view in [background, sidebar, pageContainer] as [NSView] {
             view.translatesAutoresizingMaskIntoConstraints = false
         }
@@ -56,6 +56,11 @@ final class MainWindowController: NSWindowController {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) is not available")
+    }
+
+    func showCommandBar(_ target: CommandBarModel.Target) {
+        guard let window else { return }
+        CommandBarPanel.show(target, state: state, over: window)
     }
 
     /// Pages of other tabs stay alive. Only the selected one is in the view hierarchy.

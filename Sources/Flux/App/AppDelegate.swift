@@ -32,6 +32,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windowController.showWindow(nil)
         self.state = state
         self.windowController = windowController
+        if state.selectedTab == nil {
+            windowController.showCommandBar(.newTab)
+        }
 
         NSApp.activate()
     }
@@ -41,7 +44,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func newTab(_ sender: Any?) {
-        state?.newTab()
+        windowController?.showCommandBar(.newTab)
+    }
+
+    @objc func openLocation(_ sender: Any?) {
+        windowController?.showCommandBar(.selectedTab)
     }
 
     @objc func closeTab(_ sender: Any?) {

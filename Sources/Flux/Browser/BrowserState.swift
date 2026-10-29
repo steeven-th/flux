@@ -5,10 +5,10 @@ import os
 @MainActor
 @Observable
 final class BrowserState {
-    static let newTabURL = "https://www.google.com"
     static let spaceColors = ["#F97316", "#3B82F6", "#22C55E", "#A855F7", "#EC4899", "#EAB308", "#14B8A6", "#EF4444"]
     private static let selectedSpaceKey = "selectedSpaceID"
     private static let confirmsTabRemovalKey = "confirmsTabRemoval"
+    private static let searchEngineKey = "searchEngine"
     private static let logger = Logger(subsystem: "com.flux-browser.Flux", category: "storage")
 
     private(set) var spaces: [Space] = []
@@ -79,9 +79,6 @@ final class BrowserState {
             case .tab: tabs.append(makeTab(node))
             case .folder: folders.append(Folder(node: node))
             }
-        }
-        if !nodes.contains(where: { $0.kind == .tab }) {
-            newTab(in: space.id)
         }
     }
 
@@ -189,6 +186,11 @@ final class BrowserState {
         set { save { try appDatabase.setSetting(Self.confirmsTabRemovalKey, to: newValue ? nil : "false") } }
     }
 
+    var searchEngine: SearchEngine {
+        get { SearchEngine(setting: try? appDatabase.setting(Self.searchEngineKey)) }
+        set { save { try appDatabase.setSetting(Self.searchEngineKey, to: newValue == .google ? nil : newValue.id) } }
+    }
+
     func select(_ tab: Tab) {
         guard selectedTabIDs[tab.spaceID] != tab.id else { return }
         selectedTabIDs[tab.spaceID] = tab.id
@@ -202,9 +204,13 @@ final class BrowserState {
 
     @discardableResult
     func newTab(
-        url: String = BrowserState.newTabURL, in spaceID: UUID? = nil, page: FLXBrowserView? = nil, selecting: Bool = true
+        url: String, in spaceID: UUID? = nil, page: FLXBrowserView? = nil, selecting: Bool = true
     ) -> Tab {
         let spaceID = spaceID ?? selectedSpaceID
+        // Without a stored selection the last tab shows, which the new one is about to become.
+        if !selecting, selectedTabIDs[spaceID].flatMap({ id in tabs.first { $0.id == id } }) == nil {
+            selectedTabIDs[spaceID] = tabs.last { $0.spaceID == spaceID }?.id
+        }
         let last = entries(in: .today, parentID: nil, spaceID: spaceID).last?.node.position
         let node = SidebarNode(
             id: UUID(), spaceID: spaceID, parentID: nil, kind: .tab, section: .today,
@@ -466,26 +472,19 @@ final class BrowserState {
         newTab(url: url, in: space.id)
     }
 
-    /// Opens what was typed in the address field: a URL when it looks like one, a search otherwise.
-    func open(_ input: String) {
-        let url = Self.url(for: input)
-        if let tab = selectedTab {
-            tab.load(url)
-        } else {
-            newTab(url: url)
+    /// Whether typed text is meant as an address rather than a search.
+    static func looksLikeURL(_ text: String) -> Bool {
+        if text.contains("://") || text.hasPrefix("about:") {
+            return true
         }
+        return !text.contains(" ") && (text.contains(".") || text.hasPrefix("localhost"))
     }
 
-    static func url(for input: String) -> String {
-        let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
-        if text.contains("://") {
+    static func normalizedURL(_ text: String) -> String {
+        if text.contains("://") || text.hasPrefix("about:") {
             return text
         }
-        if !text.contains(" "), text.contains(".") || text.hasPrefix("localhost") {
-            return "https://" + text
-        }
-        let query = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? text
-        return "https://www.google.com/search?q=" + query
+        return (text.hasPrefix("localhost") ? "http://" : "https://") + text
     }
 
     /// Storage errors are logged rather than shown: the session goes on in memory.
