@@ -3,6 +3,7 @@
 #import "FLXProfile+Internal.h"
 
 #include "include/cef_client.h"
+#include "include/cef_devtools_message_observer.h"
 #include "include/views/cef_browser_view.h"
 #include "include/views/cef_window.h"
 
@@ -46,6 +47,35 @@ class FaviconCallback : public CefDownloadImageCallback {
  private:
   __weak FLXBrowserView *owner_;
   IMPLEMENT_REFCOUNTING(FaviconCallback);
+};
+
+class TargetInfoObserver : public CefDevToolsMessageObserver {
+ public:
+  TargetInfoObserver(int message_id, void (^completion)(NSString *))
+      : message_id_(message_id), completion_([completion copy]) {}
+
+  void OnDevToolsMethodResult(CefRefPtr<CefBrowser> browser, int message_id, bool success,
+                              const void *result, size_t result_size) override {
+    if (message_id != message_id_ || !completion_) return;
+    NSString *target = nil;
+    if (success) {
+      NSDictionary *json = [NSJSONSerialization JSONObjectWithData:[NSData dataWithBytes:result length:result_size]
+                                                           options:0
+                                                             error:nil];
+      target = json[@"targetInfo"][@"targetId"];
+    }
+    void (^completion)(NSString *) = completion_;
+    completion_ = nil;
+    registration_ = nullptr;
+    completion(target);
+  }
+
+  CefRefPtr<CefRegistration> registration_;
+
+ private:
+  int message_id_;
+  void (^completion_)(NSString *);
+  IMPLEMENT_REFCOUNTING(TargetInfoObserver);
 };
 
 class BrowserClient : public CefClient,
@@ -140,14 +170,6 @@ class BrowserClient : public CefClient,
   IMPLEMENT_REFCOUNTING(BrowserClient);
 };
 
-class PageViewDelegate : public CefBrowserViewDelegate {
- public:
-  cef_runtime_style_t GetBrowserRuntimeStyle() override { return CEF_RUNTIME_STYLE_CHROME; }
-
- private:
-  IMPLEMENT_REFCOUNTING(PageViewDelegate);
-};
-
 class PageWindowDelegate : public CefWindowDelegate {
  public:
   PageWindowDelegate(CefRefPtr<CefBrowserView> browser_view, FLXBrowserView *owner)
@@ -155,6 +177,7 @@ class PageWindowDelegate : public CefWindowDelegate {
 
   void OnWindowCreated(CefRefPtr<CefWindow> window) override {
     window->AddChildView(browser_view_);
+    if (CefRefPtr<CefView> toolbar = browser_view_->GetChromeToolbar()) toolbar->SetVisible(false);
     [owner_ pageWindowCreated:window];
   }
 
@@ -182,25 +205,20 @@ class PageWindowDelegate : public CefWindowDelegate {
   IMPLEMENT_REFCOUNTING(PageWindowDelegate);
 };
 
-const CGFloat FLXPageCornerRadius = 10;
-
-NSHashTable<NSWindow *> *g_page_windows = nil;
-
-// To the user a page is part of Flux's window, so the first click on it has to reach the page.
-// AppKit would only use it to make the page window key, so that is done before the click is
-// dispatched.
-void TrackPageWindow(NSWindow *window) {
-  if (!g_page_windows) {
-    g_page_windows = [NSHashTable weakObjectsHashTable];
-    [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskLeftMouseDown | NSEventMaskRightMouseDown
-                                          handler:^NSEvent *(NSEvent *event) {
-      NSWindow *target = event.window;
-      if ([g_page_windows containsObject:target] && !target.isKeyWindow) [target makeKeyWindow];
-      return event;
-    }];
+class PageViewDelegate : public CefBrowserViewDelegate {
+ public:
+  cef_runtime_style_t GetBrowserRuntimeStyle() override { return CEF_RUNTIME_STYLE_CHROME; }
+  // Chrome anchors extension popups to its toolbar's extension area, and running an extension's
+  // action fails without one. The toolbar exists but stays hidden, Flux has its own.
+  ChromeToolbarType GetChromeToolbarType(CefRefPtr<CefBrowserView> browser_view) override {
+    return CEF_CTT_NORMAL;
   }
-  [g_page_windows addObject:window];
-}
+
+ private:
+  IMPLEMENT_REFCOUNTING(PageViewDelegate);
+};
+
+const CGFloat FLXPageCornerRadius = 10;
 
 }  // namespace
 
@@ -261,7 +279,10 @@ void TrackPageWindow(NSWindow *window) {
   NSRect bounds = self.bounds;
   window_info.SetAsChild((__bridge void *)self,
                          CefRect(0, 0, (int)MAX(bounds.size.width, 1), (int)MAX(bounds.size.height, 1)));
-  CefBrowserHost::CreateBrowser(window_info, _client, self.currentURL.UTF8String, settings, nullptr,
+  CefRefPtr<CefDictionaryValue> extra_info = CefDictionaryValue::Create();
+  // Read by the renderer, in FluxHelper.
+  extra_info->SetBool("extension_popup", true);
+  CefBrowserHost::CreateBrowser(window_info, _client, self.currentURL.UTF8String, settings, extra_info,
                                 self.profile.requestContext);
 }
 
@@ -307,7 +328,6 @@ void TrackPageWindow(NSWindow *window) {
   // page behind when Flux's window goes to another workspace. They leave alone windows that don't
   // present themselves as standard windows.
   _pageNSWindow.accessibilitySubrole = NSAccessibilityUnknownSubrole;
-  TrackPageWindow(_pageNSWindow);
   NSView *rootView = _pageNSWindow.contentView;
   rootView.wantsLayer = YES;
   rootView.layer.cornerRadius = FLXPageCornerRadius;
@@ -380,6 +400,22 @@ void TrackPageWindow(NSWindow *window) {
   }
   [_pageNSWindow setFrame:frame display:YES];
   if (!_pageNSWindow.isVisible) _pageWindow->Show();
+}
+
+- (NSWindow *)pageWindow {
+  return _pageNSWindow;
+}
+
+- (void)devToolsTargetID:(void (^)(NSString *))completion {
+  if (!_browser) {
+    completion(nil);
+    return;
+  }
+  static int next_message_id = 1;
+  int message_id = next_message_id++;
+  CefRefPtr<TargetInfoObserver> observer = new TargetInfoObserver(message_id, completion);
+  observer->registration_ = _browser->GetHost()->AddDevToolsMessageObserver(observer);
+  _browser->GetHost()->ExecuteDevToolsMethod(message_id, "Target.getTargetInfo", nullptr);
 }
 
 - (void)focus {

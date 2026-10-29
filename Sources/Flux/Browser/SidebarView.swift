@@ -16,7 +16,9 @@ struct SidebarView: View {
                 .onSubmit { state.open(address) }
 
             if !state.extensionsInSelectedSpace.isEmpty {
-                ExtensionsBar(extensions: state.extensionsInSelectedSpace, profile: state.selectedProfile)
+                ExtensionsBar(extensions: state.extensionsInSelectedSpace, profile: state.selectedProfile) {
+                    state.selectedTab?.browserView
+                }
             }
 
             PinnedGrid(state: state)

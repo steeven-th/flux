@@ -1,6 +1,7 @@
 import AppKit
 
 MainActor.assumeIsolated {
+    FLXDevTools.reservePipe()
     // Chromium expects its NSApplication subclass to exist before it initializes.
     let app = FLXApplication.shared
     let database = Result { try AppDatabase(url: AppPaths.database) }

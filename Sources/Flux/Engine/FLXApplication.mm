@@ -28,6 +28,14 @@
     [self terminate:self];
     return;
   }
+  // To the user, Flux's window and its pages are one window, so a click that moves between them
+  // must act at once. AppKit would only use it to make the clicked window key.
+  if (event.type == NSEventTypeLeftMouseDown || event.type == NSEventTypeRightMouseDown) {
+    NSWindow *window = event.window;
+    if (window && !window.isKeyWindow && window.canBecomeKeyWindow && ![window isKindOfClass:NSPanel.class]) {
+      [window makeKeyWindow];
+    }
+  }
   [super sendEvent:event];
 }
 

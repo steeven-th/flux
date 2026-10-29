@@ -1,6 +1,7 @@
 #import <AppKit/AppKit.h>
 
 #import "FLXEngine+Internal.h"
+#import "FLXDevTools+Internal.h"
 #import "FLXProfile+Internal.h"
 
 #include <crt_externs.h>
@@ -96,17 +97,14 @@ class ExternalWindowClient : public CefClient, public CefLifeSpanHandler, public
     NSWindow* window = WindowOf(browser);
     HideChromiumWindow(window);
     NSString* url = ToNSString(request->GetURL());
-    if (url.length == 0 || [url hasPrefix:@"chrome://"] || [url hasPrefix:@"about:"]) {
+    // Chrome's new tab page is what Chromium shows in an empty window of its own. Other pages,
+    // Chrome's password manager included, go to Flux.
+    if (url.length == 0 || [url hasPrefix:@"chrome://newtab"] || [url hasPrefix:@"chrome://new-tab-page"] ||
+        [url hasPrefix:@"about:"]) {
       if (window) [g_windows_with_chrome_tab addObject:window];
       return false;
     }
-    if (g_external_page_handler) {
-      NSString* profile_path = ToNSString(browser->GetHost()->GetRequestContext()->GetCachePath());
-      void (^handler)(NSString*, NSString*) = g_external_page_handler;
-      dispatch_async(dispatch_get_main_queue(), ^{
-        handler(url, profile_path);
-      });
-    }
+    FLXEngineOpenExternalPage(url, browser);
     if (window && [g_windows_with_chrome_tab containsObject:window]) {
       browser->GetHost()->CloseBrowser(true);
     }
@@ -131,6 +129,21 @@ class App : public CefApp, public CefBrowserProcessHandler {
     // Chromium encrypts cookies and passwords with a Keychain item, and an ad hoc signed build
     // gets a new access prompt on every rebuild. Real Keychain storage comes with signing.
     command_line->AppendSwitch("use-mock-keychain");
+    // The browser-wide DevTools protocol, for running extension toolbar actions. The pipe was
+    // reserved at launch.
+    if (FLXDevTools.isAvailable) {
+      command_line->AppendSwitch("remote-debugging-pipe");
+      command_line->AppendSwitch("enable-unsafe-extension-debugging");
+    }
+  }
+
+  // Chromium passes --remote-debugging-pipe on to renderers, where it sets navigator.webdriver.
+  // Google sign-in then refuses the browser as automated, so that flag is turned off again.
+  void OnBeforeChildProcessLaunch(CefRefPtr<CefCommandLine> command_line) override {
+    if (command_line->GetSwitchValue("type") != "renderer") return;
+    std::string disabled = command_line->GetSwitchValue("disable-blink-features");
+    command_line->AppendSwitchWithValue(
+        "disable-blink-features", (disabled.empty() ? "" : disabled + ",") + "AutomationControlled");
   }
 
   void OnContextInitialized() override {
@@ -152,6 +165,15 @@ void FLXEngineKeepWindowVisible(NSWindow* window) {
   [g_visible_windows addObject:window];
 }
 
+void FLXEngineOpenExternalPage(NSString* url, CefRefPtr<CefBrowser> browser) {
+  if (!g_external_page_handler) return;
+  NSString* profile_path = ToNSString(browser->GetHost()->GetRequestContext()->GetCachePath());
+  void (^handler)(NSString*, NSString*) = g_external_page_handler;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    handler(url, profile_path);
+  });
+}
+
 void FLXEngineBrowserCreated(CefRefPtr<CefBrowser> browser) {
   g_browsers[browser->GetIdentifier()] = browser;
 }
@@ -159,6 +181,7 @@ void FLXEngineBrowserCreated(CefRefPtr<CefBrowser> browser) {
 void FLXEngineBrowserClosed(CefRefPtr<CefBrowser> browser) {
   g_browsers.erase(browser->GetIdentifier());
   if (g_quitting && g_browsers.empty()) {
+    FLXDevToolsHangUp();
     CefQuitMessageLoop();
   }
 }
@@ -209,6 +232,7 @@ void FLXEngineBrowserClosed(CefRefPtr<CefBrowser> browser) {
 + (void)closeAllBrowsersAndQuit {
   g_quitting = true;
   if (g_browsers.empty()) {
+    FLXDevToolsHangUp();
     CefQuitMessageLoop();
     return;
   }

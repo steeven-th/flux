@@ -26,10 +26,18 @@ Chrome's own. Each browser then uses one of two styles:
 - **Chrome style** makes the page a real Chrome tab, but only in windows created by CEF's Views
   framework, which can't be nested in an AppKit view.
 
-Pages use Chrome style. Each page lives in a borderless CEF window with no toolbar, added as a child
-window of the Flux window and kept exactly over the page area of the layout. Child windows move with
-their parent, so Flux only keeps their size and offset in sync. Alloy style is kept for pages that
-are not tabs, such as extension popups shown in Flux's own toolbar.
+Pages use Chrome style. Each page lives in a borderless CEF window, added as a child window of the
+Flux window and kept exactly over the page area of the layout. Child windows move with their parent,
+so Flux only keeps their size and offset in sync. The window has Chrome's toolbar, hidden, because
+Chromium refuses to run an extension's toolbar action without one.
+
+Alloy style is kept for pages that are not tabs, such as extension popups shown under Flux's own
+extension buttons. Chromium sees such a popup as a tab, and some extensions lay out differently in
+tabs, so Flux makes `chrome.tabs.getCurrent()` return nothing in those pages, as in a real popup.
+
+Extensions without a popup only react to a click on their toolbar button. Flux runs it through the
+browser-wide DevTools protocol (`Extensions.triggerAction`), reached over a private pipe rather
+than a network port.
 
 Chromium also opens windows of its own, for example after an extension is installed. Flux takes
 their pages as tabs and keeps those windows off screen.
@@ -52,8 +60,8 @@ their pages as tabs and keeps those windows off screen.
 ## Consequences
 
 - Sites, extensions and DevTools behave as in Chrome.
-- Focus moves to the page's window when the page is clicked, so Flux's window controls look
-  inactive. This needs handling.
+- Focus moves between the page's window and Flux's window, so Flux keeps its window looking
+  active and lets the first click in either one act at once.
 - Anything drawn over a page (overlays, previews) has to be a window above the page's window.
 - Updates follow CEF releases. The pinned version has to be bumped quickly after Chromium security
   releases.

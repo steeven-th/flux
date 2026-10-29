@@ -43,6 +43,13 @@ NS_SWIFT_UI_ACTOR
 - (void)goForward;
 - (void)reload;
 
+/// The page's own DevTools target id, which the browser-wide protocol uses to refer to it.
+- (void)devToolsTargetID:(void (^)(NSString *_Nullable targetID))completion;
+
+/// Where Chromium anchors the popup of an extension's toolbar action: the top right corner of the
+/// page, in screen coordinates. Nil for embedded pages.
+@property (nonatomic, readonly, nullable) NSWindow *pageWindow;
+
 /// Gives the keyboard to the page.
 - (void)focus;
 
