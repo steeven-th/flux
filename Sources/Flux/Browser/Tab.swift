@@ -10,6 +10,8 @@ final class Tab: NSObject, Identifiable {
     private(set) var title: String
     private(set) var favicon: NSImage?
     private(set) var isLoaded = false
+    private(set) var canGoBack = false
+    private(set) var canGoForward = false
 
     /// The stored form of the tab, kept in step with the properties above.
     @ObservationIgnored private(set) var node: SidebarNode
@@ -155,6 +157,11 @@ extension Tab: FLXBrowserViewDelegate {
 
     func browserView(_ browserView: FLXBrowserView, didOpenPage page: FLXBrowserView, disposition: FLXOpenDisposition) {
         onOpenPage?(self, page, disposition)
+    }
+
+    func browserViewDidChangeNavigationState(_ browserView: FLXBrowserView) {
+        canGoBack = browserView.canGoBack
+        canGoForward = browserView.canGoForward
     }
 
     func browserViewDidFinishLoading(_ browserView: FLXBrowserView) {

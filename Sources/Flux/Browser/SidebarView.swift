@@ -5,6 +5,7 @@ struct SidebarView: View {
     let showCommandBar: (CommandBarModel.Target) -> Void
     @State private var width: CGFloat = 0
     @State private var recentFiles = RecentFilesPresenter()
+    @State private var isHovered = false
 
     private var pinnedCount: Int {
         _ = state.sidebarRevision
@@ -12,32 +13,30 @@ struct SidebarView: View {
     }
 
     var body: some View {
-        ZStack {
-            if state.isLibraryShown {
-                LibraryView(state: state)
-                    .transition(.move(edge: .trailing))
-            } else {
-                content
-                    .transition(.move(edge: .leading))
+        VStack(spacing: 6) {
+            SidebarHeader(state: state)
+            ZStack {
+                if state.isLibraryShown {
+                    LibraryView(state: state)
+                        .transition(.move(edge: .trailing))
+                } else {
+                    content
+                        .transition(.move(edge: .leading))
+                }
             }
+            .animation(.easeInOut(duration: 0.25), value: state.isLibraryShown)
         }
-        .animation(.easeInOut(duration: 0.25), value: state.isLibraryShown)
         .padding(.horizontal, 12)
-        .padding(.top, 36)
+        .padding(.top, 2)
         .padding(.bottom, 12)
+        .onHover { isHovered = $0 }
         .onGeometryChange(for: CGFloat.self) { $0.size.width - 24 } action: { width = $0 }
     }
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 12) {
-            AddressButton(url: state.selectedTab?.url) {
+            AddressBar(state: state, isSidebarHovered: isHovered) {
                 showCommandBar(.selectedTab)
-            }
-
-            if !state.extensionsInSelectedSpace.isEmpty {
-                ExtensionsBar(extensions: state.extensionsInSelectedSpace, profile: state.selectedProfile) {
-                    state.selectedTab?.browserView
-                }
             }
 
             PinnedGrid(state: state, width: width)
@@ -78,35 +77,6 @@ struct SidebarView: View {
 
             SpaceBar(state: state, recentFiles: recentFiles)
         }
-    }
-}
-
-/// The selected tab's site. Clicking it opens the command bar to go elsewhere, like in Arc.
-private struct AddressButton: View {
-    let url: String?
-    let action: () -> Void
-
-    private var text: String {
-        guard let url else { return String(localized: "Search or Enter URL") }
-        guard let host = URL(string: url)?.host() else { return url }
-        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
-    }
-
-    var body: some View {
-        Button(action: action) {
-            HStack {
-                Text(text)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 8)
-            .frame(height: 28)
-            .background(RoundedRectangle(cornerRadius: 7).fill(.primary.opacity(0.06)))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 }
 

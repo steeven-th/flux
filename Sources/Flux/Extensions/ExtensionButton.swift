@@ -1,26 +1,12 @@
 import SwiftUI
 
-/// The icons of the selected space's extensions. Clicking one runs its action on the current page.
-struct ExtensionsBar: View {
-    let extensions: [InstalledExtension]
-    let profile: FLXProfile
-    /// The page the actions apply to.
-    let currentPage: () -> FLXBrowserView?
-
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(extensions) { item in
-                ExtensionButton(item: item, profile: profile, currentPage: currentPage)
-            }
-            Spacer(minLength: 0)
-        }
-    }
-}
-
-private struct ExtensionButton: View {
+/// An extension's icon. Clicking it runs its action on the current page.
+struct ExtensionButton: View {
     let item: InstalledExtension
     let profile: FLXProfile
+    /// The page the action applies to.
     let currentPage: () -> FLXBrowserView?
+    var size: CGFloat = 18
 
     @State private var anchor = AnchorView()
 
@@ -35,7 +21,7 @@ private struct ExtensionButton: View {
                     Image(systemName: "puzzlepiece.extension")
                 }
             }
-            .frame(width: 18, height: 18)
+            .frame(width: size, height: size)
             .padding(5)
             .contentShape(Rectangle())
         }

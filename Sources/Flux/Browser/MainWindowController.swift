@@ -11,9 +11,14 @@ final class MainWindowController: NSWindowController {
 
     private let state: BrowserState
     private let content = NSView()
-    private lazy var sidebar: NSView = NSHostingView(rootView: SidebarView(state: state) { [weak self] target in
-        self?.showCommandBar(target)
-    })
+    private lazy var sidebar: NSView = {
+        let view = NSHostingView(rootView: SidebarView(state: state) { [weak self] target in
+            self?.showCommandBar(target)
+        })
+        // The sidebar's top row sits in the title bar, next to the window buttons.
+        view.safeAreaRegions = []
+        return view
+    }()
     private let pageContainer = NSView()
     private let pageShadow = PageShadowView()
     private let resizeHandle = SidebarResizeHandle()

@@ -14,6 +14,8 @@ final class BrowserState {
     private static let warnsBeforeQuittingKey = "warnsBeforeQuitting"
     private static let fullScreenKey = "windowFullScreen"
     private static let asksWhereToSaveKey = "asksWhereToSaveDownloads"
+    private static let unpinnedExtensionsKey = "unpinnedExtensions"
+    private static let developerSitesKey = "developerSites"
     private static let archiveDelayKey = "archiveDelay"
     private static let linkTargetsOpenPeekKey = "linkTargetsOpenPeek"
     private static let shiftClickOpensPeekKey = "shiftClickOpensPeek"
@@ -32,6 +34,8 @@ final class BrowserState {
     var isArchiveShown = false
     /// Downloads and media, shown in place of the sidebar.
     var isLibraryShown = false
+    /// Bumped when a setting read from the database changes, for views showing it.
+    private(set) var settingsRevision = 0
     /// A page opened from a link, shown over the selected tab.
     private(set) var peek: Peek?
     @ObservationIgnored private var archiveTimer: Timer?
@@ -463,6 +467,55 @@ final class BrowserState {
 
     private static func asksWhereToSaveKey(forProfile folder: URL) -> String {
         "\(asksWhereToSaveKey) \(folder.lastPathComponent)"
+    }
+
+    // Extensions shown next to the address. All of them unless the user unpinned some.
+
+    var pinnedExtensionsInSelectedSpace: [InstalledExtension] {
+        let unpinned = unpinnedExtensions(forProfile: selectedSpace.profileFolder)
+        return extensionsInSelectedSpace.filter { !unpinned.contains($0.id) }
+    }
+
+    func isPinned(_ item: InstalledExtension) -> Bool {
+        !unpinnedExtensions(forProfile: selectedSpace.profileFolder).contains(item.id)
+    }
+
+    func togglePin(_ item: InstalledExtension) {
+        var unpinned = unpinnedExtensions(forProfile: selectedSpace.profileFolder)
+        if unpinned.contains(item.id) { unpinned.remove(item.id) } else { unpinned.insert(item.id) }
+        saveSet(unpinned, key: Self.unpinnedExtensionsKey, profile: selectedSpace.profileFolder)
+    }
+
+    private func unpinnedExtensions(forProfile folder: URL) -> Set<String> {
+        _ = settingsRevision
+        return loadSet(key: Self.unpinnedExtensionsKey, profile: folder)
+    }
+
+    // Developer mode is turned on for a site, in one profile.
+
+    func isDeveloperMode(for url: String) -> Bool {
+        _ = settingsRevision
+        guard let host = URL(string: url)?.host() else { return false }
+        return loadSet(key: Self.developerSitesKey, profile: selectedSpace.profileFolder).contains(host)
+    }
+
+    func setDeveloperMode(_ isOn: Bool, for url: String) {
+        guard let host = URL(string: url)?.host() else { return }
+        var sites = loadSet(key: Self.developerSitesKey, profile: selectedSpace.profileFolder)
+        if isOn { sites.insert(host) } else { sites.remove(host) }
+        saveSet(sites, key: Self.developerSitesKey, profile: selectedSpace.profileFolder)
+    }
+
+    private func loadSet(key: String, profile folder: URL) -> Set<String> {
+        guard let json = try? appDatabase.setting("\(key) \(folder.lastPathComponent)"),
+              let values = try? JSONDecoder().decode([String].self, from: Data(json.utf8)) else { return [] }
+        return Set(values)
+    }
+
+    private func saveSet(_ values: Set<String>, key: String, profile folder: URL) {
+        let json = values.isEmpty ? nil : (try? JSONEncoder().encode(values.sorted())).flatMap { String(data: $0, encoding: .utf8) }
+        save { try appDatabase.setSetting("\(key) \(folder.lastPathComponent)", to: json) }
+        settingsRevision += 1
     }
 
     func profile(ofSpace id: UUID) -> FLXProfile? {

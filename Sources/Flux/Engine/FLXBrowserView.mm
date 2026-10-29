@@ -2,6 +2,10 @@
 #import "FLXEngine+Internal.h"
 #import "FLXProfile+Internal.h"
 
+#include "include/cef_parser.h"
+#include "include/cef_ssl_status.h"
+#include "include/cef_x509_certificate.h"
+
 #include <map>
 
 #include "include/cef_client.h"
@@ -16,6 +20,7 @@
 @property (nonatomic, readonly) CefRefPtr<CefClient> cefClient;
 - (instancetype)initOpenedByPageWithURL:(NSString *)url profile:(FLXProfile *)profile;
 - (void)attachBrowser:(CefRefPtr<CefBrowser>)browser;
+- (void)setCanGoBack:(BOOL)canGoBack canGoForward:(BOOL)canGoForward;
 - (void)detachBrowser;
 - (void)pageWindowCreated:(CefRefPtr<CefWindow>)window;
 - (void)pageWindowDestroyed;
@@ -106,8 +111,10 @@ class BrowserClient : public CefClient,
 
   void OnLoadingStateChange(CefRefPtr<CefBrowser> browser, bool is_loading, bool can_go_back,
                             bool can_go_forward) override {
-    if (is_loading || !IsOwnPage(browser)) return;
+    if (!IsOwnPage(browser)) return;
     FLXBrowserView *owner = owner_;
+    [owner setCanGoBack:can_go_back canGoForward:can_go_forward];
+    if (is_loading) return;
     if ([owner.delegate respondsToSelector:@selector(browserViewDidFinishLoading:)]) {
       [owner.delegate browserViewDidFinishLoading:owner];
     }
@@ -609,7 +616,7 @@ const CGFloat FLXPageCornerRadius = 18;
 }
 
 - (void)devToolsTargetID:(void (^)(NSString *))completion {
-  [self sendDevToolsMethod:"Target.getTargetInfo" params:nullptr completion:^(NSDictionary *result) {
+  [self sendCefDevToolsMethod:"Target.getTargetInfo" params:nullptr completion:^(NSDictionary *result) {
     completion(result[@"targetInfo"][@"targetId"]);
   }];
 }
@@ -618,14 +625,14 @@ const CGFloat FLXPageCornerRadius = 18;
   CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
   params->SetString("expression", expression.UTF8String);
   params->SetBool("returnByValue", true);
-  [self sendDevToolsMethod:"Runtime.evaluate" params:params completion:^(NSDictionary *result) {
+  [self sendCefDevToolsMethod:"Runtime.evaluate" params:params completion:^(NSDictionary *result) {
     completion(result[@"result"][@"value"]);
   }];
 }
 
-- (void)sendDevToolsMethod:(const char *)method
-                    params:(CefRefPtr<CefDictionaryValue>)params
-                completion:(void (^)(NSDictionary *))completion {
+- (void)sendCefDevToolsMethod:(const char *)method
+                       params:(CefRefPtr<CefDictionaryValue>)params
+                   completion:(void (^)(NSDictionary *))completion {
   if (!_browser) {
     completion(nil);
     return;
@@ -657,6 +664,52 @@ const CGFloat FLXPageCornerRadius = 18;
 
 - (void)reload {
   if (_browser) _browser->Reload();
+}
+
+- (NSArray<NSData *> *)certificateChain {
+  if (!_browser) return @[];
+  CefRefPtr<CefNavigationEntry> entry = _browser->GetHost()->GetVisibleNavigationEntry();
+  CefRefPtr<CefSSLStatus> status = entry ? entry->GetSSLStatus() : nullptr;
+  CefRefPtr<CefX509Certificate> certificate = status ? status->GetX509Certificate() : nullptr;
+  if (!certificate) return @[];
+  NSMutableArray<NSData *> *chain = [NSMutableArray array];
+  auto append = [chain](CefRefPtr<CefBinaryValue> der) {
+    if (!der) return;
+    NSMutableData *data = [NSMutableData dataWithLength:der->GetSize()];
+    der->GetData(data.mutableBytes, data.length, 0);
+    [chain addObject:data];
+  };
+  append(certificate->GetDEREncoded());
+  CefX509Certificate::IssuerChainBinaryList issuers;
+  certificate->GetDEREncodedIssuerChain(issuers);
+  for (auto &issuer : issuers) append(issuer);
+  return chain;
+}
+
+- (void)reloadIgnoringCache {
+  if (_browser) _browser->ReloadIgnoreCache();
+}
+
+- (void)setCanGoBack:(BOOL)canGoBack canGoForward:(BOOL)canGoForward {
+  if (canGoBack == _canGoBack && canGoForward == _canGoForward) return;
+  _canGoBack = canGoBack;
+  _canGoForward = canGoForward;
+  if ([self.delegate respondsToSelector:@selector(browserViewDidChangeNavigationState:)]) {
+    [self.delegate browserViewDidChangeNavigationState:self];
+  }
+}
+
+- (void)sendDevToolsMethod:(NSString *)method
+                    params:(NSDictionary<NSString *, id> *)params
+                completion:(void (^)(NSDictionary<NSString *, id> *))completion {
+  CefRefPtr<CefDictionaryValue> values;
+  if (params) {
+    NSData *json = [NSJSONSerialization dataWithJSONObject:params options:0 error:nil];
+    NSString *text = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
+    CefRefPtr<CefValue> parsed = CefParseJSON(text.UTF8String, JSON_PARSER_RFC);
+    if (parsed) values = parsed->GetDictionary();
+  }
+  [self sendCefDevToolsMethod:method.UTF8String params:values completion:completion];
 }
 
 - (void)close {

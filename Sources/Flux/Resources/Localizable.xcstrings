@@ -141,6 +141,16 @@
         }
       }
     },
+    "Add Extensions from the Chrome Web Store" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter des extensions depuis le Chrome Web Store"
+          }
+        }
+      }
+    },
     "Add to Favorites" : {
       "localizations" : {
         "fr" : {
@@ -247,6 +257,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Annuler"
+          }
+        }
+      }
+    },
+    "Capture an Area" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capturer une zone"
+          }
+        }
+      }
+    },
+    "Capture copied and saved to Downloads" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capture copiée et enregistrée dans Téléchargements"
+          }
+        }
+      }
+    },
+    "Capture the Whole Page" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capturer toute la page"
           }
         }
       }
@@ -391,6 +431,16 @@
         }
       }
     },
+    "Copied" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copié"
+          }
+        }
+      }
+    },
     "Copy" : {
       "localizations" : {
         "fr" : {
@@ -407,6 +457,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copier l'image"
+          }
+        }
+      }
+    },
+    "Copy Link" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copier le lien"
           }
         }
       }
@@ -487,6 +547,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Supprimer « %@ » ?"
+          }
+        }
+      }
+    },
+    "Developer Mode" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode développeur"
           }
         }
       }
@@ -581,6 +651,16 @@
         }
       }
     },
+    "Extensions" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extensions"
+          }
+        }
+      }
+    },
     "Extensions…" : {
       "localizations" : {
         "fr" : {
@@ -617,6 +697,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Flux"
+          }
+        }
+      }
+    },
+    "Flux Capture %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capture Flux %@"
           }
         }
       }
@@ -707,6 +797,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Masquer dans Flux"
+          }
+        }
+      }
+    },
+    "Hide Sidebar (⌘S)" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masquer la barre latérale (⌘S)"
           }
         }
       }
@@ -971,6 +1071,16 @@
         }
       }
     },
+    "Not Secure" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non sécurisé"
+          }
+        }
+      }
+    },
     "Notifications" : {
       "localizations" : {
         "fr" : {
@@ -1091,6 +1201,16 @@
         }
       }
     },
+    "Options for This Page" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Options de cette page"
+          }
+        }
+      }
+    },
     "Password manager" : {
       "localizations" : {
         "fr" : {
@@ -1191,6 +1311,16 @@
         }
       }
     },
+    "Pin to the Address Bar" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Épingler dans la barre d'adresse"
+          }
+        }
+      }
+    },
     "Privacy and Security" : {
       "localizations" : {
         "fr" : {
@@ -1287,6 +1417,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Relancer maintenant"
+          }
+        }
+      }
+    },
+    "Reload (⌘R)" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recharger (⌘R)"
           }
         }
       }
@@ -1461,6 +1601,16 @@
         }
       }
     },
+    "Secure" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sécurisé"
+          }
+        }
+      }
+    },
     "Select All" : {
       "localizations" : {
         "fr" : {
@@ -1497,6 +1647,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Réglages…"
+          }
+        }
+      }
+    },
+    "Share" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partager"
           }
         }
       }
@@ -1551,12 +1711,32 @@
         }
       }
     },
+    "Show the Site's Certificate" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher le certificat du site"
+          }
+        }
+      }
+    },
     "Show Welcome Window" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Afficher la fenêtre d'accueil"
+          }
+        }
+      }
+    },
+    "Site Settings" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réglages du site"
           }
         }
       }
@@ -1637,6 +1817,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Les onglets d'Aujourd'hui que vous n'avez pas regardés depuis ce délai vont dans l'archive, en bas de la barre latérale."
+          }
+        }
+      }
+    },
+    "The capture failed" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La capture a échoué"
           }
         }
       }
@@ -1727,6 +1917,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Détacher"
+          }
+        }
+      }
+    },
+    "Unpin from the Address Bar" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retirer de la barre d'adresse"
           }
         }
       }

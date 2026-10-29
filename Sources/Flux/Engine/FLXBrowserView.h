@@ -32,6 +32,8 @@ NS_SWIFT_UI_ACTOR
 - (void)browserView:(FLXBrowserView *)browserView
         didOpenPage:(FLXBrowserView *)page
         disposition:(FLXOpenDisposition)disposition;
+/// Sent when going back or forward becomes possible or not.
+- (void)browserViewDidChangeNavigationState:(FLXBrowserView *)browserView;
 /// Sent each time the page has finished loading.
 - (void)browserViewDidFinishLoading:(FLXBrowserView *)browserView;
 /// Sent when the page closes itself, with window.close() for example.
@@ -65,6 +67,18 @@ NS_SWIFT_UI_ACTOR
 - (void)goBack;
 - (void)goForward;
 - (void)reload;
+- (void)reloadIgnoringCache;
+
+/// The page's certificate then the ones that issued it, DER encoded. Empty without https.
+@property (nonatomic, readonly) NSArray<NSData *> *certificateChain;
+
+@property (nonatomic, readonly) BOOL canGoBack;
+@property (nonatomic, readonly) BOOL canGoForward;
+
+/// Sends a DevTools protocol method to the page and gives back its result, nil if it failed.
+- (void)sendDevToolsMethod:(NSString *)method
+                    params:(nullable NSDictionary<NSString *, id> *)params
+                completion:(void (^)(NSDictionary<NSString *, id> *_Nullable result))completion;
 
 /// The page's own DevTools target id, which the browser-wide protocol uses to refer to it.
 - (void)devToolsTargetID:(void (^)(NSString *_Nullable targetID))completion;
