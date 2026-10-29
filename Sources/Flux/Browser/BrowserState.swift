@@ -13,6 +13,8 @@ final class BrowserState {
     private static let sidebarCollapsedKey = "sidebarCollapsed"
     private static let warnsBeforeQuittingKey = "warnsBeforeQuitting"
     private static let archiveDelayKey = "archiveDelay"
+    private static let linkTargetsOpenPeekKey = "linkTargetsOpenPeek"
+    private static let shiftClickOpensPeekKey = "shiftClickOpensPeek"
     /// Archived tabs are kept this long. The pages stay in the history after that.
     private static let archiveLifetime: TimeInterval = 30 * 86_400
     private static let logger = Logger(subsystem: "com.flux-browser.Flux", category: "storage")
@@ -25,6 +27,8 @@ final class BrowserState {
     /// Bumped when the archive changes, since it is read from the database.
     private(set) var archiveRevision = 0
     var isArchiveShown = false
+    /// A page opened from a link, shown over the selected tab.
+    private(set) var peek: Peek?
     @ObservationIgnored private var archiveTimer: Timer?
     /// Each space's selected tab, saved in its space record as well.
     private var selectedTabIDs: [UUID: UUID] = [:]
@@ -94,8 +98,8 @@ final class BrowserState {
         tab.onChange = { [weak self] tab in
             self?.save { try self?.profileDatabases[tab.spaceID]?.save(tab.node) }
         }
-        tab.onOpenPage = { [weak self] opener, page, background in
-            self?.newTab(url: page.currentURL, in: opener.spaceID, page: page, selecting: !background)
+        tab.onOpenPage = { [weak self] opener, page, disposition in
+            self?.open(page, from: opener.spaceID, disposition: disposition)
         }
         return tab
     }
@@ -338,6 +342,57 @@ final class BrowserState {
                 selectedTabIDs[tab.spaceID] = nil
             }
         }
+    }
+
+    // Peek.
+
+    /// Whether links opening a new tab, with a target or window.open, show in a Peek.
+    var linkTargetsOpenPeek: Bool {
+        get { (try? appDatabase.setting(Self.linkTargetsOpenPeekKey)) != "false" }
+        set { save { try appDatabase.setSetting(Self.linkTargetsOpenPeekKey, to: newValue ? nil : "false") } }
+    }
+
+    var shiftClickOpensPeek: Bool {
+        get { (try? appDatabase.setting(Self.shiftClickOpensPeekKey)) != "false" }
+        set { save { try appDatabase.setSetting(Self.shiftClickOpensPeekKey, to: newValue ? nil : "false") } }
+    }
+
+    /// A page opened by another one goes to a Peek, or to a tab of the same space.
+    private func open(_ page: FLXBrowserView, from spaceID: UUID, disposition: FLXOpenDisposition) {
+        let peeks = switch disposition {
+        case .linkTarget: linkTargetsOpenPeek
+        case .shiftClick: shiftClickOpensPeek
+        default: false
+        }
+        guard peeks, spaceID == selectedSpaceID else {
+            newTab(url: page.currentURL, in: spaceID, page: page, selecting: disposition != .backgroundTab)
+            return
+        }
+        closePeek()
+        let peek = Peek(page: page, spaceID: spaceID, favicon: faviconCaches[spaceID]?.image(for: page.currentURL))
+        // Links opened from a Peek become tabs: Peeks don't stack.
+        peek.onOpenPage = { [weak self] page, disposition in
+            self?.newTab(url: page.currentURL, in: spaceID, page: page, selecting: disposition != .backgroundTab)
+        }
+        peek.onClose = { [weak self, weak peek] in
+            if let peek, self?.peek === peek { self?.peek = nil }
+        }
+        self.peek = peek
+    }
+
+    func closePeek() {
+        guard let peek else { return }
+        self.peek = nil
+        peek.page.close()
+    }
+
+    /// Moves the Peek's page into a tab of Today, without loading it again.
+    func openPeekInTab() {
+        guard let peek else { return }
+        self.peek = nil
+        let tab = newTab(url: peek.url, in: peek.spaceID, page: peek.page)
+        tab.browserView(peek.page, didChangeTitle: peek.title)
+        if let favicon = peek.favicon { tab.browserView(peek.page, didChangeFavicon: favicon) }
     }
 
     // Archive. Today's tabs go there when closed, or when left unseen longer than the profile's

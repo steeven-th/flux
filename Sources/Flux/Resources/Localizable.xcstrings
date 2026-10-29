@@ -271,6 +271,16 @@
         }
       }
     },
+    "Close (⌘W)" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermer (⌘W)"
+          }
+        }
+      }
+    },
     "Close Tab" : {
       "localizations" : {
         "fr" : {
@@ -641,6 +651,16 @@
         }
       }
     },
+    "Links" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liens"
+          }
+        }
+      }
+    },
     "Manage" : {
       "localizations" : {
         "fr" : {
@@ -791,6 +811,36 @@
         }
       }
     },
+    "Open in Tab" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir dans un onglet"
+          }
+        }
+      }
+    },
+    "Open links in Peek with ⇧-click" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir les liens dans Peek avec ⇧-clic"
+          }
+        }
+      }
+    },
+    "Open links that open a new tab in Peek" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir dans Peek les liens qui ouvrent un nouvel onglet"
+          }
+        }
+      }
+    },
     "Open Location…" : {
       "localizations" : {
         "fr" : {
@@ -857,6 +907,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Moyens de paiement"
+          }
+        }
+      }
+    },
+    "Peek shows a link over the page without opening a tab. Keep it as a tab, or close it with ⌘W." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Peek affiche un lien par-dessus la page sans ouvrir d'onglet. Gardez-le en onglet ou fermez-le avec ⌘W."
           }
         }
       }
@@ -1487,6 +1547,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vos onglets vivent dans une barre latérale. Les espaces séparent vos connexions, mots de passe et extensions, et les extensions Chrome que vous utilisez fonctionnent aussi ici."
+          }
+        }
+      }
+    },
+    "⌘-click and middle-click always open a tab in the background." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le ⌘-clic et le clic molette ouvrent toujours un onglet en arrière-plan."
           }
         }
       }

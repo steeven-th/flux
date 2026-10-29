@@ -14,9 +14,11 @@ final class MainWindowController: NSWindowController {
         self?.showCommandBar(target)
     })
     private let pageContainer = NSView()
+    private let pageShadow = PageShadowView()
     private let resizeHandle = SidebarResizeHandle()
     private let revealEdge = SidebarRevealEdge()
     private var overlay: SidebarOverlayWindow?
+    private var peekPresenter: PeekPresenter?
     private var sidebarConstraints: [NSLayoutConstraint] = []
     private var pageLeading: NSLayoutConstraint!
     private var handleLeading: NSLayoutConstraint!
@@ -37,10 +39,11 @@ final class MainWindowController: NSWindowController {
         super.init(window: window)
 
         let background = NSHostingView(rootView: SpaceBackground(state: state))
-        for view in [background, pageContainer, resizeHandle, revealEdge] as [NSView] {
+        for view in [background, pageShadow, pageContainer, resizeHandle, revealEdge] as [NSView] {
             view.translatesAutoresizingMaskIntoConstraints = false
         }
         content.addSubview(background)
+        content.addSubview(pageShadow)
         content.addSubview(pageContainer)
         content.addSubview(resizeHandle)
         content.addSubview(revealEdge)
@@ -58,6 +61,10 @@ final class MainWindowController: NSWindowController {
             pageContainer.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -Self.pageMargin),
             pageContainer.topAnchor.constraint(equalTo: content.topAnchor, constant: Self.pageMargin),
             pageContainer.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -Self.pageMargin),
+            pageShadow.leadingAnchor.constraint(equalTo: pageContainer.leadingAnchor, constant: -PageShadowView.outset),
+            pageShadow.trailingAnchor.constraint(equalTo: pageContainer.trailingAnchor, constant: PageShadowView.outset),
+            pageShadow.topAnchor.constraint(equalTo: pageContainer.topAnchor, constant: -PageShadowView.outset),
+            pageShadow.bottomAnchor.constraint(equalTo: pageContainer.bottomAnchor, constant: PageShadowView.outset),
             handleLeading,
             resizeHandle.widthAnchor.constraint(equalToConstant: Self.resizeHandleWidth),
             resizeHandle.topAnchor.constraint(equalTo: content.topAnchor),
@@ -76,8 +83,13 @@ final class MainWindowController: NSWindowController {
         revealEdge.onEnter = { [weak self] in self?.showOverlay() }
         NotificationCenter.default.addObserver(forName: NSWindow.didResizeNotification, object: window, queue: .main) {
             [weak self] _ in
-            MainActor.assumeIsolated { self?.overlay?.updateFrame(self?.overlayFrame ?? .zero) }
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.overlay?.updateFrame(self.overlayFrame)
+                self.peekPresenter?.updateFrame(self.pageArea)
+            }
         }
+        peekPresenter = PeekPresenter(host: window, state: state)
 
         if state.isSidebarCollapsed {
             collapse(animated: false)
@@ -86,6 +98,7 @@ final class MainWindowController: NSWindowController {
         }
         showSelectedTab()
         observeSelectedTab()
+        observePeek()
     }
 
     @available(*, unavailable)
@@ -194,10 +207,34 @@ final class MainWindowController: NSWindowController {
         CommandBarPanel.show(target, state: state, over: window)
     }
 
+    private var pageArea: NSRect {
+        guard let window else { return .zero }
+        return window.convertToScreen(pageContainer.convert(pageContainer.bounds, to: nil))
+    }
+
+    private func observePeek() {
+        withObservationTracking {
+            _ = state.peek
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                if let peek = self.state.peek {
+                    self.peekPresenter?.show(peek, over: self.pageArea, dimming: self.state.selectedTab?.browserView)
+                } else {
+                    self.peekPresenter?.hide()
+                }
+                self.observePeek()
+            }
+        }
+    }
+
     /// Pages of other tabs stay alive. Only the selected one is in the view hierarchy.
     private func showSelectedTab() {
+        // A Peek belongs to the tab it was opened from.
+        if state.peek != nil { state.closePeek() }
         defer { if overlay?.isShown == true { showOverlay() } }
         let selected = state.selectedTab?.browserView
+        pageShadow.isHidden = selected == nil
         for view in pageContainer.subviews where view !== selected {
             view.removeFromSuperview()
         }
@@ -217,6 +254,37 @@ final class MainWindowController: NSWindowController {
                 self?.observeSelectedTab()
             }
         }
+    }
+}
+
+/// A light shadow under the page, drawn here rather than by the page's window: the system gives
+/// the key window a much larger one. Only the shadow is drawn, from the page's own shape, so
+/// nothing shows around the page's corners.
+private final class PageShadowView: NSView {
+    static let outset: CGFloat = 16
+
+    private let shadowLayer = CALayer()
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        // A layer of our own: AppKit resets the shadow of the layers it manages.
+        layer = shadowLayer
+        wantsLayer = true
+        shadowLayer.shadowColor = NSColor.black.cgColor
+        shadowLayer.shadowOpacity = 0.12
+        shadowLayer.shadowRadius = 4
+        shadowLayer.shadowOffset = CGSize(width: 0, height: -1)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not available")
+    }
+
+    override func layout() {
+        super.layout()
+        let page = bounds.insetBy(dx: Self.outset, dy: Self.outset)
+        shadowLayer.shadowPath = RoundedRectangle(cornerRadius: FLXPageCornerRadius, style: .continuous).path(in: page).cgPath
     }
 }
 

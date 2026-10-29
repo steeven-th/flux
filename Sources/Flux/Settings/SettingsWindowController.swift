@@ -27,6 +27,7 @@ final class SettingsWindowController: NSWindowController {
             self?.tabs.selectedTabViewItemIndex = 1
         }))
         tabs.addTabViewItem(Self.item("Profiles", symbol: "person.crop.circle", ProfileSettings(state: state)))
+        tabs.addTabViewItem(Self.item("Links", symbol: "rectangle.on.rectangle", LinkSettings(state: state)))
         window.center()
     }
 

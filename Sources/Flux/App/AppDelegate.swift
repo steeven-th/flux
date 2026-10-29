@@ -142,6 +142,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func closeTab(_ sender: Any?) {
+        if state?.peek != nil {
+            state?.closePeek()
+            return
+        }
         guard let state, let tab = state.selectedTab else { return }
         state.close(tab)
     }

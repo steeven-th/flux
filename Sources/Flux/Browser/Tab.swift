@@ -15,8 +15,8 @@ final class Tab: NSObject, Identifiable {
     @ObservationIgnored private(set) var node: SidebarNode
     /// Called after the URL or title changed, to save the tab.
     @ObservationIgnored var onChange: ((Tab) -> Void)?
-    /// Called when the page opens a link in a new tab, with the new page.
-    @ObservationIgnored var onOpenPage: ((Tab, FLXBrowserView, _ background: Bool) -> Void)?
+    /// Called when the page opens a link in a new tab or window, with the new page.
+    @ObservationIgnored var onOpenPage: ((Tab, FLXBrowserView, FLXOpenDisposition) -> Void)?
     @ObservationIgnored private let profile: FLXProfile
     @ObservationIgnored private let favicons: FaviconCache
     @ObservationIgnored private var loadedView: FLXBrowserView?
@@ -132,8 +132,8 @@ extension Tab: FLXBrowserViewDelegate {
         update(title: title)
     }
 
-    func browserView(_ browserView: FLXBrowserView, didOpenPage page: FLXBrowserView, inBackground background: Bool) {
-        onOpenPage?(self, page, background)
+    func browserView(_ browserView: FLXBrowserView, didOpenPage page: FLXBrowserView, disposition: FLXOpenDisposition) {
+        onOpenPage?(self, page, disposition)
     }
 
     func browserView(_ browserView: FLXBrowserView, didChangeFavicon favicon: NSImage) {

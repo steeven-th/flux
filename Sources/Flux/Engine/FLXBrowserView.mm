@@ -119,14 +119,12 @@ class BrowserClient : public CefClient,
     if (!OpensNewTab(target_disposition)) return false;
     FLXBrowserView *owner = owner_;
     if (!owner) return false;
-    if (owner.embedded || ![owner.delegate respondsToSelector:@selector(browserView:didOpenPage:inBackground:)]) {
+    if (owner.embedded || ![owner.delegate respondsToSelector:@selector(browserView:didOpenPage:disposition:)]) {
       FLXEngineOpenExternalPage(ToNSString(target_url), browser);
       return true;
     }
     FLXBrowserView *page = [[FLXBrowserView alloc] initWithURL:ToNSString(target_url) profile:owner.profile];
-    [owner.delegate browserView:owner
-                    didOpenPage:page
-                   inBackground:target_disposition == CEF_WOD_NEW_BACKGROUND_TAB];
+    [owner.delegate browserView:owner didOpenPage:page disposition:Disposition(target_disposition, false)];
     return true;
   }
 
@@ -154,14 +152,14 @@ class BrowserClient : public CefClient,
       FLXEngineOpenExternalPage(ToNSString(target_url), browser);
       return true;
     }
-    if (![owner.delegate respondsToSelector:@selector(browserView:didOpenPage:inBackground:)]) return false;
+    if (![owner.delegate respondsToSelector:@selector(browserView:didOpenPage:disposition:)]) return false;
     FLXBrowserView *page = [[FLXBrowserView alloc] initOpenedByPageWithURL:ToNSString(target_url)
                                                                    profile:owner.profile];
     client = page.cefClient;
     PendingPages()[popup_id] = page;
-    BOOL background = target_disposition == CEF_WOD_NEW_BACKGROUND_TAB;
+    FLXOpenDisposition disposition = Disposition(target_disposition, true);
     dispatch_async(dispatch_get_main_queue(), ^{
-      [owner.delegate browserView:owner didOpenPage:page inBackground:background];
+      [owner.delegate browserView:owner didOpenPage:page disposition:disposition];
     });
     return false;
   }
@@ -242,6 +240,19 @@ class BrowserClient : public CefClient,
   }
 
  private:
+  // A foreground tab asked by the page itself, rather than by a ⌘-click, comes from a link target
+  // or window.open.
+  static FLXOpenDisposition Disposition(cef_window_open_disposition_t disposition, bool from_page) {
+    switch (disposition) {
+      case CEF_WOD_NEW_BACKGROUND_TAB:
+        return FLXOpenDispositionBackgroundTab;
+      case CEF_WOD_NEW_WINDOW:
+        return FLXOpenDispositionShiftClick;
+      default:
+        return from_page ? FLXOpenDispositionLinkTarget : FLXOpenDispositionForegroundTab;
+    }
+  }
+
   static bool OpensNewTab(cef_window_open_disposition_t disposition) {
     return disposition == CEF_WOD_NEW_FOREGROUND_TAB || disposition == CEF_WOD_NEW_BACKGROUND_TAB ||
            disposition == CEF_WOD_NEW_WINDOW;
@@ -332,11 +343,12 @@ class PageViewDelegate : public CefBrowserViewDelegate {
   IMPLEMENT_REFCOUNTING(PageViewDelegate);
 };
 
-const CGFloat FLXPageCornerRadius = 10;
-
 }  // namespace
 
+const CGFloat FLXPageCornerRadius = 10;
+
 @implementation FLXBrowserView {
+  NSView *_dimView;
   CefRefPtr<BrowserClient> _client;
   CefRefPtr<CefBrowser> _browser;
   CefRefPtr<CefWindow> _pageWindow;
@@ -449,6 +461,9 @@ const CGFloat FLXPageCornerRadius = 10;
   _pageNSWindow = contentView.window;
   _pageNSWindow.opaque = NO;
   _pageNSWindow.backgroundColor = NSColor.clearColor;
+  // The system gives the key window a large shadow, which would spill over the sidebar whenever
+  // the page has focus. Flux draws a light one of its own under the page.
+  _pageNSWindow.hasShadow = NO;
   // A non-opaque window lets clicks through wherever its own backing is transparent, which is
   // everywhere here since Chromium draws the page in a layer of its own. Setting this explicitly
   // makes the whole window take clicks.
@@ -463,6 +478,26 @@ const CGFloat FLXPageCornerRadius = 10;
   rootView.layer.cornerCurve = kCACornerCurveContinuous;
   rootView.layer.masksToBounds = YES;
   [self updatePageWindow];
+}
+
+- (void)setDimmed:(BOOL)dimmed {
+  _dimmed = dimmed;
+  NSView *rootView = _pageNSWindow.contentView;
+  if (!rootView) return;
+  if (!_dimView) {
+    _dimView = [[NSView alloc] initWithFrame:rootView.bounds];
+    _dimView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    _dimView.wantsLayer = YES;
+    _dimView.layer.backgroundColor = [NSColor.blackColor colorWithAlphaComponent:0.25].CGColor;
+  }
+  if (dimmed) {
+    _dimView.frame = rootView.bounds;
+    _dimView.alphaValue = 0;
+    [rootView addSubview:_dimView positioned:NSWindowAbove relativeTo:nil];
+    _dimView.animator.alphaValue = 1;
+  } else {
+    [_dimView removeFromSuperview];
+  }
 }
 
 - (void)pageWindowDestroyed {

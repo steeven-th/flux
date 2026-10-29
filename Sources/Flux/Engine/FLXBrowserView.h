@@ -5,6 +5,20 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+/// Pages show with rounded corners. Views drawn around them follow this radius.
+FOUNDATION_EXPORT const CGFloat FLXPageCornerRadius;
+
+/// How a page asked for a new one.
+typedef NS_ENUM(NSInteger, FLXOpenDisposition) {
+  /// A ⌘-click, a middle click or a menu item asking for a tab, shown or not.
+  FLXOpenDispositionForegroundTab,
+  FLXOpenDispositionBackgroundTab,
+  /// A link with a target, or window.open without window features.
+  FLXOpenDispositionLinkTarget,
+  /// A ⇧-click, which asks Chrome for a new window.
+  FLXOpenDispositionShiftClick,
+};
+
 NS_SWIFT_UI_ACTOR
 @protocol FLXBrowserViewDelegate <NSObject>
 @optional
@@ -13,8 +27,11 @@ NS_SWIFT_UI_ACTOR
 - (void)browserView:(FLXBrowserView *)browserView didChangeFavicon:(NSImage *)favicon;
 /// Sent when automatic resizing is on and the page's content size changed.
 - (void)browserView:(FLXBrowserView *)browserView didResizeToFit:(NSSize)size;
-/// Sent when the page opens a link in a new tab. The new page is already loading in `page`.
-- (void)browserView:(FLXBrowserView *)browserView didOpenPage:(FLXBrowserView *)page inBackground:(BOOL)background;
+/// Sent when the page opens a link in a new tab or window. The new page is already loading in
+/// `page`.
+- (void)browserView:(FLXBrowserView *)browserView
+        didOpenPage:(FLXBrowserView *)page
+        disposition:(FLXOpenDisposition)disposition;
 /// Sent when the page closes itself, with window.close() for example.
 - (void)browserViewDidClose:(FLXBrowserView *)browserView;
 @end
@@ -35,6 +52,8 @@ NS_SWIFT_UI_ACTOR
 @property (nonatomic, weak, nullable) id<FLXBrowserViewDelegate> delegate;
 @property (nonatomic, readonly, strong) FLXProfile *profile;
 @property (nonatomic, readonly, copy) NSString *currentURL;
+/// Darkens the page, inside its own rounded corners, while something shows over it.
+@property (nonatomic, getter=isDimmed) BOOL dimmed;
 @property (nonatomic, readonly, copy) NSString *title;
 
 /// Makes the page size itself to its content, between the two sizes. Extension popups need this.
