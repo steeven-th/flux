@@ -9,9 +9,9 @@ final class MenuAction: NSObject {
         self.handler = handler
     }
 
-    static func item(_ title: String, _ handler: @escaping () -> Void) -> NSMenuItem {
+    static func item(_ title: LocalizedStringResource, _ handler: @escaping () -> Void) -> NSMenuItem {
         let target = MenuAction(handler)
-        let item = NSMenuItem(title: title, action: #selector(run), keyEquivalent: "")
+        let item = NSMenuItem(title: String(localized: title), action: #selector(run), keyEquivalent: "")
         item.target = target
         item.representedObject = target
         return item

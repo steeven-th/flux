@@ -35,13 +35,13 @@ final class SettingsWindowController: NSWindowController {
         fatalError("init(coder:) is not available")
     }
 
-    private static func item(_ label: String, symbol: String, _ view: some View) -> NSTabViewItem {
+    private static func item(_ label: LocalizedStringResource, symbol: String, _ view: some View) -> NSTabViewItem {
         let controller = NSHostingController(rootView: view)
         // The window takes each pane's size when it is selected.
         controller.sizingOptions = .preferredContentSize
         let item = NSTabViewItem(viewController: controller)
-        item.label = label
-        item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
+        item.label = String(localized: label)
+        item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: item.label)
         return item
     }
 }

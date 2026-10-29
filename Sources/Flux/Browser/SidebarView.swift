@@ -49,7 +49,7 @@ private struct AddressButton: View {
     let action: () -> Void
 
     private var text: String {
-        guard let url else { return "Search or Enter URL" }
+        guard let url else { return String(localized: "Search or Enter URL") }
         guard let host = URL(string: url)?.host() else { return url }
         return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }

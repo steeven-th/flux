@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Name, emoji and color of a space, for a new one or an existing one.
 struct SpaceEditor: View {
-    let title: String
+    let title: LocalizedStringKey
     let onSave: (_ name: String, _ icon: String?, _ color: String) -> Void
     let onCancel: () -> Void
 
@@ -12,7 +12,7 @@ struct SpaceEditor: View {
     @FocusState private var isEditingIcon: Bool
 
     init(
-        title: String,
+        title: LocalizedStringKey,
         space: Space?,
         onSave: @escaping (_ name: String, _ icon: String?, _ color: String) -> Void,
         onCancel: @escaping () -> Void

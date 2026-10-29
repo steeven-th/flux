@@ -51,14 +51,14 @@ struct SpaceBar: View {
             Button("Delete", role: .destructive) { state.deleteSpace(space.id) }
             Button("Cancel", role: .cancel) {}
         } message: { space in
-            Text(state.ownsProfile(space.id)
-                ? "Its tabs, sign-ins, saved passwords, history and extensions will be deleted. This can't be undone."
-                : "Its tabs will be deleted. Sign-ins and extensions stay with the other spaces using the same profile.")
+            state.ownsProfile(space.id)
+                ? Text("Its tabs, sign-ins, saved passwords, history and extensions will be deleted. This can't be undone.")
+                : Text("Its tabs will be deleted. Sign-ins and extensions stay with the other spaces using the same profile.")
         }
     }
 
     private var deleteTitle: String {
-        "Delete “\(spaceToDelete?.name ?? "")”?"
+        String(localized: "Delete “\(spaceToDelete?.name ?? "")”?")
     }
 
     private var deletingBinding: Binding<Bool> {

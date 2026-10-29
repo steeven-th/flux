@@ -5,6 +5,7 @@ options:
   deploymentTarget:
     macOS: "14.0"
   createIntermediateGroups: true
+  developmentLanguage: en
 
 packages:
   GRDB:
@@ -35,6 +36,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.flux-browser.Flux
+        SWIFT_EMIT_LOC_STRINGS: YES
+        LOCALIZATION_PREFERS_STRING_CATALOGS: YES
         SWIFT_VERSION: "6.0"
         SWIFT_OBJC_BRIDGING_HEADER: Sources/Flux/Flux-Bridging-Header.h
         CLANG_ENABLE_OBJC_ARC: YES

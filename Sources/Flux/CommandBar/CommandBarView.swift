@@ -115,9 +115,9 @@ private struct SuggestionRow: View {
 
     private var action: String {
         switch suggestion {
-        case .tab: "Switch to Tab"
-        case .page, .url: "Open"
-        case .search: "Search \(searchEngineName)"
+        case .tab: String(localized: "Switch to Tab")
+        case .page, .url: String(localized: "Open")
+        case .search: String(localized: "Search \(searchEngineName)")
         }
     }
 }

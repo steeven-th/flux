@@ -6,14 +6,14 @@ enum TabRemovalConfirmation {
     static func confirm(_ tab: Tab, state: BrowserState) -> Bool {
         guard state.confirmsTabRemoval else { return true }
         let alert = NSAlert()
-        alert.messageText = "Close “\(tab.displayTitle)”?"
+        alert.messageText = String(localized: "Close “\(tab.displayTitle)”?")
         alert.informativeText = tab.isPinned
-            ? "The tab will be removed from your pinned tabs."
-            : "The tab will be removed from your favorites."
-        alert.addButton(withTitle: "Close Tab")
-        alert.addButton(withTitle: "Cancel")
+            ? String(localized: "The tab will be removed from your pinned tabs.")
+            : String(localized: "The tab will be removed from your favorites.")
+        alert.addButton(withTitle: String(localized: "Close Tab"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
         alert.showsSuppressionButton = true
-        alert.suppressionButton?.title = "Don't ask again"
+        alert.suppressionButton?.title = String(localized: "Don't ask again")
         let confirmed = alert.runModal() == .alertFirstButtonReturn
         if confirmed, alert.suppressionButton?.state == .on {
             state.confirmsTabRemoval = false

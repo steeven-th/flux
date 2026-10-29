@@ -479,7 +479,7 @@ final class BrowserState {
         let last = entries(in: .favorites, parentID: parentID).last?.node.position
         let node = SidebarNode(
             id: UUID(), spaceID: selectedSpaceID, parentID: parentID, kind: .folder, section: .favorites,
-            position: FractionalIndex.between(last, nil), title: "New Folder", url: nil, originalURL: nil,
+            position: FractionalIndex.between(last, nil), title: String(localized: "New Folder"), url: nil, originalURL: nil,
             isExpanded: true, lastActiveAt: nil, createdAt: Date()
         )
         save { try profileDatabases[selectedSpaceID]?.save(node) }

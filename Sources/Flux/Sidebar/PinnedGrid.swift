@@ -286,7 +286,7 @@ struct PinnedGrid: NSViewRepresentable {
             }
             menu.addItem(MenuAction.item("Unload") { [weak self] in self?.state.close(tab) })
             menu.addItem(.separator())
-            let unpin = NSMenuItem(title: "Unpin", action: nil, keyEquivalent: "")
+            let unpin = NSMenuItem(title: String(localized: "Unpin"), action: nil, keyEquivalent: "")
             let submenu = NSMenu()
             submenu.addItem(MenuAction.item("Move to Favorites") { [weak self] in self?.state.moveToFavorites(tab) })
             submenu.addItem(MenuAction.item("Move to Today") { [weak self] in self?.state.moveToToday(tab) })

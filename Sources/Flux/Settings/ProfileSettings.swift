@@ -18,7 +18,7 @@ struct ProfileSettings: View {
                     HStack {
                         Text(profile.name).lineLimit(1)
                         Spacer()
-                        Text(profile.spaces.count == 1 ? "1 Space" : "\(profile.spaces.count) Spaces")
+                        Text("\(profile.spaces.count) Spaces")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -45,6 +45,7 @@ private struct ProfileDetail: View {
     let profile: BrowserState.Profile
 
     private static let customID = "custom"
+    private static let placeholder = "%s"
 
     @State private var engineID = SearchEngine.google.id
     @State private var customTemplate = ""
@@ -60,10 +61,10 @@ private struct ProfileDetail: View {
                     Text("Custom…").tag(Self.customID)
                 }
                 if engineID == Self.customID {
-                    TextField("Search URL", text: $customTemplate, prompt: Text("https://example.com/search?q=%s"))
-                    Text(isValid(customTemplate)
-                        ? "Searches go to this address, with the words in place of %s."
-                        : "Enter a web address with %s where the searched words go.")
+                    TextField("Search URL", text: $customTemplate, prompt: Text(verbatim: "https://example.com/search?q=%s"))
+                    (isValid(customTemplate)
+                        ? Text("Searches go to this address, with the words in place of \(Self.placeholder).")
+                        : Text("Enter a web address with \(Self.placeholder) where the searched words go."))
                         .font(.caption)
                         .foregroundStyle(isValid(customTemplate) ? Color.secondary : Color.red)
                 }
@@ -186,7 +187,7 @@ private struct PasswordManagerRow: View {
                 .foregroundStyle(isInstalled ? .primary : .secondary)
             Spacer()
             if isInstalled {
-                Text(installed == nil ? "Off" : "On")
+                (installed == nil ? Text("Off") : Text("On"))
                     .font(.callout)
                     .foregroundStyle(installed == nil ? Color.secondary : Color.green)
                 Button("Manage") { show(manager.manageURL) }
@@ -198,7 +199,7 @@ private struct PasswordManagerRow: View {
 }
 
 private struct ChromePageRow: View {
-    let title: String
+    let title: LocalizedStringKey
     let symbol: String
     let color: Color
     let action: () -> Void

@@ -5,6 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var state: BrowserState?
     private var windowController: MainWindowController?
     private var dialogFixer: ChromiumDialogFixer?
+    private var isRelaunching = false
     private let database: Result<AppDatabase, any Error>
 
     init(database: Result<AppDatabase, any Error>) {
@@ -20,7 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             state = try BrowserState(appDatabase: database.get())
         } catch {
             let alert = NSAlert(error: error)
-            alert.messageText = "Flux couldn't open its data"
+            alert.messageText = String(localized: "Flux couldn't open its data")
             alert.runModal()
             NSApp.terminate(nil)
             return
@@ -44,16 +45,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let state, state.warnsBeforeQuitting else { return .terminateNow }
+        guard let state, state.warnsBeforeQuitting, !isRelaunching else { return .terminateNow }
         let alert = NSAlert()
-        alert.messageText = "Quit Flux?"
-        alert.addButton(withTitle: "Quit")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = String(localized: "Quit Flux?")
+        alert.addButton(withTitle: String(localized: "Quit"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
         alert.showsSuppressionButton = true
-        alert.suppressionButton?.title = "Don't ask again"
+        alert.suppressionButton?.title = String(localized: "Don't ask again")
         guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }
         if alert.suppressionButton?.state == .on { state.warnsBeforeQuitting = false }
         return .terminateNow
+    }
+
+    /// Quits, then opens Flux again once this process has exited: Chromium keeps its profiles
+    /// locked until then.
+    func relaunch() {
+        let script = "while kill -0 \(ProcessInfo.processInfo.processIdentifier) 2>/dev/null; do sleep 0.2; done; open \"$0\""
+        let process = Process()
+        process.executableURL = URL(filePath: "/bin/sh")
+        process.arguments = ["-c", script, Bundle.main.bundlePath]
+        try? process.run()
+        isRelaunching = true
+        NSApp.terminate(nil)
     }
 
     @objc func showSettings(_ sender: Any?) {
@@ -130,7 +143,7 @@ extension AppDelegate: NSMenuDelegate, NSMenuItemValidation {
     func menuNeedsUpdate(_ menu: NSMenu) {
         guard let spaces = state?.spaces else { return }
         for item in menu.items where item.action == #selector(selectSpace(_:)) {
-            item.title = spaces.indices.contains(item.tag) ? spaces[item.tag].name : "Space \(item.tag + 1)"
+            item.title = spaces.indices.contains(item.tag) ? spaces[item.tag].name : String(localized: "Space \(item.tag + 1)")
             item.isHidden = !spaces.indices.contains(item.tag)
         }
     }

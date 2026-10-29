@@ -4,7 +4,7 @@ struct SectionHeaderRow: View {
     let section: SidebarNode.Section
 
     var body: some View {
-        Text(section == .favorites ? "Favorites" : "Today")
+        (section == .favorites ? Text("Favorites") : Text("Today"))
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -44,7 +44,7 @@ struct TabRow: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
-                .help(tab.isKept ? "Unload" : "Close")
+                .help(tab.isKept ? String(localized: "Unload") : String(localized: "Close"))
             }
         }
         .padding(.trailing, 4)
