@@ -14,18 +14,7 @@ struct SidebarView: View {
                 ExtensionsBar(extensions: state.extensionsInSelectedSpace, profile: state.selectedProfile)
             }
 
-            List(selection: selection) {
-                ForEach(state.tabsInSelectedSpace) { tab in
-                    Text(tab.displayTitle)
-                        .lineLimit(1)
-                        .tag(tab.id)
-                        .contextMenu {
-                            Button("Close Tab") { state.close(tab) }
-                        }
-                }
-            }
-            .listStyle(.sidebar)
-            .scrollContentBackground(.hidden)
+            SidebarOutline(state: state)
 
             Button {
                 state.newTab()
@@ -42,17 +31,6 @@ struct SidebarView: View {
         .onChange(of: state.selectedTab?.url, initial: true) { _, url in
             address = url ?? ""
         }
-    }
-
-    private var selection: Binding<UUID?> {
-        Binding(
-            get: { state.selectedTab?.id },
-            set: { id in
-                if let tab = state.tabs.first(where: { $0.id == id }) {
-                    state.select(tab)
-                }
-            }
-        )
     }
 }
 

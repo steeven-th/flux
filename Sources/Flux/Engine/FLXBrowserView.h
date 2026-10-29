@@ -10,6 +10,7 @@ NS_SWIFT_UI_ACTOR
 @optional
 - (void)browserView:(FLXBrowserView *)browserView didChangeURL:(NSString *)url;
 - (void)browserView:(FLXBrowserView *)browserView didChangeTitle:(NSString *)title;
+- (void)browserView:(FLXBrowserView *)browserView didChangeFavicon:(NSImage *)favicon;
 /// Sent when automatic resizing is on and the page's content size changed.
 - (void)browserView:(FLXBrowserView *)browserView didResizeToFit:(NSSize)size;
 /// Sent when the page closes itself, with window.close() for example.

@@ -49,6 +49,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state.close(tab)
     }
 
+    @objc func togglePin(_ sender: Any?) {
+        guard let state, let tab = state.selectedTab else { return }
+        state.togglePin(tab)
+    }
+
+    @objc func newFolder(_ sender: Any?) {
+        state?.createFolder()
+    }
+
     @objc func selectSpace(_ sender: NSMenuItem) {
         state?.selectSpace(at: sender.tag)
     }

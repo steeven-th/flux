@@ -22,6 +22,32 @@ NSString *ToNSString(const CefString &string) {
   return [NSString stringWithUTF8String:string.ToString().c_str()] ?: @"";
 }
 
+class FaviconCallback : public CefDownloadImageCallback {
+ public:
+  explicit FaviconCallback(FLXBrowserView *owner) : owner_(owner) {}
+
+  void OnDownloadImageFinished(const CefString &image_url,
+                               int http_status_code,
+                               CefRefPtr<CefImage> image) override {
+    FLXBrowserView *owner = owner_;
+    if (!image || image->IsEmpty() || ![owner.delegate respondsToSelector:@selector(browserView:didChangeFavicon:)]) {
+      return;
+    }
+    int width = 0;
+    int height = 0;
+    CefRefPtr<CefBinaryValue> png = image->GetAsPNG(2, true, width, height);
+    if (!png) return;
+    NSMutableData *data = [NSMutableData dataWithLength:png->GetSize()];
+    png->GetData(data.mutableBytes, data.length, 0);
+    NSImage *favicon = [[NSImage alloc] initWithData:data];
+    if (favicon) [owner.delegate browserView:owner didChangeFavicon:favicon];
+  }
+
+ private:
+  __weak FLXBrowserView *owner_;
+  IMPLEMENT_REFCOUNTING(FaviconCallback);
+};
+
 class BrowserClient : public CefClient,
                       public CefLifeSpanHandler,
                       public CefDisplayHandler,
@@ -92,6 +118,12 @@ class BrowserClient : public CefClient,
     NSString *path = [downloads URLByAppendingPathComponent:ToNSString(suggested_name)].path;
     callback->Continue(path.UTF8String, false);
     return true;
+  }
+
+  void OnFaviconURLChange(CefRefPtr<CefBrowser> browser,
+                          const std::vector<CefString> &icon_urls) override {
+    if (browser->IsPopup() || icon_urls.empty()) return;
+    browser->GetHost()->DownloadImage(icon_urls.front(), true, 64, false, new FaviconCallback(owner_));
   }
 
   void OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString &title) override {

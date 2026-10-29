@@ -26,6 +26,10 @@ struct SidebarNode: Codable, Identifiable, FetchableRecord, PersistableRecord {
     var position: String
     var title: String
     var url: String?
+    /// For pinned tabs, the page they were pinned on, which they can go back to.
+    var pinnedURL: String?
+    /// For folders.
+    var isExpanded: Bool
     var lastActiveAt: Date?
     var createdAt: Date
 }
@@ -58,6 +62,12 @@ final class ProfileDatabase: Sendable {
             }
             try db.create(index: "node_by_place", on: "node", columns: ["spaceID", "section", "parentID", "position"])
         }
+        migrator.registerMigration("v2 pinned tabs and folders") { db in
+            try db.alter(table: "node") { t in
+                t.add(column: "pinnedURL", .text)
+                t.add(column: "isExpanded", .boolean).notNull().defaults(to: true)
+            }
+        }
         return migrator
     }()
 
@@ -72,6 +82,14 @@ final class ProfileDatabase: Sendable {
 
     func save(_ node: SidebarNode) throws {
         try queue.write { db in try node.save(db) }
+    }
+
+    func save(_ nodes: [SidebarNode]) throws {
+        try queue.write { db in
+            for node in nodes {
+                try node.save(db)
+            }
+        }
     }
 
     func deleteNodes(in spaceID: UUID) throws {

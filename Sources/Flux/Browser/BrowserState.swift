@@ -12,6 +12,9 @@ final class BrowserState {
 
     private(set) var spaces: [Space] = []
     private(set) var tabs: [Tab] = []
+    private(set) var folders: [Folder] = []
+    /// Bumped whenever the sidebar's structure changes: items added, removed or moved.
+    private(set) var sidebarRevision = 0
     /// Each space's selected tab, saved in its space record as well.
     private var selectedTabIDs: [UUID: UUID] = [:]
     var selectedSpaceID: UUID {
@@ -23,6 +26,7 @@ final class BrowserState {
     @ObservationIgnored private var profiles: [UUID: FLXProfile] = [:]
     @ObservationIgnored private var profileDatabases: [UUID: ProfileDatabase] = [:]
     @ObservationIgnored private var extensionLists: [UUID: ExtensionList] = [:]
+    @ObservationIgnored private var faviconCaches: [UUID: FaviconCache] = [:]
 
     init(appDatabase: AppDatabase) throws {
         self.appDatabase = appDatabase
@@ -66,18 +70,22 @@ final class BrowserState {
         profiles[space.id] = profile
         profileDatabases[space.id] = database
         extensionLists[space.id] = ExtensionList(profileFolder: space.profileFolder)
+        faviconCaches[space.id] = FaviconCache(profileFolder: space.profileFolder)
 
-        let restored = try database.nodes(in: space.id).filter { $0.section == .today && $0.kind == .tab }
-        for node in restored {
-            tabs.append(makeTab(node, profile: profile))
+        let nodes = try database.nodes(in: space.id)
+        for node in nodes {
+            switch node.kind {
+            case .tab: tabs.append(makeTab(node))
+            case .folder: folders.append(Folder(node: node))
+            }
         }
-        if restored.isEmpty {
+        if !nodes.contains(where: { $0.kind == .tab }) {
             newTab(in: space.id)
         }
     }
 
-    private func makeTab(_ node: SidebarNode, profile: FLXProfile) -> Tab {
-        let tab = Tab(node: node, profile: profile)
+    private func makeTab(_ node: SidebarNode) -> Tab {
+        let tab = Tab(node: node, profile: profiles[node.spaceID]!, favicons: faviconCaches[node.spaceID]!)
         tab.onChange = { [weak self] tab in
             self?.save { try self?.profileDatabases[tab.spaceID]?.save(tab.node) }
         }
@@ -130,6 +138,9 @@ final class BrowserState {
         profiles[id] = nil
         profileDatabases[id] = nil
         extensionLists[id] = nil
+        faviconCaches[id] = nil
+        folders.removeAll { $0.spaceID == id }
+        sidebarRevision += 1
         if selectedSpaceID == id {
             selectedSpaceID = spaces[0].id
         }
@@ -182,28 +193,211 @@ final class BrowserState {
     @discardableResult
     func newTab(url: String = BrowserState.newTabURL, in spaceID: UUID? = nil) -> Tab {
         let spaceID = spaceID ?? selectedSpaceID
-        let last = tabs.last { $0.spaceID == spaceID }?.node.position
+        let last = entries(in: .today, parentID: nil, spaceID: spaceID).last?.node.position
         let node = SidebarNode(
             id: UUID(), spaceID: spaceID, parentID: nil, kind: .tab, section: .today,
-            position: FractionalIndex.between(last, nil), title: "", url: url,
-            lastActiveAt: Date(), createdAt: Date()
+            position: FractionalIndex.between(last, nil), title: "", url: url, pinnedURL: nil,
+            isExpanded: true, lastActiveAt: Date(), createdAt: Date()
         )
         save { try profileDatabases[spaceID]?.save(node) }
-        let tab = makeTab(node, profile: profiles[spaceID]!)
+        let tab = makeTab(node)
         tabs.append(tab)
+        sidebarRevision += 1
         select(tab)
         return tab
     }
 
+    /// A pinned tab is only unloaded, like in Arc. Other tabs go away.
     func close(_ tab: Tab) {
-        guard let index = tabs.firstIndex(of: tab) else { return }
         let wasSelected = selectedTab?.id == tab.id
-        tabs.remove(at: index)
-        tab.close()
-        save { try profileDatabases[tab.spaceID]?.delete(nodeID: tab.id) }
-        if wasSelected, let next = tabs.last(where: { $0.spaceID == tab.spaceID }) {
-            select(next)
+        if tab.isPinned {
+            tab.unload()
+        } else {
+            tabs.removeAll { $0 === tab }
+            tab.close()
+            save { try profileDatabases[tab.spaceID]?.delete(nodeID: tab.id) }
+            sidebarRevision += 1
         }
+        if wasSelected {
+            let candidates = tabs.filter { $0.spaceID == tab.spaceID && $0 !== tab && ($0.isLoaded || !$0.isPinned) }
+            if let next = candidates.max(by: { ($0.node.lastActiveAt ?? .distantPast) < ($1.node.lastActiveAt ?? .distantPast) }) {
+                select(next)
+            } else {
+                selectedTabIDs[tab.spaceID] = nil
+            }
+        }
+    }
+
+    // Sidebar tree. Folders only exist among pinned tabs.
+
+    @MainActor
+    enum SidebarEntry {
+        case tab(Tab)
+        case folder(Folder)
+
+        var id: UUID {
+            switch self {
+            case .tab(let tab): tab.id
+            case .folder(let folder): folder.id
+            }
+        }
+
+        var node: SidebarNode {
+            switch self {
+            case .tab(let tab): tab.node
+            case .folder(let folder): folder.node
+            }
+        }
+
+        var object: NSObject {
+            switch self {
+            case .tab(let tab): tab
+            case .folder(let folder): folder
+            }
+        }
+    }
+
+    func entries(in section: SidebarNode.Section, parentID: UUID?, spaceID: UUID? = nil) -> [SidebarEntry] {
+        let spaceID = spaceID ?? selectedSpaceID
+        let tabEntries = tabs
+            .filter { $0.spaceID == spaceID && $0.node.section == section && $0.node.parentID == parentID }
+            .map(SidebarEntry.tab)
+        let folderEntries = folders
+            .filter { $0.spaceID == spaceID && $0.node.section == section && $0.node.parentID == parentID }
+            .map(SidebarEntry.folder)
+        return (tabEntries + folderEntries).sorted { $0.node.position < $1.node.position }
+    }
+
+    func entry(id: UUID) -> SidebarEntry? {
+        if let tab = tabs.first(where: { $0.id == id }) { return .tab(tab) }
+        if let folder = folders.first(where: { $0.id == id }) { return .folder(folder) }
+        return nil
+    }
+
+    func togglePin(_ tab: Tab) {
+        move(.tab(tab), to: tab.isPinned ? .today : .pinned, parentID: nil, index: nil)
+    }
+
+    /// A top-level folder can hold folders two levels deep, no more.
+    static let maxFolderDepth = 2
+
+    func canMove(_ entry: SidebarEntry, to section: SidebarNode.Section, parentID: UUID?) -> Bool {
+        guard section == .pinned || parentID == nil else { return false }
+        if case .folder(let folder) = entry {
+            return section == .pinned && !isDescendant(parentID, of: folder.id) && canPlace(folder, in: parentID)
+        }
+        return true
+    }
+
+    /// Whether a folder, with everything it contains, fits under `parentID`. A nil folder stands
+    /// for a new, empty one.
+    func canPlace(_ folder: Folder?, in parentID: UUID?) -> Bool {
+        depth(of: parentID) + 1 + (folder.map(subfolderLevels) ?? 0) <= Self.maxFolderDepth
+    }
+
+    /// -1 for the top of the pinned section, 0 for a top-level folder.
+    private func depth(of folderID: UUID?) -> Int {
+        var depth = -1
+        var current = folderID
+        while let id = current {
+            depth += 1
+            current = folders.first { $0.id == id }?.node.parentID
+        }
+        return depth
+    }
+
+    private func subfolderLevels(_ folder: Folder) -> Int {
+        let children = folders.filter { $0.node.parentID == folder.id }
+        return children.map { 1 + subfolderLevels($0) }.max() ?? 0
+    }
+
+    /// Moves an entry before the item at `index` among the destination's children, or to the end
+    /// when `index` is nil. Returns false when the move isn't allowed.
+    @discardableResult
+    func move(_ entry: SidebarEntry, to section: SidebarNode.Section, parentID: UUID?, index: Int?) -> Bool {
+        guard canMove(entry, to: section, parentID: parentID) else { return false }
+
+        let siblings = entries(in: section, parentID: parentID, spaceID: entry.node.spaceID).filter { $0.id != entry.id }
+        let insertion = min(index ?? siblings.count, siblings.count)
+        let before = insertion > 0 ? siblings[insertion - 1].node.position : nil
+        let after = insertion < siblings.count ? siblings[insertion].node.position : nil
+        let position = FractionalIndex.between(before, after)
+
+        switch entry {
+        case .tab(let tab):
+            tab.place(section: section, parentID: parentID, position: position)
+            save { try profileDatabases[tab.spaceID]?.save(tab.node) }
+        case .folder(let folder):
+            folder.place(parentID: parentID, position: position)
+            save { try profileDatabases[folder.spaceID]?.save(folder.node) }
+        }
+        sidebarRevision += 1
+        return true
+    }
+
+    private func isDescendant(_ id: UUID?, of ancestorID: UUID) -> Bool {
+        var current = id
+        while let currentID = current {
+            if currentID == ancestorID { return true }
+            current = folders.first { $0.id == currentID }?.node.parentID
+        }
+        return false
+    }
+
+    @discardableResult
+    func createFolder(parentID: UUID? = nil) -> Folder? {
+        guard canPlace(nil, in: parentID) else { return nil }
+        let last = entries(in: .pinned, parentID: parentID).last?.node.position
+        let node = SidebarNode(
+            id: UUID(), spaceID: selectedSpaceID, parentID: parentID, kind: .folder, section: .pinned,
+            position: FractionalIndex.between(last, nil), title: "New Folder", url: nil, pinnedURL: nil,
+            isExpanded: true, lastActiveAt: nil, createdAt: Date()
+        )
+        save { try profileDatabases[selectedSpaceID]?.save(node) }
+        let folder = Folder(node: node)
+        folders.append(folder)
+        sidebarRevision += 1
+        folder.isEditingTitle = true
+        return folder
+    }
+
+    func rename(_ folder: Folder, to title: String) {
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        folder.isEditingTitle = false
+        guard !title.isEmpty else { return }
+        folder.rename(title)
+        save { try profileDatabases[folder.spaceID]?.save(folder.node) }
+    }
+
+    func setExpanded(_ folder: Folder, _ isExpanded: Bool) {
+        guard folder.node.isExpanded != isExpanded else { return }
+        folder.setExpanded(isExpanded)
+        save { try profileDatabases[folder.spaceID]?.save(folder.node) }
+    }
+
+    /// The folder's content moves up to where the folder was, nothing is lost.
+    func delete(_ folder: Folder) {
+        let content = entries(in: .pinned, parentID: folder.id, spaceID: folder.spaceID)
+        let siblings = entries(in: .pinned, parentID: folder.node.parentID, spaceID: folder.spaceID)
+        var before = siblings.last { $0.node.position < folder.node.position }?.node.position
+        let after = siblings.first { $0.node.position > folder.node.position }?.node.position
+        var moved: [SidebarNode] = []
+        for entry in content {
+            let position = FractionalIndex.between(before, after)
+            before = position
+            switch entry {
+            case .tab(let tab):
+                tab.place(section: .pinned, parentID: folder.node.parentID, position: position)
+                moved.append(tab.node)
+            case .folder(let child):
+                child.place(parentID: folder.node.parentID, position: position)
+                moved.append(child.node)
+            }
+        }
+        folders.removeAll { $0 === folder }
+        save { try profileDatabases[folder.spaceID]?.save(moved) }
+        save { try profileDatabases[folder.spaceID]?.delete(nodeID: folder.id) }
+        sidebarRevision += 1
     }
 
     func openSelectedTabInChromeWindow() {
