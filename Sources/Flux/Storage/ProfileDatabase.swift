@@ -34,6 +34,17 @@ struct SidebarNode: Codable, Identifiable, FetchableRecord, PersistableRecord {
     var createdAt: Date
 }
 
+/// A tab of Today that was closed or left unseen for too long.
+struct ArchivedTab: Codable, Identifiable, FetchableRecord, PersistableRecord {
+    static let databaseTableName = "archivedTab"
+
+    var id: UUID
+    var spaceID: UUID
+    var title: String
+    var url: String
+    var archivedAt: Date
+}
+
 /// Data Flux keeps for one Chromium profile, stored inside the profile's folder so that deleting
 /// the profile deletes it too.
 final class ProfileDatabase: Sendable {
@@ -78,6 +89,16 @@ final class ProfileDatabase: Sendable {
                 t.rename(column: "pinnedURL", to: "originalURL")
             }
         }
+        migrator.registerMigration("v4 archive") { db in
+            try db.create(table: "archivedTab") { t in
+                t.primaryKey("id", .blob)
+                t.column("spaceID", .blob).notNull()
+                t.column("title", .text).notNull()
+                t.column("url", .text).notNull()
+                t.column("archivedAt", .datetime).notNull()
+            }
+            try db.create(index: "archivedTab_by_space", on: "archivedTab", columns: ["spaceID", "archivedAt"])
+        }
         return migrator
     }()
 
@@ -108,5 +129,30 @@ final class ProfileDatabase: Sendable {
 
     func delete(nodeID: UUID) throws {
         _ = try queue.write { db in try SidebarNode.deleteOne(db, key: nodeID) }
+    }
+
+    func archivedTabs(in spaceID: UUID) throws -> [ArchivedTab] {
+        try queue.read { db in
+            try ArchivedTab
+                .filter(Column("spaceID") == spaceID)
+                .order(Column("archivedAt").desc)
+                .fetchAll(db)
+        }
+    }
+
+    func archive(_ tab: ArchivedTab) throws {
+        try queue.write { db in try tab.save(db) }
+    }
+
+    func deleteArchivedTab(id: UUID) throws {
+        _ = try queue.write { db in try ArchivedTab.deleteOne(db, key: id) }
+    }
+
+    func clearArchive(in spaceID: UUID) throws {
+        _ = try queue.write { db in try ArchivedTab.filter(Column("spaceID") == spaceID).deleteAll(db) }
+    }
+
+    func deleteArchivedTabs(before date: Date) throws {
+        _ = try queue.write { db in try ArchivedTab.filter(Column("archivedAt") < date).deleteAll(db) }
     }
 }

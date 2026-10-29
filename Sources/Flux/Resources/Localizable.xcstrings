@@ -51,6 +51,46 @@
         }
       }
     },
+    "12 hours" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "12 heures"
+          }
+        }
+      }
+    },
+    "24 hours" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "24 heures"
+          }
+        }
+      }
+    },
+    "30 days" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30 jours"
+          }
+        }
+      }
+    },
+    "7 days" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "7 jours"
+          }
+        }
+      }
+    },
     "A few shortcuts to start with:" : {
       "localizations" : {
         "fr" : {
@@ -77,6 +117,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tous les réglages de Chromium"
+          }
+        }
+      }
+    },
+    "Archive" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archive"
+          }
+        }
+      }
+    },
+    "Archive tabs after" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archiver les onglets après"
+          }
+        }
+      }
+    },
+    "Archived tabs can't be opened from here anymore. Their pages stay in the history." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les onglets archivés ne pourront plus être rouverts d'ici. Leurs pages restent dans l'historique."
           }
         }
       }
@@ -141,6 +211,26 @@
         }
       }
     },
+    "Clear" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vider"
+          }
+        }
+      }
+    },
+    "Clear Archive…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vider l'archive…"
+          }
+        }
+      }
+    },
     "Clear Browsing Data" : {
       "localizations" : {
         "fr" : {
@@ -157,6 +247,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Effacer les données de navigation…"
+          }
+        }
+      }
+    },
+    "Clear the archive of this space?" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vider l'archive de cet espace ?"
           }
         }
       }
@@ -511,6 +611,16 @@
         }
       }
     },
+    "Kept for 30 days" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conservée 30 jours"
+          }
+        }
+      }
+    },
     "Language" : {
       "localizations" : {
         "fr" : {
@@ -571,6 +681,16 @@
         }
       }
     },
+    "Never" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jamais"
+          }
+        }
+      }
+    },
     "New Folder" : {
       "localizations" : {
         "fr" : {
@@ -607,6 +727,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nouvel onglet"
+          }
+        }
+      }
+    },
+    "No archived tabs" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun onglet archivé"
+          }
+        }
+      }
+    },
+    "No results" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun résultat"
           }
         }
       }
@@ -871,6 +1011,16 @@
         }
       }
     },
+    "Remove from Archive" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retirer de l'archive"
+          }
+        }
+      }
+    },
     "Remove from Favorites…" : {
       "localizations" : {
         "fr" : {
@@ -917,6 +1067,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rechercher sur %@"
+          }
+        }
+      }
+    },
+    "Search Archive" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher dans l'archive"
           }
         }
       }
@@ -1021,6 +1181,16 @@
         }
       }
     },
+    "Show Archive" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher l'archive"
+          }
+        }
+      }
+    },
     "Show or hide the sidebar" : {
       "localizations" : {
         "fr" : {
@@ -1097,6 +1267,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Système"
+          }
+        }
+      }
+    },
+    "Tabs of Today you haven't looked at for this long go to the archive, at the bottom of the sidebar." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les onglets d'Aujourd'hui que vous n'avez pas regardés depuis ce délai vont dans l'archive, en bas de la barre latérale."
           }
         }
       }
@@ -1237,6 +1417,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Quel gestionnaire de mots de passe utilisez-vous ? Si ce n'est pas celui de Chromium, sa page sur le Chrome Web Store s'ouvrira à la fin pour que vous puissiez l'ajouter."
+          }
+        }
+      }
+    },
+    "Yesterday" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hier"
           }
         }
       }

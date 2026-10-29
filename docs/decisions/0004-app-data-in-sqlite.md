@@ -9,8 +9,7 @@ data that Chromium doesn't expose through CEF: spaces, the sidebar tree (folders
 favorites), open tabs, archived tabs and the downloads list. Browsing history is Chromium's own,
 see [ADR 6](0006-history-read-from-chromium.md).
 
-Archives grow over time and need fast text search. The sidebar tree changes on every
-drag and drop.
+The sidebar tree changes on every drag and drop. Archived tabs are kept for 30 days.
 
 ## Decision
 
@@ -19,7 +18,7 @@ Use SQLite through GRDB.swift.
 - One app database for global data: spaces, profiles, window state, preferences.
 - One database per profile, stored in the Chromium profile folder, for the sidebar tree, tabs and
   downloads. Removing a profile removes its folder and nothing is left behind.
-- Full text search with FTS5 for the archive.
+- The archive is small enough to be searched in memory. FTS5 is there if that changes.
 - Sibling order in the sidebar uses fractional indexing, so a move updates one row.
 
 ## Alternatives considered

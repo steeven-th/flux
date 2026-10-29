@@ -45,6 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             state?.openExternalPage(url, profilePath: profilePath)
         }
         prepare(state)
+        state.startArchiving()
         let windowController = MainWindowController(state: state)
         windowController.showWindow(nil)
         self.state = state
@@ -172,6 +173,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func showHistory(_ sender: Any?) {
         state?.showHistoryOfSelectedSpace()
+    }
+
+    @objc func showArchive(_ sender: Any?) {
+        state?.isArchiveShown = true
     }
 
     @objc func clearBrowsingData(_ sender: Any?) {

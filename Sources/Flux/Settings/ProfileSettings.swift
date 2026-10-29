@@ -48,6 +48,7 @@ private struct ProfileDetail: View {
     private static let placeholder = "%s"
 
     @State private var engineID = SearchEngine.google.id
+    @State private var archiveDelay = ArchiveDelay.standard
     @State private var customTemplate = ""
 
     var body: some View {
@@ -73,6 +74,17 @@ private struct ProfileDetail: View {
                let extensions = state.extensionList(forProfile: profile.folder) {
                 PasswordsSection(passwords: passwords, extensions: extensions, show: show)
             }
+            Section {
+                Picker("Archive tabs after", selection: $archiveDelay) {
+                    ForEach(ArchiveDelay.allCases) { delay in
+                        Text(delay.name).tag(delay)
+                    }
+                }
+            } footer: {
+                Text("Tabs of Today you haven't looked at for this long go to the archive, at the bottom of the sidebar.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Section("Your Data and Settings") {
                 ChromePageRow(title: "Privacy and Security", symbol: "lock.fill", color: .blue) {
                     show("chrome://settings/privacy")
@@ -97,6 +109,7 @@ private struct ProfileDetail: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .onAppear {
+            archiveDelay = state.archiveDelay(forProfile: profile.folder)
             let engine = state.searchEngine(forProfile: profile.folder)
             if SearchEngine.all.contains(engine) {
                 engineID = engine.id
@@ -106,6 +119,7 @@ private struct ProfileDetail: View {
             }
         }
         .onChange(of: engineID) { save() }
+        .onChange(of: archiveDelay) { state.setArchiveDelay(archiveDelay, forProfile: profile.folder) }
         .onChange(of: customTemplate) { save() }
     }
 

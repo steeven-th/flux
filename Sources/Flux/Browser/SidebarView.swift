@@ -27,10 +27,24 @@ struct SidebarView: View {
 
             SidebarOutline(state: state)
 
-            Button {
-                showCommandBar(.newTab)
-            } label: {
-                Label("New Tab", systemImage: "plus")
+            HStack {
+                Button {
+                    showCommandBar(.newTab)
+                } label: {
+                    Label("New Tab", systemImage: "plus")
+                }
+                Spacer()
+                Button {
+                    state.isArchiveShown.toggle()
+                } label: {
+                    Image(systemName: "archivebox")
+                        .frame(width: 22, height: 22)
+                        .contentShape(Rectangle())
+                }
+                .help("Archive")
+                .popover(isPresented: $state.isArchiveShown, arrowEdge: .top) {
+                    ArchiveView(state: state)
+                }
             }
             .buttonStyle(.borderless)
 

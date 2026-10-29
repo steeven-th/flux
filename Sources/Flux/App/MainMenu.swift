@@ -38,6 +38,7 @@ enum MainMenu {
         ]))
         menu.addItem(submenu(title: String(localized: "History"), items: [
             NSMenuItem(title: String(localized: "Show All History"), action: #selector(AppDelegate.showHistory(_:)), keyEquivalent: "y"),
+            shifted(NSMenuItem(title: String(localized: "Show Archive"), action: #selector(AppDelegate.showArchive(_:)), keyEquivalent: "a")),
             shifted(NSMenuItem(
                 title: String(localized: "Clear Browsing Data…"), action: #selector(AppDelegate.clearBrowsingData(_:)), keyEquivalent: "\u{8}"
             )),

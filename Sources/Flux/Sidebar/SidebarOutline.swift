@@ -151,7 +151,17 @@ struct SidebarOutline: NSViewRepresentable {
             case let section as SectionItem:
                 row = AnyView(SectionHeaderRow(section: section.section))
             case let tab as Tab:
-                row = AnyView(TabRow(tab: tab) { [weak self] in self?.state.close(tab) })
+                row = AnyView(TabRow(tab: tab) { [weak self] in
+                    self?.state.unload(tab)
+                } onClose: { [weak self] in
+                    guard let self else { return }
+                    if tab.isKept {
+                        guard TabRemovalConfirmation.confirm(tab, state: self.state) else { return }
+                        self.state.remove(tab)
+                    } else {
+                        self.state.close(tab)
+                    }
+                })
             case let folder as Folder:
                 row = AnyView(FolderRow(folder: folder) { [weak self] title in
                     self?.state.rename(folder, to: title)
@@ -269,6 +279,9 @@ struct SidebarOutline: NSViewRepresentable {
                         self.state.remove(tab)
                     })
                 } else {
+                    if tab.isLoaded {
+                        menu.addItem(MenuAction.item("Unload Tab") { [weak self] in self?.state.unload(tab) })
+                    }
                     menu.addItem(MenuAction.item("Close Tab") { [weak self] in self?.state.close(tab) })
                 }
             case let folder as Folder:

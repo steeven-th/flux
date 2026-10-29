@@ -88,6 +88,8 @@ final class Tab: NSObject, Identifiable {
     func place(section: SidebarNode.Section, parentID: UUID?, position: String) {
         if section == .today {
             node.originalURL = nil
+            // Counts as seen now, or a tab kept long ago would be archived right away.
+            if node.section != .today { node.lastActiveAt = Date() }
         } else if node.section == .today {
             node.originalURL = url
         }

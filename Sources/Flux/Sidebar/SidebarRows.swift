@@ -11,8 +11,10 @@ struct SectionHeaderRow: View {
     }
 }
 
+/// A loaded tab shows a button that unloads it. Once unloaded, the button closes it.
 struct TabRow: View {
     let tab: Tab
+    let onUnload: () -> Void
     let onClose: () -> Void
 
     @State private var isHovered = false
@@ -31,20 +33,20 @@ struct TabRow: View {
             Text(tab.displayTitle)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                // Arc dims kept tabs whose page isn't loaded.
-                .opacity(tab.isKept && !tab.isLoaded ? 0.6 : 1)
+                // Arc dims tabs whose page isn't loaded.
+                .opacity(tab.isLoaded ? 1 : 0.6)
 
             Spacer(minLength: 0)
 
             if isHovered {
-                Button(action: onClose) {
-                    Image(systemName: tab.isKept ? "minus" : "xmark")
+                Button(action: tab.isLoaded ? onUnload : onClose) {
+                    Image(systemName: tab.isLoaded ? "minus" : "xmark")
                         .font(.system(size: 10, weight: .semibold))
                         .frame(width: 18, height: 18)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
-                .help(tab.isKept ? String(localized: "Unload") : String(localized: "Close"))
+                .help(tab.isLoaded ? String(localized: "Unload") : String(localized: "Close"))
             }
         }
         .padding(.trailing, 4)

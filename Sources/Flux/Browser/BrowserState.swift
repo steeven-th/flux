@@ -12,6 +12,9 @@ final class BrowserState {
     private static let sidebarWidthKey = "sidebarWidth"
     private static let sidebarCollapsedKey = "sidebarCollapsed"
     private static let warnsBeforeQuittingKey = "warnsBeforeQuitting"
+    private static let archiveDelayKey = "archiveDelay"
+    /// Archived tabs are kept this long. The pages stay in the history after that.
+    private static let archiveLifetime: TimeInterval = 30 * 86_400
     private static let logger = Logger(subsystem: "com.flux-browser.Flux", category: "storage")
 
     private(set) var spaces: [Space] = []
@@ -19,6 +22,10 @@ final class BrowserState {
     private(set) var folders: [Folder] = []
     /// Bumped whenever the sidebar's structure changes: items added, removed or moved.
     private(set) var sidebarRevision = 0
+    /// Bumped when the archive changes, since it is read from the database.
+    private(set) var archiveRevision = 0
+    var isArchiveShown = false
+    @ObservationIgnored private var archiveTimer: Timer?
     /// Each space's selected tab, saved in its space record as well.
     private var selectedTabIDs: [UUID: UUID] = [:]
     var selectedSpaceID: UUID {
@@ -153,6 +160,7 @@ final class BrowserState {
             save { try appDatabase.scheduleDeletion(ofProfileFolder: record.profileFolder) }
         } else {
             save { try database?.deleteNodes(in: id) }
+            save { try database?.clearArchive(in: id) }
         }
     }
 
@@ -304,11 +312,19 @@ final class BrowserState {
         close(tab, removing: true)
     }
 
+    /// Frees the page's memory. The tab stays in the sidebar and loads again when shown.
+    func unload(_ tab: Tab) {
+        close(tab, removing: false)
+    }
+
     private func close(_ tab: Tab, removing: Bool) {
         let wasSelected = selectedTab?.id == tab.id
         if !removing {
             tab.unload()
         } else {
+            if tab.node.section == .today {
+                archive(tab)
+            }
             tabs.removeAll { $0 === tab }
             tab.close()
             save { try profileDatabases[tab.spaceID]?.delete(nodeID: tab.id) }
@@ -322,6 +338,71 @@ final class BrowserState {
                 selectedTabIDs[tab.spaceID] = nil
             }
         }
+    }
+
+    // Archive. Today's tabs go there when closed, or when left unseen longer than the profile's
+    // archive delay.
+
+    func archiveDelay(forProfile folder: URL) -> ArchiveDelay {
+        (try? appDatabase.setting(Self.archiveDelayKey(forProfile: folder))).flatMap(ArchiveDelay.init) ?? .standard
+    }
+
+    func setArchiveDelay(_ delay: ArchiveDelay, forProfile folder: URL) {
+        save { try appDatabase.setSetting(Self.archiveDelayKey(forProfile: folder), to: delay.rawValue) }
+        archiveInactiveTabs()
+    }
+
+    private static func archiveDelayKey(forProfile folder: URL) -> String {
+        "\(archiveDelayKey) \(folder.lastPathComponent)"
+    }
+
+    /// Archives inactive tabs now, then every 15 minutes.
+    func startArchiving() {
+        archiveInactiveTabs()
+        archiveTimer = Timer.scheduledTimer(withTimeInterval: 15 * 60, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.archiveInactiveTabs() }
+        }
+    }
+
+    private func archiveInactiveTabs() {
+        let now = Date()
+        for space in spaces {
+            save { try profileDatabases[space.id]?.deleteArchivedTabs(before: now.addingTimeInterval(-Self.archiveLifetime)) }
+            guard let interval = archiveDelay(forProfile: space.profileFolder).interval else { continue }
+            let inactive = tabs.filter { tab in
+                tab.spaceID == space.id && tab.node.section == .today && tab.id != selectedTabIDs[space.id]
+                    && (tab.node.lastActiveAt ?? tab.node.createdAt) < now.addingTimeInterval(-interval)
+            }
+            inactive.forEach(remove)
+        }
+    }
+
+    private func archive(_ tab: Tab) {
+        guard !tab.url.isEmpty else { return }
+        let archived = ArchivedTab(id: UUID(), spaceID: tab.spaceID, title: tab.title, url: tab.url, archivedAt: Date())
+        save { try profileDatabases[tab.spaceID]?.archive(archived) }
+        archiveRevision += 1
+    }
+
+    var archivedTabsInSelectedSpace: [ArchivedTab] {
+        _ = archiveRevision
+        return (try? profileDatabases[selectedSpaceID]?.archivedTabs(in: selectedSpaceID)) ?? []
+    }
+
+    /// Opens the tab again in Today and takes it out of the archive.
+    func restore(_ archived: ArchivedTab) {
+        newTab(url: archived.url, in: archived.spaceID)
+        deleteFromArchive(archived)
+    }
+
+    func deleteFromArchive(_ archived: ArchivedTab) {
+        save { try profileDatabases[archived.spaceID]?.deleteArchivedTab(id: archived.id) }
+        archiveRevision += 1
+    }
+
+    func clearArchiveOfSelectedSpace() {
+        save { try profileDatabases[selectedSpaceID]?.clearArchive(in: selectedSpaceID) }
+        archiveRevision += 1
     }
 
     // Sidebar tree. Folders only exist among favorites.
