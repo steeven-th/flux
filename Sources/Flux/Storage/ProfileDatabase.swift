@@ -32,6 +32,8 @@ struct SidebarNode: Codable, Identifiable, FetchableRecord, PersistableRecord {
     var isExpanded: Bool
     var lastActiveAt: Date?
     var createdAt: Date
+    /// How far the page at `url` was scrolled, to put it back there when it loads again.
+    var scrollY: Double?
 }
 
 /// A tab of Today that was closed or left unseen for too long.
@@ -98,6 +100,11 @@ final class ProfileDatabase: Sendable {
                 t.column("archivedAt", .datetime).notNull()
             }
             try db.create(index: "archivedTab_by_space", on: "archivedTab", columns: ["spaceID", "archivedAt"])
+        }
+        migrator.registerMigration("v5 scroll position") { db in
+            try db.alter(table: "node") { t in
+                t.add(column: "scrollY", .double)
+            }
         }
         return migrator
     }()

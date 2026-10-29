@@ -7,6 +7,7 @@ final class MainWindowController: NSWindowController {
     private static let sidebarWidths: ClosedRange<CGFloat> = 200...480
     private static let pageMargin: CGFloat = 8
     private static let resizeHandleWidth: CGFloat = 6
+    private static let frameName = "MainWindow"
 
     private let state: BrowserState
     private let content = NSView()
@@ -35,7 +36,10 @@ final class MainWindowController: NSWindowController {
         )
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.center()
+        // AppKit saves the window's size and place as it changes, and moves it back on screen if
+        // that screen is gone.
+        if !window.setFrameUsingName(Self.frameName) { window.center() }
+        window.setFrameAutosaveName(Self.frameName)
         super.init(window: window)
 
         let background = NSHostingView(rootView: SpaceBackground(state: state))
@@ -90,6 +94,12 @@ final class MainWindowController: NSWindowController {
             }
         }
         peekPresenter = PeekPresenter(host: window, state: state)
+        let center = NotificationCenter.default
+        for (name, isFullScreen) in [(NSWindow.didEnterFullScreenNotification, true), (NSWindow.didExitFullScreenNotification, false)] {
+            center.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.state.isWindowFullScreen = isFullScreen }
+            }
+        }
 
         if state.isSidebarCollapsed {
             collapse(animated: false)

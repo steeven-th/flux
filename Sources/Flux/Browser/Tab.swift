@@ -20,6 +20,8 @@ final class Tab: NSObject, Identifiable {
     @ObservationIgnored private let profile: FLXProfile
     @ObservationIgnored private let favicons: FaviconCache
     @ObservationIgnored private var loadedView: FLXBrowserView?
+    /// Where the page was scrolled before Flux quit or the tab was unloaded, until it has loaded.
+    @ObservationIgnored private var scrollToRestore: Double?
 
     /// `page` is a page already created, opened by another tab.
     init(node: SidebarNode, profile: FLXProfile, favicons: FaviconCache, page: FLXBrowserView? = nil) {
@@ -46,6 +48,7 @@ final class Tab: NSObject, Identifiable {
         }
         let view = FLXBrowserView(url: url, profile: profile)
         view.delegate = self
+        scrollToRestore = node.scrollY
         loadedView = view
         isLoaded = true
         return view
@@ -98,11 +101,28 @@ final class Tab: NSObject, Identifiable {
         node.position = position
     }
 
-    /// Frees the page's memory. The tab stays and loads again when shown.
+    /// Frees the page's memory. The tab stays and loads again when shown, where it was scrolled.
     func unload() {
-        loadedView?.close()
+        guard let view = loadedView else { return }
         loadedView = nil
         isLoaded = false
+        saveScrollPosition(of: view) { view.close() }
+    }
+
+    func saveScrollPosition(completion: @escaping () -> Void = {}) {
+        guard let loadedView else { return completion() }
+        saveScrollPosition(of: loadedView, completion: completion)
+    }
+
+    private func saveScrollPosition(of view: FLXBrowserView, completion: @escaping () -> Void) {
+        let url = url
+        view.evaluateJavaScript("window.scrollY") { [weak self] value in
+            if let self, self.url == url, let y = value as? Double {
+                self.node.scrollY = y > 0 ? y : nil
+                self.onChange?(self)
+            }
+            completion()
+        }
     }
 
     func close() {
@@ -111,6 +131,7 @@ final class Tab: NSObject, Identifiable {
 
     private func update(url: String? = nil, title: String? = nil) {
         if let url {
+            if url != node.url { node.scrollY = nil }
             self.url = url
             node.url = url
             favicon = favicons.image(for: url) ?? favicon
@@ -134,6 +155,12 @@ extension Tab: FLXBrowserViewDelegate {
 
     func browserView(_ browserView: FLXBrowserView, didOpenPage page: FLXBrowserView, disposition: FLXOpenDisposition) {
         onOpenPage?(self, page, disposition)
+    }
+
+    func browserViewDidFinishLoading(_ browserView: FLXBrowserView) {
+        guard let y = scrollToRestore else { return }
+        scrollToRestore = nil
+        browserView.evaluateJavaScript("window.scrollTo(0, \(y))") { _ in }
     }
 
     func browserView(_ browserView: FLXBrowserView, didChangeFavicon favicon: NSImage) {

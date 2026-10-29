@@ -32,6 +32,8 @@ NS_SWIFT_UI_ACTOR
 - (void)browserView:(FLXBrowserView *)browserView
         didOpenPage:(FLXBrowserView *)page
         disposition:(FLXOpenDisposition)disposition;
+/// Sent each time the page has finished loading.
+- (void)browserViewDidFinishLoading:(FLXBrowserView *)browserView;
 /// Sent when the page closes itself, with window.close() for example.
 - (void)browserViewDidClose:(FLXBrowserView *)browserView;
 @end
@@ -73,6 +75,10 @@ NS_SWIFT_UI_ACTOR
 
 /// Gives the keyboard to the page.
 - (void)focus;
+
+/// Runs `expression` in the page's main frame and gives back its value, nil if it failed or
+/// returned nothing that converts to JSON.
+- (void)evaluateJavaScript:(NSString *)expression completion:(void (^)(id _Nullable value))completion;
 
 /// Closes the page for good. The view can't be reused afterwards.
 - (void)close;

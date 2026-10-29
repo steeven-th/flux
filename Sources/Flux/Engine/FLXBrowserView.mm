@@ -53,33 +53,33 @@ class FaviconCallback : public CefDownloadImageCallback {
   IMPLEMENT_REFCOUNTING(FaviconCallback);
 };
 
-class TargetInfoObserver : public CefDevToolsMessageObserver {
+// The result of one DevTools method sent to a page, nil if it failed.
+class MethodResultObserver : public CefDevToolsMessageObserver {
  public:
-  TargetInfoObserver(int message_id, void (^completion)(NSString *))
+  MethodResultObserver(int message_id, void (^completion)(NSDictionary *))
       : message_id_(message_id), completion_([completion copy]) {}
 
   void OnDevToolsMethodResult(CefRefPtr<CefBrowser> browser, int message_id, bool success,
                               const void *result, size_t result_size) override {
     if (message_id != message_id_ || !completion_) return;
-    NSString *target = nil;
+    NSDictionary *json = nil;
     if (success) {
-      NSDictionary *json = [NSJSONSerialization JSONObjectWithData:[NSData dataWithBytes:result length:result_size]
-                                                           options:0
-                                                             error:nil];
-      target = json[@"targetInfo"][@"targetId"];
+      json = [NSJSONSerialization JSONObjectWithData:[NSData dataWithBytes:result length:result_size]
+                                             options:0
+                                               error:nil];
     }
-    void (^completion)(NSString *) = completion_;
+    void (^completion)(NSDictionary *) = completion_;
     completion_ = nil;
     registration_ = nullptr;
-    completion(target);
+    completion(json);
   }
 
   CefRefPtr<CefRegistration> registration_;
 
  private:
   int message_id_;
-  void (^completion_)(NSString *);
-  IMPLEMENT_REFCOUNTING(TargetInfoObserver);
+  void (^completion_)(NSDictionary *);
+  IMPLEMENT_REFCOUNTING(MethodResultObserver);
 };
 
 // Pages opened in a new tab, between the request and the creation of their view, by popup id.
@@ -92,7 +92,8 @@ class BrowserClient : public CefClient,
                       public CefLifeSpanHandler,
                       public CefDisplayHandler,
                       public CefDownloadHandler,
-                      public CefRequestHandler {
+                      public CefRequestHandler,
+                      public CefLoadHandler {
  public:
   BrowserClient(FLXBrowserView *owner, bool opened_by_page) : owner_(owner), opened_by_page_(opened_by_page) {}
 
@@ -100,6 +101,16 @@ class BrowserClient : public CefClient,
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
   CefRefPtr<CefDownloadHandler> GetDownloadHandler() override { return this; }
   CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
+  CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
+
+  void OnLoadingStateChange(CefRefPtr<CefBrowser> browser, bool is_loading, bool can_go_back,
+                            bool can_go_forward) override {
+    if (is_loading || !IsOwnPage(browser)) return;
+    FLXBrowserView *owner = owner_;
+    if ([owner.delegate respondsToSelector:@selector(browserViewDidFinishLoading:)]) {
+      [owner.delegate browserViewDidFinishLoading:owner];
+    }
+  }
 
   void OnAfterCreated(CefRefPtr<CefBrowser> browser) override {
     FLXEngineBrowserCreated(browser);
@@ -575,15 +586,32 @@ const CGFloat FLXPageCornerRadius = 18;
 }
 
 - (void)devToolsTargetID:(void (^)(NSString *))completion {
+  [self sendDevToolsMethod:"Target.getTargetInfo" params:nullptr completion:^(NSDictionary *result) {
+    completion(result[@"targetInfo"][@"targetId"]);
+  }];
+}
+
+- (void)evaluateJavaScript:(NSString *)expression completion:(void (^)(id))completion {
+  CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
+  params->SetString("expression", expression.UTF8String);
+  params->SetBool("returnByValue", true);
+  [self sendDevToolsMethod:"Runtime.evaluate" params:params completion:^(NSDictionary *result) {
+    completion(result[@"result"][@"value"]);
+  }];
+}
+
+- (void)sendDevToolsMethod:(const char *)method
+                    params:(CefRefPtr<CefDictionaryValue>)params
+                completion:(void (^)(NSDictionary *))completion {
   if (!_browser) {
     completion(nil);
     return;
   }
   static int next_message_id = 1;
   int message_id = next_message_id++;
-  CefRefPtr<TargetInfoObserver> observer = new TargetInfoObserver(message_id, completion);
+  CefRefPtr<MethodResultObserver> observer = new MethodResultObserver(message_id, completion);
   observer->registration_ = _browser->GetHost()->AddDevToolsMessageObserver(observer);
-  _browser->GetHost()->ExecuteDevToolsMethod(message_id, "Target.getTargetInfo", nullptr);
+  _browser->GetHost()->ExecuteDevToolsMethod(message_id, method, params);
 }
 
 - (void)focus {

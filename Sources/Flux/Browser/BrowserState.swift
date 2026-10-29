@@ -12,6 +12,7 @@ final class BrowserState {
     private static let sidebarWidthKey = "sidebarWidth"
     private static let sidebarCollapsedKey = "sidebarCollapsed"
     private static let warnsBeforeQuittingKey = "warnsBeforeQuitting"
+    private static let fullScreenKey = "windowFullScreen"
     private static let archiveDelayKey = "archiveDelay"
     private static let linkTargetsOpenPeekKey = "linkTargetsOpenPeek"
     private static let shiftClickOpensPeekKey = "shiftClickOpensPeek"
@@ -31,9 +32,11 @@ final class BrowserState {
     /// A page opened from a link, shown over the selected tab.
     private(set) var peek: Peek?
     @ObservationIgnored private var archiveTimer: Timer?
+    @ObservationIgnored private var scrollTimer: Timer?
     /// Each space's selected tab, saved in its space record as well.
     private var selectedTabIDs: [UUID: UUID] = [:]
     var selectedSpaceID: UUID {
+        willSet { selectedTab?.saveScrollPosition() }
         didSet { save { try appDatabase.setSetting(Self.selectedSpaceKey, to: selectedSpaceID.uuidString) } }
     }
 
@@ -212,6 +215,11 @@ final class BrowserState {
         set { save { try appDatabase.setSetting(Self.sidebarCollapsedKey, to: newValue ? "true" : nil) } }
     }
 
+    var isWindowFullScreen: Bool {
+        get { (try? appDatabase.setting(Self.fullScreenKey)) == "true" }
+        set { save { try appDatabase.setSetting(Self.fullScreenKey, to: newValue ? "true" : nil) } }
+    }
+
     var warnsBeforeQuitting: Bool {
         get { (try? appDatabase.setting(Self.warnsBeforeQuittingKey)) == "true" }
         set { save { try appDatabase.setSetting(Self.warnsBeforeQuittingKey, to: newValue ? "true" : nil) } }
@@ -275,6 +283,7 @@ final class BrowserState {
 
     func select(_ tab: Tab) {
         guard selectedTabIDs[tab.spaceID] != tab.id else { return }
+        selectedTab?.saveScrollPosition()
         selectedTabIDs[tab.spaceID] = tab.id
         if var record = spaceRecords[tab.spaceID] {
             record.selectedTabID = tab.id
@@ -341,6 +350,17 @@ final class BrowserState {
                 select(next)
             } else {
                 selectedTabIDs[tab.spaceID] = nil
+            }
+        }
+    }
+
+    /// Saves where the page shown is scrolled every few seconds. Pages answer asynchronously, so
+    /// Flux can't ask them when it quits, or when it crashes.
+    func startSavingScrollPositions() {
+        scrollTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard NSApp.isActive else { return }
+                self?.selectedTab?.saveScrollPosition()
             }
         }
     }

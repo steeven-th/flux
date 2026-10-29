@@ -48,8 +48,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         prepare(state)
         state.startArchiving()
+        state.startSavingScrollPositions()
         let windowController = MainWindowController(state: state)
         windowController.showWindow(nil)
+        if state.isWindowFullScreen { windowController.window?.toggleFullScreen(nil) }
         self.state = state
         self.windowController = windowController
         let urls = pendingURLs
@@ -130,15 +132,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let state, state.warnsBeforeQuitting, !isRelaunching else { return .terminateNow }
+        return confirmQuit(state) ? .terminateNow : .terminateCancel
+    }
+
+    private func confirmQuit(_ state: BrowserState) -> Bool {
         let alert = NSAlert()
         alert.messageText = String(localized: "Quit Flux?")
         alert.addButton(withTitle: String(localized: "Quit"))
         alert.addButton(withTitle: String(localized: "Cancel"))
         alert.showsSuppressionButton = true
         alert.suppressionButton?.title = String(localized: "Don't ask again")
-        guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }
+        guard alert.runModal() == .alertFirstButtonReturn else { return false }
         if alert.suppressionButton?.state == .on { state.warnsBeforeQuitting = false }
-        return .terminateNow
+        return true
+    }
+
+    func applicationDidResignActive(_ notification: Notification) {
+        state?.selectedTab?.saveScrollPosition()
     }
 
     /// Quits, then opens Flux again once this process has exited: Chromium keeps its profiles
