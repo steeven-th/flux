@@ -70,7 +70,7 @@ final class BrowserState {
         selectedTabIDs[space.id] = record.selectedTabID
         profiles[space.id] = profile
         profileDatabases[space.id] = database
-        extensionLists[space.id] = ExtensionList(profileFolder: space.profileFolder)
+        extensionLists[space.id] = ExtensionList(profile: profile, profileFolder: space.profileFolder)
         faviconCaches[space.id] = FaviconCache(profileFolder: space.profileFolder)
 
         let nodes = try database.nodes(in: space.id)
@@ -442,8 +442,13 @@ final class BrowserState {
         selectedProfile.showChromeWindow(withURL: tab.url, title: "Chrome - \(selectedSpace.name)")
     }
 
+    /// Chromium's extension manager, in a tab of the selected space: each space has its own.
     func showExtensionsOfSelectedSpace() {
-        selectedProfile.showExtensionsWindow(withTitle: "Extensions - \(selectedSpace.name)")
+        if let tab = tabsInSelectedSpace.first(where: { $0.url.hasPrefix("chrome://extensions") }) {
+            select(tab)
+        } else {
+            newTab(url: "chrome://extensions")
+        }
     }
 
     /// Opens a page Chromium wanted to show in a window of its own, as a tab of a space using that

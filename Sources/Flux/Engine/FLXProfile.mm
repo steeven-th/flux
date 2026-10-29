@@ -7,6 +7,7 @@
 #include "include/views/cef_window.h"
 
 @interface FLXProfile ()
+- (nullable id)preferenceValue:(NSString *)name;
 - (void)didFinishLoading;
 - (void)releaseRequestContext;
 @end
@@ -100,12 +101,64 @@ class ExtensionsWindowDelegate : public CefWindowDelegate {
   IMPLEMENT_REFCOUNTING(ExtensionsWindowDelegate);
 };
 
+id FoundationValue(CefRefPtr<CefValue> value) {
+  if (!value) return nil;
+  switch (value->GetType()) {
+    case VTYPE_BOOL:
+      return @(value->GetBool());
+    case VTYPE_INT:
+      return @(value->GetInt());
+    case VTYPE_DOUBLE:
+      return @(value->GetDouble());
+    case VTYPE_STRING:
+      return [NSString stringWithUTF8String:value->GetString().ToString().c_str()];
+    case VTYPE_LIST: {
+      CefRefPtr<CefListValue> list = value->GetList();
+      NSMutableArray *array = [NSMutableArray arrayWithCapacity:list->GetSize()];
+      for (size_t i = 0; i < list->GetSize(); i++) {
+        [array addObject:FoundationValue(list->GetValue(i)) ?: NSNull.null];
+      }
+      return array;
+    }
+    case VTYPE_DICTIONARY: {
+      CefRefPtr<CefDictionaryValue> dictionary = value->GetDictionary();
+      CefDictionaryValue::KeyList keys;
+      dictionary->GetKeys(keys);
+      NSMutableDictionary *result = [NSMutableDictionary dictionaryWithCapacity:keys.size()];
+      for (const CefString &key : keys) {
+        id item = FoundationValue(dictionary->GetValue(key));
+        if (item) result[[NSString stringWithUTF8String:key.ToString().c_str()]] = item;
+      }
+      return result;
+    }
+    default:
+      return nil;
+  }
+}
+
+class PreferenceObserver : public CefPreferenceObserver {
+ public:
+  PreferenceObserver(FLXProfile *profile, void (^handler)(id)) : profile_(profile), handler_([handler copy]) {}
+
+  void OnPreferenceChanged(const CefString &name) override {
+    FLXProfile *profile = profile_;
+    NSString *key = [NSString stringWithUTF8String:name.ToString().c_str()];
+    handler_([profile preferenceValue:key]);
+  }
+
+ private:
+  __weak FLXProfile *profile_;
+  void (^handler_)(id);
+  IMPLEMENT_REFCOUNTING(PreferenceObserver);
+};
+
 }  // namespace
 
 @implementation FLXProfile {
   CefRefPtr<CefRequestContext> _requestContext;
   BOOL _loaded;
   NSMutableArray<void (^)(void)> *_loadedBlocks;
+  std::vector<CefRefPtr<CefRegistration>> _preferenceRegistrations;
 }
 
 + (instancetype)profileAtPath:(NSString *)path {
@@ -156,6 +209,23 @@ class ExtensionsWindowDelegate : public CefWindowDelegate {
   }];
 }
 
+- (void)observePreference:(NSString *)name handler:(void (^)(id))handler {
+  __weak FLXProfile *weakSelf = self;
+  [self whenReady:^{
+    FLXProfile *profile = weakSelf;
+    if (!profile || !profile->_requestContext) return;
+    CefRefPtr<CefRegistration> registration = profile->_requestContext->AddPreferenceObserver(
+        name.UTF8String, new PreferenceObserver(profile, handler));
+    if (registration) profile->_preferenceRegistrations.push_back(registration);
+    handler([profile preferenceValue:name]);
+  }];
+}
+
+- (id)preferenceValue:(NSString *)name {
+  if (!_requestContext) return nil;
+  return FoundationValue(_requestContext->GetPreference(name.UTF8String));
+}
+
 - (CefRefPtr<CefRequestContext>)requestContext {
   return _requestContext;
 }
@@ -176,6 +246,7 @@ class ExtensionsWindowDelegate : public CefWindowDelegate {
 }
 
 - (void)releaseRequestContext {
+  _preferenceRegistrations.clear();
   _requestContext = nullptr;
 }
 
