@@ -7,6 +7,7 @@ enum MainMenu {
         let menu = NSMenu()
         menu.addItem(submenu(title: "Flux", items: [
             shifted(NSMenuItem(title: "Extensions…", action: #selector(AppDelegate.showExtensions(_:)), keyEquivalent: "e")),
+            NSMenuItem(title: "Passwords…", action: #selector(AppDelegate.showPasswords(_:)), keyEquivalent: ""),
             .separator(),
             NSMenuItem(title: "Quit Flux", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"),
         ]))

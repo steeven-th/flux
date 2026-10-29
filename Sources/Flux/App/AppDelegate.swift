@@ -77,6 +77,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state?.showExtensionsOfSelectedSpace()
     }
 
+    @objc func showPasswords(_ sender: Any?) {
+        state?.showPasswordsOfSelectedSpace()
+    }
+
     @objc func reloadPage(_ sender: Any?) {
         state?.selectedTab?.browserView.reload()
     }

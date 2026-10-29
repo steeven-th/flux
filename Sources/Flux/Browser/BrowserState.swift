@@ -455,10 +455,20 @@ final class BrowserState {
 
     /// Chromium's extension manager, in a tab of the selected space: each space has its own.
     func showExtensionsOfSelectedSpace() {
-        if let tab = tabsInSelectedSpace.first(where: { $0.url.hasPrefix("chrome://extensions") }) {
+        showChromePage("chrome://extensions")
+    }
+
+    /// Chromium's password manager, which keeps the selected space's passwords on this Mac.
+    func showPasswordsOfSelectedSpace() {
+        showChromePage("chrome://password-manager")
+    }
+
+    /// Selects the space's tab already showing the page, or opens one.
+    private func showChromePage(_ url: String) {
+        if let tab = tabsInSelectedSpace.first(where: { $0.url.hasPrefix(url) }) {
             select(tab)
         } else {
-            newTab(url: "chrome://extensions")
+            newTab(url: url)
         }
     }
 
