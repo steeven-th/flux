@@ -81,6 +81,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state?.showPasswordsOfSelectedSpace()
     }
 
+    // Not toggleSidebar(_:): SwiftUI's hosting views answer that one first, for their own sidebars,
+    // and disable it.
+    @objc func showOrHideSidebar(_ sender: Any?) {
+        windowController?.toggleSidebar()
+    }
+
     @objc func reloadPage(_ sender: Any?) {
         state?.selectedTab?.browserView.reload()
     }
@@ -106,6 +112,10 @@ extension AppDelegate: NSMenuDelegate, NSMenuItemValidation {
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(selectSpace(_:)) {
             return state?.spaces.indices.contains(menuItem.tag) ?? false
+        }
+        if menuItem.action == #selector(togglePin(_:)) {
+            guard let state, let tab = state.selectedTab else { return false }
+            return tab.isPinned || state.canMove(.tab(tab), to: .pinned, parentID: nil)
         }
         return true
     }

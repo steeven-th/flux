@@ -250,7 +250,9 @@ struct SidebarOutline: NSViewRepresentable {
             let item = outline.clickedRow >= 0 ? outline.item(atRow: outline.clickedRow) : nil
             switch item {
             case let tab as Tab:
-                menu.addItem(MenuAction.item("Pin Tab") { [weak self] in self?.state.pin(tab) })
+                let pin = MenuAction.item("Pin Tab") { [weak self] in self?.state.pin(tab) }
+                pin.isEnabled = state.canMove(.tab(tab), to: .pinned, parentID: nil)
+                menu.addItem(pin)
                 if tab.node.section == .today {
                     menu.addItem(MenuAction.item("Add to Favorites") { [weak self] in self?.state.moveToFavorites(tab) })
                 } else {

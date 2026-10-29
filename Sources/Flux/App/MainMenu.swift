@@ -28,6 +28,8 @@ enum MainMenu {
             NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"),
         ]))
         menu.addItem(submenu(title: "View", items: [
+            NSMenuItem(title: "Toggle Sidebar", action: #selector(AppDelegate.showOrHideSidebar(_:)), keyEquivalent: "s"),
+            .separator(),
             NSMenuItem(title: "Reload Page", action: #selector(AppDelegate.reloadPage(_:)), keyEquivalent: "r"),
             NSMenuItem(title: "Back", action: #selector(AppDelegate.goBack(_:)), keyEquivalent: "["),
             NSMenuItem(title: "Forward", action: #selector(AppDelegate.goForward(_:)), keyEquivalent: "]"),

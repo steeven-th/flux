@@ -3,6 +3,7 @@ import SwiftUI
 struct SidebarView: View {
     @Bindable var state: BrowserState
     let showCommandBar: (CommandBarModel.Target) -> Void
+    @State private var width: CGFloat = 0
 
     private var pinnedCount: Int {
         _ = state.sidebarRevision
@@ -21,8 +22,8 @@ struct SidebarView: View {
                 }
             }
 
-            PinnedGrid(state: state)
-                .frame(height: PinnedGrid.height(for: pinnedCount))
+            PinnedGrid(state: state, width: width)
+                .frame(height: PinnedGrid.height(for: pinnedCount, width: width))
 
             SidebarOutline(state: state)
 
@@ -38,6 +39,7 @@ struct SidebarView: View {
         .padding(.horizontal, 12)
         .padding(.top, 36)
         .padding(.bottom, 12)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width - 24 } action: { width = $0 }
     }
 }
 

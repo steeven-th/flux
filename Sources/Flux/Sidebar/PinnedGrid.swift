@@ -4,18 +4,34 @@ import SwiftUI
 /// The selected space's pinned tabs, as tiles at the top of the sidebar. A collection view rather
 /// than a SwiftUI grid, so tiles can move out of the way while something is dragged over them.
 struct PinnedGrid: NSViewRepresentable {
-    static let columns = 4
     static let spacing: CGFloat = 6
     static let tileHeight: CGFloat = 42
     /// Same identifier as the sidebar outline's drag type, so items move between the two.
     static let dragType = NSPasteboard.PasteboardType("com.flux-browser.sidebar-item")
 
     let state: BrowserState
+    /// The grid's width, given by the sidebar. The collection view sizes itself to its content, so
+    /// its own width can't be used to size the tiles.
+    let width: CGFloat
+
+    static let minimumTileWidth: CGFloat = 44
+
+    /// Six, four or three tiles a row, whatever fits, so twelve tiles always make full rows. With
+    /// fewer tiles than that, they share the first row's whole width, and the other rows keep the
+    /// same tile size.
+    static func columns(for count: Int, width: CGFloat) -> Int {
+        let fitting = [6, 4, 3].first { (columns: Int) -> Bool in
+            let count = CGFloat(columns)
+            return count * minimumTileWidth + (count - 1) * spacing <= width
+        } ?? 3
+        return max(min(count, fitting), 1)
+    }
 
     /// Height for the current number of tiles. Kept a few points tall when empty so tabs can be
     /// dropped there.
-    static func height(for count: Int) -> CGFloat {
+    static func height(for count: Int, width: CGFloat) -> CGFloat {
         guard count > 0 else { return 8 }
+        let columns = columns(for: count, width: width)
         let rows = CGFloat((count + columns - 1) / columns)
         return rows * tileHeight + (rows - 1) * spacing
     }
@@ -25,7 +41,7 @@ struct PinnedGrid: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> NSCollectionView {
-        let layout = NSCollectionViewFlowLayout()
+        let layout = PinnedGridLayout()
         layout.minimumInteritemSpacing = Self.spacing
         layout.minimumLineSpacing = Self.spacing
 
@@ -54,13 +70,21 @@ struct PinnedGrid: NSViewRepresentable {
         _ = state.sidebarRevision
         _ = state.selectedSpaceID
         _ = state.selectedTab
+        if context.coordinator.width != width {
+            context.coordinator.width = width
+            collection.collectionViewLayout?.invalidateLayout()
+        }
         context.coordinator.reload()
+        (collection.collectionViewLayout as? PinnedGridLayout)?.columns = PinnedGrid.columns(
+            for: state.pinnedTabs.count, width: width
+        )
     }
 
     @MainActor
     final class Coordinator: NSObject, NSCollectionViewDataSource, NSCollectionViewDelegateFlowLayout {
         let state: BrowserState
         weak var collection: NSCollectionView?
+        var width: CGFloat = 0
         /// What the grid shows. While something is dragged over it, tiles are already moved to where
         /// they would end up, and a nil slot stands for an item dragged in from the outline.
         private var tiles: [Tab?] = []
@@ -131,9 +155,10 @@ struct PinnedGrid: NSViewRepresentable {
             _ collectionView: NSCollectionView, layout collectionViewLayout: NSCollectionViewLayout,
             sizeForItemAt indexPath: IndexPath
         ) -> NSSize {
-            let width = (collectionView.bounds.width - PinnedGrid.spacing * CGFloat(PinnedGrid.columns - 1))
-                / CGFloat(PinnedGrid.columns)
-            return NSSize(width: max(floor(width), 1), height: PinnedGrid.tileHeight)
+            let columns = PinnedGrid.columns(for: tiles.count, width: width)
+            (collectionViewLayout as? PinnedGridLayout)?.columns = columns
+            let tileWidth = (width - PinnedGrid.spacing * CGFloat(columns - 1)) / CGFloat(columns)
+            return NSSize(width: max(floor(tileWidth), 1), height: PinnedGrid.tileHeight)
         }
 
         func collectionView(_ collectionView: NSCollectionView, didSelectItemsAt indexPaths: Set<IndexPath>) {
@@ -274,6 +299,28 @@ struct PinnedGrid: NSViewRepresentable {
             menu.addItem(unpin)
             return menu
         }
+    }
+}
+
+/// A flow layout that starts every row at the left edge. The flow layout spreads the tiles of a row
+/// that isn't full across the width.
+private final class PinnedGridLayout: NSCollectionViewFlowLayout {
+    var columns = 1
+
+    override func layoutAttributesForElements(in rect: NSRect) -> [NSCollectionViewLayoutAttributes] {
+        super.layoutAttributesForElements(in: rect).map(aligned)
+    }
+
+    override func layoutAttributesForItem(at indexPath: IndexPath) -> NSCollectionViewLayoutAttributes? {
+        super.layoutAttributesForItem(at: indexPath).map(aligned)
+    }
+
+    private func aligned(_ attributes: NSCollectionViewLayoutAttributes) -> NSCollectionViewLayoutAttributes {
+        guard attributes.representedElementCategory == .item, let indexPath = attributes.indexPath,
+              let copy = attributes.copy() as? NSCollectionViewLayoutAttributes else { return attributes }
+        let column = CGFloat(indexPath.item % columns)
+        copy.frame.origin.x = column * (copy.frame.width + minimumInteritemSpacing)
+        return copy
     }
 }
 

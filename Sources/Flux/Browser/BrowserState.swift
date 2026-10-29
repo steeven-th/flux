@@ -9,6 +9,8 @@ final class BrowserState {
     private static let selectedSpaceKey = "selectedSpaceID"
     private static let confirmsTabRemovalKey = "confirmsTabRemoval"
     private static let searchEngineKey = "searchEngine"
+    private static let sidebarWidthKey = "sidebarWidth"
+    private static let sidebarCollapsedKey = "sidebarCollapsed"
     private static let logger = Logger(subsystem: "com.flux-browser.Flux", category: "storage")
 
     private(set) var spaces: [Space] = []
@@ -186,6 +188,17 @@ final class BrowserState {
         set { save { try appDatabase.setSetting(Self.confirmsTabRemovalKey, to: newValue ? nil : "false") } }
     }
 
+    /// Nil until the user resizes the sidebar.
+    var sidebarWidth: CGFloat? {
+        get { (try? appDatabase.setting(Self.sidebarWidthKey)).flatMap { Double($0) }.map { CGFloat($0) } }
+        set { save { try appDatabase.setSetting(Self.sidebarWidthKey, to: newValue.map { String(Double($0)) }) } }
+    }
+
+    var isSidebarCollapsed: Bool {
+        get { (try? appDatabase.setting(Self.sidebarCollapsedKey)) == "true" }
+        set { save { try appDatabase.setSetting(Self.sidebarCollapsedKey, to: newValue ? "true" : nil) } }
+    }
+
     var searchEngine: SearchEngine {
         get { SearchEngine(setting: try? appDatabase.setting(Self.searchEngineKey)) }
         set { save { try appDatabase.setSetting(Self.searchEngineKey, to: newValue == .google ? nil : newValue.id) } }
@@ -327,10 +340,15 @@ final class BrowserState {
 
     /// A top-level folder can hold folders two levels deep, no more.
     static let maxFolderDepth = 2
+    /// Two rows of six, three of four or four of three tiles.
+    static let maxPinnedTabs = 12
 
     func canMove(_ entry: SidebarEntry, to section: SidebarNode.Section, parentID: UUID?) -> Bool {
         guard section == .favorites || parentID == nil else { return false }
         if section == .pinned, case .folder = entry { return false }
+        if section == .pinned, case .tab(let tab) = entry, !tab.isPinned, pinnedTabs.count >= Self.maxPinnedTabs {
+            return false
+        }
         if case .folder(let folder) = entry {
             return section == .favorites && !isDescendant(parentID, of: folder.id) && canPlace(folder, in: parentID)
         }
