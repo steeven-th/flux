@@ -9,7 +9,6 @@ struct SpaceEditor: View {
     @State private var name: String
     @State private var icon: String
     @State private var color: String
-    @FocusState private var isEditingIcon: Bool
 
     init(
         title: LocalizedStringKey,
@@ -29,36 +28,7 @@ struct SpaceEditor: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title).font(.headline)
 
-            HStack {
-                TextField("Emoji", text: $icon)
-                    .frame(width: 52)
-                    .focused($isEditingIcon)
-                    // Every click, not only the one that focuses the field. The system emoji
-                    // picker types into the focused field.
-                    .simultaneousGesture(TapGesture().onEnded {
-                        isEditingIcon = true
-                        NSApp.orderFrontCharacterPalette(nil)
-                    })
-                    .onChange(of: icon) { _, value in
-                        // One emoji at most: keep the last character typed.
-                        if value.count > 1 { icon = String(value.suffix(1)) }
-                    }
-                TextField("Name", text: $name)
-                    .onSubmit(save)
-            }
-            .textFieldStyle(.roundedBorder)
-
-            HStack(spacing: 8) {
-                ForEach(BrowserState.spaceColors, id: \.self) { hex in
-                    Circle()
-                        .fill(Color(hex: hex))
-                        .frame(width: 20, height: 20)
-                        .overlay {
-                            Circle().strokeBorder(.primary, lineWidth: hex == color ? 2 : 0)
-                        }
-                        .onTapGesture { color = hex }
-                }
-            }
+            SpaceFields(name: $name, icon: $icon, color: $color, onSubmit: save)
 
             HStack {
                 Spacer()

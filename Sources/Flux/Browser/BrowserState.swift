@@ -38,7 +38,8 @@ final class BrowserState {
         self.appDatabase = appDatabase
         var records = try appDatabase.spaces()
         if records.isEmpty {
-            records = try Self.createFirstSpaces(in: appDatabase)
+            // The welcome window creates the first space, so this only happens if it was skipped.
+            records = [try Self.createFirstSpace(name: String(localized: "Personal"), icon: nil, color: Self.spaceColors[0], in: appDatabase)]
         }
         let savedSelection = try appDatabase.setting(Self.selectedSpaceKey).flatMap(UUID.init(uuidString:))
         selectedSpaceID = records.first { $0.id == savedSelection }?.id ?? records[0].id
@@ -48,22 +49,14 @@ final class BrowserState {
         }
     }
 
-    /// Personal and Work, with the profile folders of the first prototype so existing sign-ins stay.
-    private static func createFirstSpaces(in database: AppDatabase) throws -> [SpaceRecord] {
-        let first = [
-            ("6F1C2B7E-3D4A-4C1E-9B2F-1A2B3C4D5E01", "Personal", "#F97316"),
-            ("6F1C2B7E-3D4A-4C1E-9B2F-1A2B3C4D5E02", "Work", "#3B82F6"),
-        ]
-        var position: String?
-        return try first.map { id, name, color in
-            position = FractionalIndex.between(position, nil)
-            let record = SpaceRecord(
-                id: UUID(uuidString: id)!, name: name, icon: nil, color: color, position: position!,
-                profileFolder: "Space \(id)", selectedTabID: nil, createdAt: Date()
-            )
-            try database.save(record)
-            return record
-        }
+    static func createFirstSpace(name: String, icon: String?, color: String, in database: AppDatabase) throws -> SpaceRecord {
+        let id = UUID()
+        let record = SpaceRecord(
+            id: id, name: name, icon: icon, color: color, position: FractionalIndex.between(nil, nil),
+            profileFolder: "Profile \(id.uuidString)", selectedTabID: nil, createdAt: Date()
+        )
+        try database.save(record)
+        return record
     }
 
     private func open(_ record: SpaceRecord) throws {

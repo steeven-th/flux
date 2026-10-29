@@ -1,6 +1,6 @@
 import Foundation
 
-struct SearchEngine: Equatable, Identifiable {
+struct SearchEngine: Hashable, Identifiable {
     let id: String
     let name: String
     /// The search URL, with `%s` where the query goes.

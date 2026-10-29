@@ -27,7 +27,7 @@ final class ChromiumPasswordManager {
 }
 
 /// Password managers that come as Chrome extensions, known by their Chrome Web Store id.
-struct PasswordManagerExtension: Identifiable {
+struct PasswordManagerExtension: Hashable, Identifiable {
     let id: String
     let name: String
 

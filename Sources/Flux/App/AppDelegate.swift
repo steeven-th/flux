@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowController: MainWindowController?
     private var dialogFixer: ChromiumDialogFixer?
     private var isRelaunching = false
+    private var welcome: WelcomeWindowController?
     private let database: Result<AppDatabase, any Error>
 
     init(database: Result<AppDatabase, any Error>) {
@@ -16,19 +17,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = MainMenu.make(spacesMenuDelegate: self)
         dialogFixer = ChromiumDialogFixer()
 
+        let database: AppDatabase
+        do {
+            database = try self.database.get()
+        } catch {
+            showFatalError(error)
+            return
+        }
+        if (try? database.spaces().isEmpty) == true {
+            showWelcome { [weak self] choices in self?.finishWelcome(choices, database: database) }
+        } else {
+            startBrowsing(database: database)
+        }
+        NSApp.activate()
+    }
+
+    /// `prepare` runs before the window shows, once the spaces are open.
+    private func startBrowsing(database: AppDatabase, prepare: (BrowserState) -> Void = { _ in }) {
         let state: BrowserState
         do {
-            state = try BrowserState(appDatabase: database.get())
+            state = try BrowserState(appDatabase: database)
         } catch {
-            let alert = NSAlert(error: error)
-            alert.messageText = String(localized: "Flux couldn't open its data")
-            alert.runModal()
-            NSApp.terminate(nil)
+            showFatalError(error)
             return
         }
         FLXEngine.externalPageHandler = { [weak state] url, profilePath in
             state?.openExternalPage(url, profilePath: profilePath)
         }
+        prepare(state)
         let windowController = MainWindowController(state: state)
         windowController.showWindow(nil)
         self.state = state
@@ -36,8 +52,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if state.selectedTab == nil {
             windowController.showCommandBar(.newTab)
         }
+    }
 
-        NSApp.activate()
+    private func showWelcome(onFinish: @escaping (WelcomeModel) -> Void) {
+        let welcome = WelcomeWindowController(onFinish: onFinish)
+        welcome.showWindow(nil)
+        self.welcome = welcome
+    }
+
+    private func finishWelcome(_ choices: WelcomeModel, database: AppDatabase) {
+        do {
+            let name = choices.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            _ = try BrowserState.createFirstSpace(
+                name: name, icon: choices.icon.isEmpty ? nil : choices.icon, color: choices.color, in: database
+            )
+        } catch {
+            showFatalError(error)
+            return
+        }
+        startBrowsing(database: database) { state in
+            let profile = state.selectedSpace.profileFolder
+            state.setSearchEngine(choices.searchEngine, forProfile: profile)
+            if let manager = choices.passwordManager {
+                state.passwordManager(forProfile: profile)?.setEnabled(false)
+                state.newTab(url: manager.storeURL)
+            }
+        }
+        // After the main window shows, or closing the last window would quit Flux.
+        welcome?.close()
+        welcome = nil
+    }
+
+    private func showFatalError(_ error: any Error) {
+        let alert = NSAlert(error: error)
+        alert.messageText = String(localized: "Flux couldn't open its data")
+        alert.runModal()
+        NSApp.terminate(nil)
+    }
+
+    /// Shows the welcome window again without creating anything, to check how it looks.
+    @objc func previewWelcome(_ sender: Any?) {
+        showWelcome { [weak self] _ in
+            self?.welcome?.close()
+            self?.welcome = nil
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

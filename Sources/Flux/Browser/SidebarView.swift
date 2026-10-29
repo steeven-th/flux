@@ -74,10 +74,12 @@ private struct AddressButton: View {
 
 /// The selected space's tint behind the whole window, sidebar and page margins included.
 struct SpaceBackground: View {
+    static let tintOpacity = 0.12
+
     let state: BrowserState
 
     var body: some View {
-        state.selectedSpace.color.opacity(0.12)
+        state.selectedSpace.color.opacity(Self.tintOpacity)
             .ignoresSafeArea()
     }
 }

@@ -45,6 +45,7 @@ enum MainMenu {
         menu.addItem(spacesMenu(delegate: spacesMenuDelegate))
         menu.addItem(submenu(title: String(localized: "Debug"), items: [
             NSMenuItem(title: String(localized: "Open Tab in Chrome Window"), action: #selector(AppDelegate.openInChromeWindow(_:)), keyEquivalent: ""),
+            NSMenuItem(title: String(localized: "Show Welcome Window"), action: #selector(AppDelegate.previewWelcome(_:)), keyEquivalent: ""),
         ]))
         return menu
     }

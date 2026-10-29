@@ -51,6 +51,16 @@
         }
       }
     },
+    "A few shortcuts to start with:" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quelques raccourcis pour commencer :"
+          }
+        }
+      }
+    },
     "Add to Favorites" : {
       "localizations" : {
         "fr" : {
@@ -101,12 +111,32 @@
         }
       }
     },
+    "Choose your language" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez votre langue"
+          }
+        }
+      }
+    },
     "Chromium Password Manager" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gestionnaire de mots de passe de Chromium"
+          }
+        }
+      }
+    },
+    "Chromium Password Manager, on this Mac, no account needed" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestionnaire de mots de passe de Chromium, sur ce Mac, sans compte"
           }
         }
       }
@@ -167,6 +197,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fermer « %@ » ?"
+          }
+        }
+      }
+    },
+    "Continue" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuer"
           }
         }
       }
@@ -267,6 +307,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chaque profil a son propre moteur de recherche, ses mots de passe et ses données de navigation."
+          }
+        }
+      }
+    },
+    "Each space has its own sign-ins, passwords, history and extensions. Add more later with + at the bottom of the sidebar." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaque espace a ses propres connexions, mots de passe, historique et extensions. Ajoutez-en d'autres plus tard avec le + en bas de la barre latérale."
           }
         }
       }
@@ -407,6 +457,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Obtenir"
+          }
+        }
+      }
+    },
+    "Get Started" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commencer"
           }
         }
       }
@@ -611,6 +671,16 @@
         }
       }
     },
+    "Password manager" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gestionnaire de mots de passe"
+          }
+        }
+      }
+    },
     "Passwords" : {
       "localizations" : {
         "fr" : {
@@ -647,6 +717,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Moyens de paiement"
+          }
+        }
+      }
+    },
+    "Personal" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personnel"
+          }
+        }
+      }
+    },
+    "Pin a tab" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Épingler un onglet"
           }
         }
       }
@@ -861,6 +951,16 @@
         }
       }
     },
+    "Search or open a page" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher ou ouvrir une page"
+          }
+        }
+      }
+    },
     "Search URL" : {
       "localizations" : {
         "fr" : {
@@ -891,6 +991,16 @@
         }
       }
     },
+    "Settings" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réglages"
+          }
+        }
+      }
+    },
     "Settings…" : {
       "localizations" : {
         "fr" : {
@@ -911,6 +1021,26 @@
         }
       }
     },
+    "Show or hide the sidebar" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher ou masquer la barre latérale"
+          }
+        }
+      }
+    },
+    "Show Welcome Window" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher la fenêtre d'accueil"
+          }
+        }
+      }
+    },
     "Space %lld" : {
       "localizations" : {
         "fr" : {
@@ -927,6 +1057,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Espaces"
+          }
+        }
+      }
+    },
+    "Start Browsing" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commencer à naviguer"
+          }
+        }
+      }
+    },
+    "Switch spaces" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changer d'espace"
           }
         }
       }
@@ -1041,6 +1191,16 @@
         }
       }
     },
+    "Used when what you type in the command bar isn't an address. You can change it in Settings." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisé quand ce que vous tapez dans la barre de commande n'est pas une adresse. Vous pourrez le changer dans les Réglages."
+          }
+        }
+      }
+    },
     "View" : {
       "localizations" : {
         "fr" : {
@@ -1061,6 +1221,46 @@
         }
       }
     },
+    "Welcome to Flux" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bienvenue dans Flux"
+          }
+        }
+      }
+    },
+    "Which password manager do you use? If it isn't Chromium's, its page on the Chrome Web Store opens at the end so you can add it." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quel gestionnaire de mots de passe utilisez-vous ? Si ce n'est pas celui de Chromium, sa page sur le Chrome Web Store s'ouvrira à la fin pour que vous puissiez l'ajouter."
+          }
+        }
+      }
+    },
+    "You can change it later in Settings." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous pourrez la changer plus tard dans les Réglages."
+          }
+        }
+      }
+    },
+    "You're all set" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout est prêt"
+          }
+        }
+      }
+    },
     "Your Data and Settings" : {
       "localizations" : {
         "fr" : {
@@ -1071,12 +1271,32 @@
         }
       }
     },
+    "Your first space" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre premier espace"
+          }
+        }
+      }
+    },
     "Your tabs and spaces are kept." : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vos onglets et vos espaces sont conservés."
+          }
+        }
+      }
+    },
+    "Your tabs live in a sidebar. Spaces keep your sign-ins, passwords and extensions apart, and the Chrome extensions you use work here too." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos onglets vivent dans une barre latérale. Les espaces séparent vos connexions, mots de passe et extensions, et les extensions Chrome que vous utilisez fonctionnent aussi ici."
           }
         }
       }

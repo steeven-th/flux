@@ -70,18 +70,31 @@ struct SpaceBar: View {
     }
 }
 
-private struct SpaceIcon: View {
-    let space: Space
+struct SpaceIcon: View {
+    let name: String
+    let icon: String?
+    let color: Color
     let isSelected: Bool
+
+    init(name: String, icon: String?, color: Color, isSelected: Bool) {
+        self.name = name
+        self.icon = icon
+        self.color = color
+        self.isSelected = isSelected
+    }
+
+    init(space: Space, isSelected: Bool) {
+        self.init(name: space.name, icon: space.icon, color: space.color, isSelected: isSelected)
+    }
 
     var body: some View {
         ZStack {
             Circle()
-                .fill(space.color.opacity(isSelected ? 0.9 : 0.35))
-            if let icon = space.icon, !icon.isEmpty {
+                .fill(color.opacity(isSelected ? 0.9 : 0.35))
+            if let icon, !icon.isEmpty {
                 Text(icon).font(.system(size: 12))
             } else {
-                Text(space.name.prefix(1).uppercased())
+                Text(name.prefix(1).uppercased())
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white)
             }
