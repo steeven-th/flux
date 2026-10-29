@@ -3,6 +3,7 @@ import SwiftUI
 /// The row of spaces at the bottom of the sidebar.
 struct SpaceBar: View {
     let state: BrowserState
+    let recentFiles: RecentFilesPresenter
 
     @State private var editedSpaceID: UUID?
     @State private var isCreating = false
@@ -10,6 +11,8 @@ struct SpaceBar: View {
 
     var body: some View {
         HStack(spacing: 6) {
+            LibraryButton(state: state, recentFiles: recentFiles)
+                .padding(.trailing, 4)
             ForEach(Array(state.spaces.enumerated()), id: \.element.id) { index, space in
                 SpaceIcon(space: space, isSelected: space.id == state.selectedSpaceID)
                     .onTapGesture { state.selectedSpaceID = space.id }

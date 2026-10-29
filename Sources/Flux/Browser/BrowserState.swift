@@ -13,6 +13,7 @@ final class BrowserState {
     private static let sidebarCollapsedKey = "sidebarCollapsed"
     private static let warnsBeforeQuittingKey = "warnsBeforeQuitting"
     private static let fullScreenKey = "windowFullScreen"
+    private static let asksWhereToSaveKey = "asksWhereToSaveDownloads"
     private static let archiveDelayKey = "archiveDelay"
     private static let linkTargetsOpenPeekKey = "linkTargetsOpenPeek"
     private static let shiftClickOpensPeekKey = "shiftClickOpensPeek"
@@ -29,6 +30,8 @@ final class BrowserState {
     /// Bumped when the archive changes, since it is read from the database.
     private(set) var archiveRevision = 0
     var isArchiveShown = false
+    /// Downloads and media, shown in place of the sidebar.
+    var isLibraryShown = false
     /// A page opened from a link, shown over the selected tab.
     private(set) var peek: Peek?
     @ObservationIgnored private var archiveTimer: Timer?
@@ -48,6 +51,9 @@ final class BrowserState {
     @ObservationIgnored private var faviconCaches: [UUID: FaviconCache] = [:]
     @ObservationIgnored private var histories: [UUID: ChromiumHistory] = [:]
     @ObservationIgnored private var passwordManagers: [UUID: ChromiumPasswordManager] = [:]
+    /// By profile folder: spaces sharing a profile share its downloads.
+    @ObservationIgnored private var downloadLists: [String: DownloadList] = [:]
+    @ObservationIgnored private var media: MediaLibrary?
 
     init(appDatabase: AppDatabase) throws {
         self.appDatabase = appDatabase
@@ -87,6 +93,10 @@ final class BrowserState {
         faviconCaches[space.id] = FaviconCache(profileFolder: space.profileFolder)
         histories[space.id] = ChromiumHistory(profileFolder: space.profileFolder)
         passwordManagers[space.id] = ChromiumPasswordManager(profile: profile)
+        if downloadLists[profile.path] == nil {
+            downloadLists[profile.path] = DownloadList(profile: profile, database: database)
+        }
+        profile.asksWhereToSaveDownloads = asksWhereToSaveDownloads(forProfile: space.profileFolder)
 
         let nodes = try database.nodes(in: space.id)
         for node in nodes {
@@ -426,6 +436,33 @@ final class BrowserState {
     var outsideLinksOpenLittleWindow: Bool {
         get { (try? appDatabase.setting(Self.outsideLinksOpenLittleWindowKey)) != "false" }
         set { save { try appDatabase.setSetting(Self.outsideLinksOpenLittleWindowKey, to: newValue ? nil : "false") } }
+    }
+
+    var downloadsOfSelectedSpace: DownloadList? {
+        profiles[selectedSpaceID].flatMap { downloadLists[$0.path] }
+    }
+
+    /// Created on first use: reading the Downloads folder makes macOS ask for access.
+    var mediaLibrary: MediaLibrary {
+        if let media { return media }
+        let media = MediaLibrary()
+        self.media = media
+        return media
+    }
+
+    func asksWhereToSaveDownloads(forProfile folder: URL) -> Bool {
+        (try? appDatabase.setting(Self.asksWhereToSaveKey(forProfile: folder))) == "true"
+    }
+
+    func setAsksWhereToSaveDownloads(_ asks: Bool, forProfile folder: URL) {
+        save { try appDatabase.setSetting(Self.asksWhereToSaveKey(forProfile: folder), to: asks ? "true" : nil) }
+        for space in spaces where space.profileFolder.standardizedFileURL == folder.standardizedFileURL {
+            profiles[space.id]?.asksWhereToSaveDownloads = asks
+        }
+    }
+
+    private static func asksWhereToSaveKey(forProfile folder: URL) -> String {
+        "\(asksWhereToSaveKey) \(folder.lastPathComponent)"
     }
 
     func profile(ofSpace id: UUID) -> FLXProfile? {

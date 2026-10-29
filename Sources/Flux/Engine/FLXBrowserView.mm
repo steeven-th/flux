@@ -95,7 +95,8 @@ class BrowserClient : public CefClient,
                       public CefRequestHandler,
                       public CefLoadHandler {
  public:
-  BrowserClient(FLXBrowserView *owner, bool opened_by_page) : owner_(owner), opened_by_page_(opened_by_page) {}
+  BrowserClient(FLXBrowserView *owner, bool opened_by_page)
+      : owner_(owner), profile_(owner.profile), opened_by_page_(opened_by_page) {}
 
   CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
@@ -230,9 +231,29 @@ class BrowserClient : public CefClient,
     }
     NSURL *downloads = [NSFileManager.defaultManager URLsForDirectory:NSDownloadsDirectory
                                                             inDomains:NSUserDomainMask].firstObject;
-    NSString *path = [downloads URLByAppendingPathComponent:ToNSString(suggested_name)].path;
-    callback->Continue(path.UTF8String, false);
+    NSString *path = AvailablePath([downloads URLByAppendingPathComponent:ToNSString(suggested_name)].path);
+    callback->Continue(path.UTF8String, profile_.asksWhereToSaveDownloads);
     return true;
+  }
+
+  void OnDownloadUpdated(CefRefPtr<CefBrowser> browser,
+                         CefRefPtr<CefDownloadItem> download_item,
+                         CefRefPtr<CefDownloadItemCallback> callback) override {
+    if (download_item->GetMimeType() == "application/x-chrome-extension") return;
+    if (profile_.downloadHandler) profile_.downloadHandler([[FLXDownload alloc] initWithItem:download_item]);
+  }
+
+  // "name (1).ext", "name (2).ext"… next to a file of the same name, as Chrome does.
+  static NSString *AvailablePath(NSString *path) {
+    NSFileManager *files = NSFileManager.defaultManager;
+    NSString *base = path.stringByDeletingPathExtension;
+    NSString *extension = path.pathExtension;
+    NSString *candidate = path;
+    for (int number = 1; [files fileExistsAtPath:candidate]; number++) {
+      NSString *name = [NSString stringWithFormat:@"%@ (%d)", base, number];
+      candidate = extension.length ? [name stringByAppendingPathExtension:extension] : name;
+    }
+    return candidate;
   }
 
   void OnFaviconURLChange(CefRefPtr<CefBrowser> browser,
@@ -272,6 +293,8 @@ class BrowserClient : public CefClient,
   bool IsOwnPage(CefRefPtr<CefBrowser> browser) const { return browser->GetIdentifier() == page_id_; }
 
   __weak FLXBrowserView *owner_;
+  // Kept for downloads that outlive their tab.
+  FLXProfile *profile_;
   const bool opened_by_page_;
   int page_id_ = 0;
   IMPLEMENT_REFCOUNTING(BrowserClient);

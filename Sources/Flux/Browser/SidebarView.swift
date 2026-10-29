@@ -4,6 +4,7 @@ struct SidebarView: View {
     @Bindable var state: BrowserState
     let showCommandBar: (CommandBarModel.Target) -> Void
     @State private var width: CGFloat = 0
+    @State private var recentFiles = RecentFilesPresenter()
 
     private var pinnedCount: Int {
         _ = state.sidebarRevision
@@ -11,6 +12,23 @@ struct SidebarView: View {
     }
 
     var body: some View {
+        ZStack {
+            if state.isLibraryShown {
+                LibraryView(state: state)
+                    .transition(.move(edge: .trailing))
+            } else {
+                content
+                    .transition(.move(edge: .leading))
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: state.isLibraryShown)
+        .padding(.horizontal, 12)
+        .padding(.top, 36)
+        .padding(.bottom, 12)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width - 24 } action: { width = $0 }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 12) {
             AddressButton(url: state.selectedTab?.url) {
                 showCommandBar(.selectedTab)
@@ -25,35 +43,41 @@ struct SidebarView: View {
             PinnedGrid(state: state, width: width)
                 .frame(height: PinnedGrid.height(for: pinnedCount, width: width))
 
-            SidebarOutline(state: state)
+            VStack(alignment: .leading, spacing: 12) {
+                SidebarOutline(state: state)
 
-            HStack {
-                Button {
-                    showCommandBar(.newTab)
-                } label: {
-                    Label("New Tab", systemImage: "plus")
+                HStack {
+                    Button {
+                        showCommandBar(.newTab)
+                    } label: {
+                        Label("New Tab", systemImage: "plus")
+                    }
+                    Spacer()
+                    Button {
+                        state.isArchiveShown.toggle()
+                    } label: {
+                        Image(systemName: "archivebox")
+                            .frame(width: 22, height: 22)
+                            .contentShape(Rectangle())
+                    }
+                    .help("Archive")
+                    .popover(isPresented: $state.isArchiveShown, arrowEdge: .top) {
+                        ArchiveView(state: state)
+                    }
                 }
-                Spacer()
-                Button {
-                    state.isArchiveShown.toggle()
-                } label: {
-                    Image(systemName: "archivebox")
-                        .frame(width: 22, height: 22)
-                        .contentShape(Rectangle())
-                }
-                .help("Archive")
-                .popover(isPresented: $state.isArchiveShown, arrowEdge: .top) {
-                    ArchiveView(state: state)
+                .buttonStyle(.borderless)
+            }
+            // The latest files rise over the bottom of the tabs, above the space bar.
+            .overlay(alignment: .bottom) {
+                if recentFiles.isShown {
+                    RecentFilesCard(state: state, presenter: recentFiles)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .buttonStyle(.borderless)
+            .animation(.easeOut(duration: 0.18), value: recentFiles.isShown)
 
-            SpaceBar(state: state)
+            SpaceBar(state: state, recentFiles: recentFiles)
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 36)
-        .padding(.bottom, 12)
-        .onGeometryChange(for: CGFloat.self) { $0.size.width - 24 } action: { width = $0 }
     }
 }
 

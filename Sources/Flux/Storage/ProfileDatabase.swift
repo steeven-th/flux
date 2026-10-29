@@ -47,6 +47,18 @@ struct ArchivedTab: Codable, Identifiable, FetchableRecord, PersistableRecord {
     var archivedAt: Date
 }
 
+/// A file downloaded in the profile. Chromium keeps no list of its own that Flux could read.
+struct DownloadRecord: Codable, Identifiable, FetchableRecord, PersistableRecord {
+    static let databaseTableName = "download"
+
+    var id: UUID
+    var path: String
+    var url: String
+    var mimeType: String
+    var size: Int64
+    var finishedAt: Date
+}
+
 /// Data Flux keeps for one Chromium profile, stored inside the profile's folder so that deleting
 /// the profile deletes it too.
 final class ProfileDatabase: Sendable {
@@ -106,6 +118,16 @@ final class ProfileDatabase: Sendable {
                 t.add(column: "scrollY", .double)
             }
         }
+        migrator.registerMigration("v6 downloads") { db in
+            try db.create(table: "download") { t in
+                t.primaryKey("id", .blob)
+                t.column("path", .text).notNull()
+                t.column("url", .text).notNull()
+                t.column("mimeType", .text).notNull()
+                t.column("size", .integer).notNull()
+                t.column("finishedAt", .datetime).notNull()
+            }
+        }
         return migrator
     }()
 
@@ -161,5 +183,17 @@ final class ProfileDatabase: Sendable {
 
     func deleteArchivedTabs(before date: Date) throws {
         _ = try queue.write { db in try ArchivedTab.filter(Column("archivedAt") < date).deleteAll(db) }
+    }
+
+    func downloads() throws -> [DownloadRecord] {
+        try queue.read { db in try DownloadRecord.order(Column("finishedAt").desc).fetchAll(db) }
+    }
+
+    func save(_ download: DownloadRecord) throws {
+        try queue.write { db in try download.save(db) }
+    }
+
+    func deleteDownload(id: UUID) throws {
+        _ = try queue.write { db in try DownloadRecord.deleteOne(db, key: id) }
     }
 }

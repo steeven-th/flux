@@ -222,6 +222,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         LittleWindowController.key?.moveToSpace()
     }
 
+    @objc func showLibrary(_ sender: Any?) {
+        state?.isLibraryShown = true
+    }
+
     @objc func showArchive(_ sender: Any?) {
         state?.isArchiveShown = true
     }

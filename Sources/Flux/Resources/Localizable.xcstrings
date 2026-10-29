@@ -11,6 +11,16 @@
         }
       }
     },
+    "%@ · %@ of %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@ sur %3$@"
+          }
+        }
+      }
+    },
     "%lld Spaces" : {
       "localizations" : {
         "en" : {
@@ -141,6 +151,16 @@
         }
       }
     },
+    "AirDrop" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AirDrop"
+          }
+        }
+      }
+    },
     "All Chromium Settings" : {
       "localizations" : {
         "fr" : {
@@ -191,12 +211,32 @@
         }
       }
     },
+    "Ask where to save each file" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demander où enregistrer chaque fichier"
+          }
+        }
+      }
+    },
     "Back" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Page précédente"
+          }
+        }
+      }
+    },
+    "Back to Tabs" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revenir aux onglets"
           }
         }
       }
@@ -361,6 +401,16 @@
         }
       }
     },
+    "Copy Image" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copier l'image"
+          }
+        }
+      }
+    },
     "Custom…" : {
       "localizations" : {
         "fr" : {
@@ -447,6 +497,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ne plus demander"
+          }
+        }
+      }
+    },
+    "Downloads" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Téléchargements"
           }
         }
       }
@@ -641,6 +701,16 @@
         }
       }
     },
+    "Hide from Flux" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masquer dans Flux"
+          }
+        }
+      }
+    },
     "History" : {
       "localizations" : {
         "fr" : {
@@ -701,6 +771,16 @@
         }
       }
     },
+    "Library" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bibliothèque"
+          }
+        }
+      }
+    },
     "Links" : {
       "localizations" : {
         "fr" : {
@@ -731,6 +811,16 @@
         }
       }
     },
+    "Media" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Médias"
+          }
+        }
+      }
+    },
     "Move this page to the space's Today" : {
       "localizations" : {
         "fr" : {
@@ -757,6 +847,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Déplacer vers Aujourd'hui"
+          }
+        }
+      }
+    },
+    "Move to Trash" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Placer dans la corbeille"
           }
         }
       }
@@ -831,12 +931,42 @@
         }
       }
     },
+    "No downloads in this space" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun téléchargement dans cet espace"
+          }
+        }
+      }
+    },
+    "No downloads or screenshots yet" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun téléchargement ni capture d'écran pour l'instant"
+          }
+        }
+      }
+    },
     "No results" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aucun résultat"
+          }
+        }
+      }
+    },
+    "No screenshots or images in Downloads" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune capture d'écran ni image dans Téléchargements"
           }
         }
       }
@@ -1211,6 +1341,16 @@
         }
       }
     },
+    "Save to the Downloads folder" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrer dans le dossier Téléchargements"
+          }
+        }
+      }
+    },
     "Saves passwords on this Mac, in this profile. No account needed." : {
       "localizations" : {
         "fr" : {
@@ -1241,12 +1381,32 @@
         }
       }
     },
+    "Search Downloads" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher dans les téléchargements"
+          }
+        }
+      }
+    },
     "Search engine" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Moteur de recherche"
+          }
+        }
+      }
+    },
+    "Search Media" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher dans les médias"
           }
         }
       }
@@ -1311,6 +1471,16 @@
         }
       }
     },
+    "Send with Messages" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Envoyer avec Messages"
+          }
+        }
+      }
+    },
     "Settings" : {
       "localizations" : {
         "fr" : {
@@ -1347,6 +1517,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Afficher l'archive"
+          }
+        }
+      }
+    },
+    "Show Downloads" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les téléchargements"
+          }
+        }
+      }
+    },
+    "Show in Finder" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher dans le Finder"
           }
         }
       }

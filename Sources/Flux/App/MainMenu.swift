@@ -40,6 +40,7 @@ enum MainMenu {
         menu.addItem(submenu(title: String(localized: "History"), items: [
             NSMenuItem(title: String(localized: "Show All History"), action: #selector(AppDelegate.showHistory(_:)), keyEquivalent: "y"),
             shifted(NSMenuItem(title: String(localized: "Show Archive"), action: #selector(AppDelegate.showArchive(_:)), keyEquivalent: "a")),
+            optionCommand(NSMenuItem(title: String(localized: "Show Downloads"), action: #selector(AppDelegate.showLibrary(_:)), keyEquivalent: "l")),
             shifted(NSMenuItem(
                 title: String(localized: "Clear Browsing Data…"), action: #selector(AppDelegate.clearBrowsingData(_:)), keyEquivalent: "\u{8}"
             )),
@@ -71,6 +72,11 @@ enum MainMenu {
         let submenu = NSMenu(title: title)
         items.forEach(submenu.addItem)
         item.submenu = submenu
+        return item
+    }
+
+    private static func optionCommand(_ item: NSMenuItem) -> NSMenuItem {
+        item.keyEquivalentModifierMask = [.command, .option]
         return item
     }
 

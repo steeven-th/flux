@@ -272,3 +272,25 @@ void FLXProfileReleaseAll() {
   }
   [g_profiles removeAllObjects];
 }
+
+@implementation FLXDownload
+
+- (instancetype)initWithItem:(CefRefPtr<CefDownloadItem>)item {
+  self = [super init];
+  _identifier = item->GetId();
+  _url = [NSString stringWithUTF8String:item->GetOriginalUrl().ToString().c_str()];
+  _path = [NSString stringWithUTF8String:item->GetFullPath().ToString().c_str()];
+  _mimeType = [NSString stringWithUTF8String:item->GetMimeType().ToString().c_str()];
+  _receivedBytes = item->GetReceivedBytes();
+  _totalBytes = item->GetTotalBytes() > 0 ? item->GetTotalBytes() : -1;
+  if (item->IsComplete()) {
+    _state = FLXDownloadStateComplete;
+  } else if (item->IsCanceled() || item->IsInterrupted()) {
+    _state = FLXDownloadStateCanceled;
+  } else {
+    _state = FLXDownloadStateInProgress;
+  }
+  return self;
+}
+
+@end

@@ -14,5 +14,11 @@
 
 @end
 
+#include "include/cef_download_item.h"
+
+@interface FLXDownload ()
+- (instancetype)initWithItem:(CefRefPtr<CefDownloadItem>)item;
+@end
+
 /// Drops every profile's request context. Called right before the engine shuts down.
 void FLXProfileReleaseAll();
