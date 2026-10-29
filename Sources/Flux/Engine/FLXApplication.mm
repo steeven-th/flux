@@ -28,6 +28,13 @@
     [self terminate:self];
     return;
   }
+  // ⌘O is Chromium's "Open File" too. Flux's menu gets it first, and only uses it when an item
+  // for it is enabled.
+  if (event.type == NSEventTypeKeyDown &&
+      (event.modifierFlags & NSEventModifierFlagDeviceIndependentFlagsMask) == NSEventModifierFlagCommand &&
+      [event.charactersIgnoringModifiers isEqualToString:@"o"] && [self.mainMenu performKeyEquivalent:event]) {
+    return;
+  }
   // To the user, Flux's window and its pages are one window, so a click that moves between them
   // must act at once. AppKit would only use it to make the clicked window key.
   if (event.type == NSEventTypeLeftMouseDown || event.type == NSEventTypeRightMouseDown) {

@@ -15,6 +15,7 @@ final class BrowserState {
     private static let archiveDelayKey = "archiveDelay"
     private static let linkTargetsOpenPeekKey = "linkTargetsOpenPeek"
     private static let shiftClickOpensPeekKey = "shiftClickOpensPeek"
+    private static let outsideLinksOpenLittleWindowKey = "outsideLinksOpenLittleWindow"
     /// Archived tabs are kept this long. The pages stay in the history after that.
     private static let archiveLifetime: TimeInterval = 30 * 86_400
     private static let logger = Logger(subsystem: "com.flux-browser.Flux", category: "storage")
@@ -390,9 +391,29 @@ final class BrowserState {
     func openPeekInTab() {
         guard let peek else { return }
         self.peek = nil
-        let tab = newTab(url: peek.url, in: peek.spaceID, page: peek.page)
-        tab.browserView(peek.page, didChangeTitle: peek.title)
-        if let favicon = peek.favicon { tab.browserView(peek.page, didChangeFavicon: favicon) }
+        adopt(peek.page, url: peek.url, title: peek.title, favicon: peek.favicon, in: peek.spaceID)
+    }
+
+    /// Makes a page shown elsewhere a tab of Today in the space, and shows it.
+    func adopt(_ page: FLXBrowserView, url: String, title: String, favicon: NSImage?, in spaceID: UUID) {
+        selectedSpaceID = spaceID
+        let tab = newTab(url: url, in: spaceID, page: page)
+        tab.browserView(page, didChangeTitle: title)
+        if let favicon { tab.browserView(page, didChangeFavicon: favicon) }
+    }
+
+    /// Whether links from other apps open in a little window rather than a tab.
+    var outsideLinksOpenLittleWindow: Bool {
+        get { (try? appDatabase.setting(Self.outsideLinksOpenLittleWindowKey)) != "false" }
+        set { save { try appDatabase.setSetting(Self.outsideLinksOpenLittleWindowKey, to: newValue ? nil : "false") } }
+    }
+
+    func profile(ofSpace id: UUID) -> FLXProfile? {
+        profiles[id]
+    }
+
+    func favicon(for url: String, inSpace id: UUID) -> NSImage? {
+        faviconCaches[id]?.image(for: url)
     }
 
     // Archive. Today's tabs go there when closed, or when left unseen longer than the profile's

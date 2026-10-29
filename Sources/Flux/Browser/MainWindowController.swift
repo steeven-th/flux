@@ -257,37 +257,6 @@ final class MainWindowController: NSWindowController {
     }
 }
 
-/// A light shadow under the page, drawn here rather than by the page's window: the system gives
-/// the key window a much larger one. Only the shadow is drawn, from the page's own shape, so
-/// nothing shows around the page's corners.
-private final class PageShadowView: NSView {
-    static let outset: CGFloat = 16
-
-    private let shadowLayer = CALayer()
-
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-        // A layer of our own: AppKit resets the shadow of the layers it manages.
-        layer = shadowLayer
-        wantsLayer = true
-        shadowLayer.shadowColor = NSColor.black.cgColor
-        shadowLayer.shadowOpacity = 0.12
-        shadowLayer.shadowRadius = 4
-        shadowLayer.shadowOffset = CGSize(width: 0, height: -1)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) is not available")
-    }
-
-    override func layout() {
-        super.layout()
-        let page = bounds.insetBy(dx: Self.outset, dy: Self.outset)
-        shadowLayer.shadowPath = RoundedRectangle(cornerRadius: FLXPageCornerRadius, style: .continuous).path(in: page).cgPath
-    }
-}
-
 private extension Comparable {
     func clamped(to range: ClosedRange<Self>) -> Self {
         min(max(self, range.lowerBound), range.upperBound)

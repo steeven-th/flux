@@ -101,6 +101,36 @@
         }
       }
     },
+    "A little window" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une petite fenêtre"
+          }
+        }
+      }
+    },
+    "A little window shows the page on its own. Browse there and close it, or move the page to a space." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une petite fenêtre affiche la page seule. Naviguez-y puis fermez-la, ou déplacez la page dans un espace."
+          }
+        }
+      }
+    },
+    "A new tab of the current space" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un nouvel onglet de l'espace courant"
+          }
+        }
+      }
+    },
     "Add to Favorites" : {
       "localizations" : {
         "fr" : {
@@ -361,6 +391,16 @@
         }
       }
     },
+    "Default browser" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Navigateur par défaut"
+          }
+        }
+      }
+    },
     "Delete" : {
       "localizations" : {
         "fr" : {
@@ -531,6 +571,16 @@
         }
       }
     },
+    "Flux is your default browser" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flux est votre navigateur par défaut"
+          }
+        }
+      }
+    },
     "Folder name" : {
       "localizations" : {
         "fr" : {
@@ -661,12 +711,32 @@
         }
       }
     },
+    "Make Flux the Default Browser" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Définir Flux comme navigateur par défaut"
+          }
+        }
+      }
+    },
     "Manage" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gérer"
+          }
+        }
+      }
+    },
+    "Move this page to the space's Today" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplacer cette page dans Aujourd'hui de l'espace"
           }
         }
       }
@@ -811,12 +881,42 @@
         }
       }
     },
+    "Open in %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir dans %@"
+          }
+        }
+      }
+    },
+    "Open in Space" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir dans l'espace"
+          }
+        }
+      }
+    },
     "Open in Tab" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ouvrir dans un onglet"
+          }
+        }
+      }
+    },
+    "Open links from other apps in" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir les liens des autres apps dans"
           }
         }
       }
@@ -1277,6 +1377,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Espace %lld"
+          }
+        }
+      }
+    },
+    "Space for this page" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espace de cette page"
           }
         }
       }

@@ -196,6 +196,8 @@ private struct PasswordsStep: View {
 }
 
 private struct DoneStep: View {
+    @State private var isDefaultBrowser = DefaultBrowser.isFlux
+
     private let shortcuts: [(keys: String, action: LocalizedStringKey)] = [
         ("⌘T", "Search or open a page"),
         ("⌘S", "Show or hide the sidebar"),
@@ -217,6 +219,15 @@ private struct DoneStep: View {
                             .background(RoundedRectangle(cornerRadius: 5).fill(.quaternary))
                         Text(shortcut.action)
                     }
+                }
+            }
+            .padding(.bottom, 24)
+            if isDefaultBrowser {
+                Label("Flux is your default browser", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.secondary)
+            } else {
+                Button("Make Flux the Default Browser") {
+                    DefaultBrowser.makeFlux { isDefaultBrowser = $0 }
                 }
             }
         }

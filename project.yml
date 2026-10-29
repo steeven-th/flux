@@ -71,6 +71,15 @@ targets:
         NSPrincipalClass: FLXApplication
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSSupportsAutomaticGraphicsSwitching: true
+        # Makes Flux one of the browsers macOS offers as default, and lets it open HTML files.
+        CFBundleURLTypes:
+          - CFBundleURLName: Web site URL
+            CFBundleURLSchemes: [http, https]
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: HTML document
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.html, public.xhtml]
         # Lets SwiftUI and AppKit drag and drop agree on the sidebar's own items.
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: com.flux-browser.sidebar-item

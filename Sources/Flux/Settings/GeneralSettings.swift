@@ -8,6 +8,7 @@ struct GeneralSettings: View {
     @State private var confirmsTabRemoval = true
     @State private var language = AppLanguage.current
     @State private var asksToRelaunch = false
+    @State private var isDefaultBrowser = DefaultBrowser.isFlux
 
     var body: some View {
         Form {
@@ -15,6 +16,18 @@ struct GeneralSettings: View {
                 Picker("Language", selection: $language) {
                     ForEach(AppLanguage.allCases) { language in
                         Text(language.name).tag(language)
+                    }
+                }
+            }
+            Section {
+                LabeledContent("Default browser") {
+                    if isDefaultBrowser {
+                        Text("Flux is your default browser")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Button("Make Flux the Default Browser") {
+                            DefaultBrowser.makeFlux { isDefaultBrowser = $0 }
+                        }
                     }
                 }
             }
@@ -32,6 +45,7 @@ struct GeneralSettings: View {
         .frame(width: 560)
         .fixedSize(horizontal: false, vertical: true)
         .onAppear {
+            isDefaultBrowser = DefaultBrowser.isFlux
             warnsBeforeQuitting = state.warnsBeforeQuitting
             confirmsTabRemoval = state.confirmsTabRemoval
         }

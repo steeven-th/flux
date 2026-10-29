@@ -345,7 +345,9 @@ class PageViewDelegate : public CefBrowserViewDelegate {
 
 }  // namespace
 
-const CGFloat FLXPageCornerRadius = 10;
+// macOS already rounds the page's window by about 17 points. A larger radius here is the only one
+// that shows, so the shadow drawn under the page can follow it exactly.
+const CGFloat FLXPageCornerRadius = 18;
 
 @implementation FLXBrowserView {
   NSView *_dimView;
@@ -475,7 +477,9 @@ const CGFloat FLXPageCornerRadius = 10;
   NSView *rootView = _pageNSWindow.contentView;
   rootView.wantsLayer = YES;
   rootView.layer.cornerRadius = FLXPageCornerRadius;
-  rootView.layer.cornerCurve = kCACornerCurveContinuous;
+  // Circular corners, which the shadow drawn under the page can follow exactly. Core Animation's
+  // continuous corners don't match any path AppKit or SwiftUI draws.
+  rootView.layer.cornerCurve = kCACornerCurveCircular;
   rootView.layer.masksToBounds = YES;
   [self updatePageWindow];
 }

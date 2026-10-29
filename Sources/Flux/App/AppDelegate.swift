@@ -7,6 +7,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var dialogFixer: ChromiumDialogFixer?
     private var isRelaunching = false
     private var welcome: WelcomeWindowController?
+    /// Links from other apps that came before the browser window, at the first launch.
+    private var pendingURLs: [URL] = []
     private let database: Result<AppDatabase, any Error>
 
     init(database: Result<AppDatabase, any Error>) {
@@ -50,8 +52,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windowController.showWindow(nil)
         self.state = state
         self.windowController = windowController
-        if state.selectedTab == nil {
+        let urls = pendingURLs
+        pendingURLs = []
+        urls.forEach(openFromOtherApp)
+        if state.selectedTab == nil, urls.isEmpty {
             windowController.showCommandBar(.newTab)
+        }
+    }
+
+    /// Links clicked in other apps, and HTML files opened with Flux.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard state != nil else {
+            pendingURLs += urls
+            return
+        }
+        urls.forEach(openFromOtherApp)
+    }
+
+    private func openFromOtherApp(_ url: URL) {
+        guard let state else { return }
+        if state.outsideLinksOpenLittleWindow {
+            LittleWindowController.show(url: url.absoluteString, state: state)
+        } else {
+            state.newTab(url: url.absoluteString)
+            windowController?.window?.makeKeyAndOrderFront(nil)
+            NSApp.activate()
         }
     }
 
@@ -142,6 +167,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func closeTab(_ sender: Any?) {
+        if let little = LittleWindowController.key {
+            little.close()
+            return
+        }
         if state?.peek != nil {
             state?.closePeek()
             return
@@ -177,6 +206,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func showHistory(_ sender: Any?) {
         state?.showHistoryOfSelectedSpace()
+    }
+
+    @objc func openLittleWindowInSpace(_ sender: Any?) {
+        LittleWindowController.key?.moveToSpace()
     }
 
     @objc func showArchive(_ sender: Any?) {
@@ -216,6 +249,9 @@ extension AppDelegate: NSMenuDelegate, NSMenuItemValidation {
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(openLittleWindowInSpace(_:)) {
+            return LittleWindowController.key != nil
+        }
         if menuItem.action == #selector(selectSpace(_:)) {
             return state?.spaces.indices.contains(menuItem.tag) ?? false
         }
