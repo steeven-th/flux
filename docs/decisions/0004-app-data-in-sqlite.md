@@ -6,9 +6,10 @@ Status: Proposed
 
 Chromium stores its own data in each profile folder (cookies, passwords, extensions). Flux keeps
 data that Chromium doesn't expose through CEF: spaces, the sidebar tree (folders, pinned tabs,
-favorites), open tabs, archived tabs, the history used by the command bar and the downloads list.
+favorites), open tabs, archived tabs and the downloads list. Browsing history is Chromium's own,
+see [ADR 6](0006-history-read-from-chromium.md).
 
-History and archives grow over time and need fast text search. The sidebar tree changes on every
+Archives grow over time and need fast text search. The sidebar tree changes on every
 drag and drop.
 
 ## Decision
@@ -16,9 +17,9 @@ drag and drop.
 Use SQLite through GRDB.swift.
 
 - One app database for global data: spaces, profiles, window state, preferences.
-- One database per profile, stored next to the Chromium profile folder, for the sidebar tree, tabs,
-  history and downloads. Removing a profile removes its folder and nothing is left behind.
-- Full text search with FTS5 for history and archive.
+- One database per profile, stored in the Chromium profile folder, for the sidebar tree, tabs and
+  downloads. Removing a profile removes its folder and nothing is left behind.
+- Full text search with FTS5 for the archive.
 - Sibling order in the sidebar uses fractional indexing, so a move updates one row.
 
 ## Alternatives considered

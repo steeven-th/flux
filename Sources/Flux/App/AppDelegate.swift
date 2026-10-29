@@ -81,6 +81,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state?.showPasswordsOfSelectedSpace()
     }
 
+    @objc func showHistory(_ sender: Any?) {
+        state?.showHistoryOfSelectedSpace()
+    }
+
+    @objc func clearBrowsingData(_ sender: Any?) {
+        state?.showClearBrowsingDataOfSelectedSpace()
+    }
+
     // Not toggleSidebar(_:): SwiftUI's hosting views answer that one first, for their own sidebars,
     // and disable it.
     @objc func showOrHideSidebar(_ sender: Any?) {

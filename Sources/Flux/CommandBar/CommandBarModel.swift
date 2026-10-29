@@ -14,12 +14,14 @@ final class CommandBarModel {
 
     enum Suggestion: Identifiable {
         case tab(Tab)
+        case page(ChromiumHistory.Page)
         case url(String)
         case search(String)
 
         var id: String {
             switch self {
             case .tab(let tab): "tab:\(tab.id)"
+            case .page(let page): "page:\(page.url)"
             case .url(let url): "url:\(url)"
             case .search(let query): "search:\(query)"
             }
@@ -35,6 +37,7 @@ final class CommandBarModel {
     private(set) var suggestions: [Suggestion] = []
     private(set) var selectedIndex = 0
     var onFinish: (() -> Void)?
+    private var historySearch: Task<Void, Never>?
 
     let state: BrowserState
 
@@ -55,12 +58,19 @@ final class CommandBarModel {
         selectedIndex = index
     }
 
+    func favicon(for suggestion: Suggestion) -> NSImage? {
+        guard case .page(let page) = suggestion else { return nil }
+        return state.favicon(for: page.url)
+    }
+
     /// In the background, a new tab opens without being selected.
     func performSelected(inBackground background: Bool = false) {
         guard suggestions.indices.contains(selectedIndex) else { return }
         switch suggestions[selectedIndex] {
         case .tab(let tab):
             state.select(tab)
+        case .page(let page):
+            open(page.url, inBackground: background)
         case .url(let url):
             open(url, inBackground: background)
         case .search(let text):
@@ -77,15 +87,31 @@ final class CommandBarModel {
         }
     }
 
+    /// Open tabs show at once. History pages are added when the search returns, unless the text
+    /// changed meanwhile.
     private func refresh() {
+        historySearch?.cancel()
+        suggestions = suggestions(for: query, pages: [])
+        selectedIndex = 0
+        let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, let history = state.historyOfSelectedSpace else { return }
+        historySearch = Task { [weak self, query] in
+            let pages = await history.search(text, limit: Self.maximumSuggestions)
+            guard let self, !Task.isCancelled, self.query == query else { return }
+            let selected = self.suggestions.indices.contains(self.selectedIndex) ? self.suggestions[self.selectedIndex].id : nil
+            self.suggestions = self.suggestions(for: query, pages: pages)
+            // Keeps the row picked with the arrow keys while the search ran.
+            self.selectedIndex = self.suggestions.firstIndex { $0.id == selected } ?? 0
+        }
+    }
+
+    private func suggestions(for query: String, pages: [ChromiumHistory.Page]) -> [Suggestion] {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let tabs = state.tabsInSelectedSpace.filter { $0 !== state.selectedTab }
-        selectedIndex = 0
 
         guard !text.isEmpty else {
             let recent = tabs.sorted { ($0.node.lastActiveAt ?? .distantPast) > ($1.node.lastActiveAt ?? .distantPast) }
-            suggestions = recent.prefix(Self.maximumSuggestions).map(Suggestion.tab)
-            return
+            return recent.prefix(Self.maximumSuggestions).map(Suggestion.tab)
         }
 
         let typed: Suggestion = BrowserState.looksLikeURL(text) ? .url(BrowserState.normalizedURL(text)) : .search(text)
@@ -96,10 +122,18 @@ final class CommandBarModel {
                 || (URL(string: tab.url)?.host() ?? "").replacingOccurrences(of: "www.", with: "")
                     .range(of: text, options: [.anchored, .caseInsensitive]) != nil
         }
+        let openURLs = Set(state.tabsInSelectedSpace.map(\.url))
+        let newPages = pages.filter { !openURLs.contains($0.url) }
+        // A history page only goes before the typed text when its site or title starts with it,
+        // so typing a search and pressing return still searches.
+        let bestPage = best == nil ? newPages.first { ChromiumHistory.startsMatch($0, text: text) } : nil
+
         var list: [Suggestion] = []
         if let best { list.append(.tab(best)) }
+        if let bestPage { list.append(.page(bestPage)) }
         list.append(typed)
         list += matches.filter { $0 !== best }.map(Suggestion.tab)
-        suggestions = Array(list.prefix(Self.maximumSuggestions))
+        list += newPages.filter { $0 != bestPage }.map(Suggestion.page)
+        return Array(list.prefix(Self.maximumSuggestions))
     }
 }

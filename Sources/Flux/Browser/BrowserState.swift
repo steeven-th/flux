@@ -30,6 +30,7 @@ final class BrowserState {
     @ObservationIgnored private var profileDatabases: [UUID: ProfileDatabase] = [:]
     @ObservationIgnored private var extensionLists: [UUID: ExtensionList] = [:]
     @ObservationIgnored private var faviconCaches: [UUID: FaviconCache] = [:]
+    @ObservationIgnored private var histories: [UUID: ChromiumHistory] = [:]
 
     init(appDatabase: AppDatabase) throws {
         self.appDatabase = appDatabase
@@ -74,6 +75,7 @@ final class BrowserState {
         profileDatabases[space.id] = database
         extensionLists[space.id] = ExtensionList(profile: profile, profileFolder: space.profileFolder)
         faviconCaches[space.id] = FaviconCache(profileFolder: space.profileFolder)
+        histories[space.id] = ChromiumHistory(profileFolder: space.profileFolder)
 
         let nodes = try database.nodes(in: space.id)
         for node in nodes {
@@ -142,6 +144,7 @@ final class BrowserState {
         profileDatabases[id] = nil
         extensionLists[id] = nil
         faviconCaches[id] = nil
+        histories[id] = nil
         folders.removeAll { $0.spaceID == id }
         sidebarRevision += 1
         if selectedSpaceID == id {
@@ -479,6 +482,22 @@ final class BrowserState {
     /// Chromium's password manager, which keeps the selected space's passwords on this Mac.
     func showPasswordsOfSelectedSpace() {
         showChromePage("chrome://password-manager")
+    }
+
+    var historyOfSelectedSpace: ChromiumHistory? {
+        histories[selectedSpaceID]
+    }
+
+    func favicon(for url: String) -> NSImage? {
+        faviconCaches[selectedSpaceID]?.image(for: url)
+    }
+
+    func showHistoryOfSelectedSpace() {
+        showChromePage("chrome://history")
+    }
+
+    func showClearBrowsingDataOfSelectedSpace() {
+        showChromePage("chrome://settings/clearBrowserData")
     }
 
     /// Selects the space's tab already showing the page, or opens one.

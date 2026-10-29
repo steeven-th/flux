@@ -34,6 +34,12 @@ enum MainMenu {
             NSMenuItem(title: "Back", action: #selector(AppDelegate.goBack(_:)), keyEquivalent: "["),
             NSMenuItem(title: "Forward", action: #selector(AppDelegate.goForward(_:)), keyEquivalent: "]"),
         ]))
+        menu.addItem(submenu(title: "History", items: [
+            NSMenuItem(title: "Show All History", action: #selector(AppDelegate.showHistory(_:)), keyEquivalent: "y"),
+            shifted(NSMenuItem(
+                title: "Clear Browsing Data…", action: #selector(AppDelegate.clearBrowsingData(_:)), keyEquivalent: "\u{8}"
+            )),
+        ]))
         menu.addItem(spacesMenu(delegate: spacesMenuDelegate))
         menu.addItem(submenu(title: "Debug", items: [
             NSMenuItem(title: "Open Tab in Chrome Window", action: #selector(AppDelegate.openInChromeWindow(_:)), keyEquivalent: ""),

@@ -35,6 +35,7 @@ struct CommandBarView: View {
                         SuggestionRow(
                             suggestion: suggestion,
                             searchEngineName: model.state.searchEngine.name,
+                            favicon: model.favicon(for: suggestion),
                             isSelected: index == model.selectedIndex,
                             tint: model.state.selectedSpace.color
                         )
@@ -58,6 +59,7 @@ struct CommandBarView: View {
 private struct SuggestionRow: View {
     let suggestion: CommandBarModel.Suggestion
     let searchEngineName: String
+    let favicon: NSImage?
     let isSelected: Bool
     let tint: Color
 
@@ -89,6 +91,12 @@ private struct SuggestionRow: View {
             } else {
                 Image(systemName: "globe").foregroundStyle(.secondary)
             }
+        case .page:
+            if let favicon {
+                Image(nsImage: favicon).resizable().aspectRatio(contentMode: .fit)
+            } else {
+                Image(systemName: "clock").foregroundStyle(.secondary)
+            }
         case .url:
             Image(systemName: "globe").foregroundStyle(.secondary)
         case .search:
@@ -99,6 +107,7 @@ private struct SuggestionRow: View {
     private var title: String {
         switch suggestion {
         case .tab(let tab): tab.displayTitle
+        case .page(let page): page.title.isEmpty ? page.url : page.title
         case .url(let url): url
         case .search(let query): query
         }
@@ -107,7 +116,7 @@ private struct SuggestionRow: View {
     private var action: String {
         switch suggestion {
         case .tab: "Switch to Tab"
-        case .url: "Open"
+        case .page, .url: "Open"
         case .search: "Search \(searchEngineName)"
         }
     }
