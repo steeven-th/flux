@@ -2,6 +2,8 @@
 #import "FLXEngine+Internal.h"
 #import "FLXProfile+Internal.h"
 
+#include <map>
+
 #include "include/cef_client.h"
 #include "include/cef_devtools_message_observer.h"
 #include "include/views/cef_browser_view.h"
@@ -11,6 +13,8 @@
 @property (nonatomic, readwrite, copy) NSString *currentURL;
 @property (nonatomic, readwrite, copy) NSString *title;
 @property (nonatomic, readonly) BOOL embedded;
+@property (nonatomic, readonly) CefRefPtr<CefClient> cefClient;
+- (instancetype)initOpenedByPageWithURL:(NSString *)url profile:(FLXProfile *)profile;
 - (void)attachBrowser:(CefRefPtr<CefBrowser>)browser;
 - (void)detachBrowser;
 - (void)pageWindowCreated:(CefRefPtr<CefWindow>)window;
@@ -78,24 +82,96 @@ class TargetInfoObserver : public CefDevToolsMessageObserver {
   IMPLEMENT_REFCOUNTING(TargetInfoObserver);
 };
 
+// Pages opened in a new tab, between the request and the creation of their view, by popup id.
+std::map<int, FLXBrowserView *> &PendingPages() {
+  static std::map<int, FLXBrowserView *> pages;
+  return pages;
+}
+
 class BrowserClient : public CefClient,
                       public CefLifeSpanHandler,
                       public CefDisplayHandler,
-                      public CefDownloadHandler {
+                      public CefDownloadHandler,
+                      public CefRequestHandler {
  public:
-  explicit BrowserClient(FLXBrowserView *owner) : owner_(owner) {}
+  BrowserClient(FLXBrowserView *owner, bool opened_by_page) : owner_(owner), opened_by_page_(opened_by_page) {}
 
   CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
   CefRefPtr<CefDownloadHandler> GetDownloadHandler() override { return this; }
+  CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
 
   void OnAfterCreated(CefRefPtr<CefBrowser> browser) override {
     FLXEngineBrowserCreated(browser);
-    if (!browser->IsPopup()) [owner_ attachBrowser:browser];
+    if (page_id_ == 0 && (opened_by_page_ || !browser->IsPopup())) {
+      page_id_ = browser->GetIdentifier();
+      [owner_ attachBrowser:browser];
+    }
+  }
+
+  // A link ⌘-clicked, or opened in a new tab by one of Chrome's own pages. Unlike OnBeforePopup,
+  // there is no opener to keep, so Flux loads the URL in a page of its own.
+  bool OnOpenURLFromTab(CefRefPtr<CefBrowser> browser,
+                        CefRefPtr<CefFrame> frame,
+                        const CefString &target_url,
+                        cef_window_open_disposition_t target_disposition,
+                        bool user_gesture) override {
+    if (!OpensNewTab(target_disposition)) return false;
+    FLXBrowserView *owner = owner_;
+    if (!owner) return false;
+    if (owner.embedded || ![owner.delegate respondsToSelector:@selector(browserView:didOpenPage:inBackground:)]) {
+      FLXEngineOpenExternalPage(ToNSString(target_url), browser);
+      return true;
+    }
+    FLXBrowserView *page = [[FLXBrowserView alloc] initWithURL:ToNSString(target_url) profile:owner.profile];
+    [owner.delegate browserView:owner
+                    didOpenPage:page
+                   inBackground:target_disposition == CEF_WOD_NEW_BACKGROUND_TAB];
+    return true;
+  }
+
+  // Links opened in a new tab become Flux tabs. Their page is still created by Chromium, as a
+  // popup, so it keeps its link to the opener, which some sign-in flows rely on. Popups asked
+  // with window features stay windows.
+  bool OnBeforePopup(CefRefPtr<CefBrowser> browser,
+                     CefRefPtr<CefFrame> frame,
+                     int popup_id,
+                     const CefString &target_url,
+                     const CefString &target_frame_name,
+                     cef_window_open_disposition_t target_disposition,
+                     bool user_gesture,
+                     const CefPopupFeatures &popup_features,
+                     CefWindowInfo &window_info,
+                     CefRefPtr<CefClient> &client,
+                     CefBrowserSettings &settings,
+                     CefRefPtr<CefDictionaryValue> &extra_info,
+                     bool *no_javascript_access) override {
+    if (!OpensNewTab(target_disposition)) return false;
+    FLXBrowserView *owner = owner_;
+    if (!owner) return false;
+    // An embedded page can't host Chrome style popups.
+    if (owner.embedded) {
+      FLXEngineOpenExternalPage(ToNSString(target_url), browser);
+      return true;
+    }
+    if (![owner.delegate respondsToSelector:@selector(browserView:didOpenPage:inBackground:)]) return false;
+    FLXBrowserView *page = [[FLXBrowserView alloc] initOpenedByPageWithURL:ToNSString(target_url)
+                                                                   profile:owner.profile];
+    client = page.cefClient;
+    PendingPages()[popup_id] = page;
+    BOOL background = target_disposition == CEF_WOD_NEW_BACKGROUND_TAB;
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [owner.delegate browserView:owner didOpenPage:page inBackground:background];
+    });
+    return false;
+  }
+
+  void OnBeforePopupAborted(CefRefPtr<CefBrowser> browser, int popup_id) override {
+    PendingPages().erase(popup_id);
   }
 
   bool DoClose(CefRefPtr<CefBrowser> browser) override {
-    if (browser->IsPopup()) return false;
+    if (!IsOwnPage(browser)) return false;
     FLXBrowserView *owner = owner_;
     if ([owner.delegate respondsToSelector:@selector(browserViewDidClose:)]) {
       [owner.delegate browserViewDidClose:owner];
@@ -117,14 +193,14 @@ class BrowserClient : public CefClient,
   }
 
   void OnBeforeClose(CefRefPtr<CefBrowser> browser) override {
-    if (!browser->IsPopup()) [owner_ detachBrowser];
+    if (IsOwnPage(browser)) [owner_ detachBrowser];
     FLXEngineBrowserClosed(browser);
   }
 
   void OnAddressChange(CefRefPtr<CefBrowser> browser,
                        CefRefPtr<CefFrame> frame,
                        const CefString &url) override {
-    if (browser->IsPopup() || !frame->IsMain()) return;
+    if (!IsOwnPage(browser) || !frame->IsMain()) return;
     FLXBrowserView *owner = owner_;
     owner.currentURL = ToNSString(url);
     if ([owner.delegate respondsToSelector:@selector(browserView:didChangeURL:)]) {
@@ -152,12 +228,12 @@ class BrowserClient : public CefClient,
 
   void OnFaviconURLChange(CefRefPtr<CefBrowser> browser,
                           const std::vector<CefString> &icon_urls) override {
-    if (browser->IsPopup() || icon_urls.empty()) return;
+    if (!IsOwnPage(browser) || icon_urls.empty()) return;
     browser->GetHost()->DownloadImage(icon_urls.front(), true, 64, false, new FaviconCallback(owner_));
   }
 
   void OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString &title) override {
-    if (browser->IsPopup()) return;
+    if (!IsOwnPage(browser)) return;
     FLXBrowserView *owner = owner_;
     owner.title = ToNSString(title);
     if ([owner.delegate respondsToSelector:@selector(browserView:didChangeTitle:)]) {
@@ -166,7 +242,16 @@ class BrowserClient : public CefClient,
   }
 
  private:
+  static bool OpensNewTab(cef_window_open_disposition_t disposition) {
+    return disposition == CEF_WOD_NEW_FOREGROUND_TAB || disposition == CEF_WOD_NEW_BACKGROUND_TAB ||
+           disposition == CEF_WOD_NEW_WINDOW;
+  }
+
+  bool IsOwnPage(CefRefPtr<CefBrowser> browser) const { return browser->GetIdentifier() == page_id_; }
+
   __weak FLXBrowserView *owner_;
+  const bool opened_by_page_;
+  int page_id_ = 0;
   IMPLEMENT_REFCOUNTING(BrowserClient);
 };
 
@@ -207,6 +292,9 @@ class PageWindowDelegate : public CefWindowDelegate {
 
 class PageViewDelegate : public CefBrowserViewDelegate {
  public:
+  PageViewDelegate() = default;
+  explicit PageViewDelegate(FLXBrowserView *opened_page) : opened_page_(opened_page) {}
+
   cef_runtime_style_t GetBrowserRuntimeStyle() override { return CEF_RUNTIME_STYLE_CHROME; }
   // Chrome anchors extension popups to its toolbar's extension area, and running an extension's
   // action fails without one. The toolbar exists but stays hidden, Flux has its own.
@@ -214,7 +302,33 @@ class PageViewDelegate : public CefBrowserViewDelegate {
     return CEF_CTT_NORMAL;
   }
 
+  CefRefPtr<CefBrowserViewDelegate> GetDelegateForPopupBrowserView(CefRefPtr<CefBrowserView> browser_view,
+                                                                   const CefBrowserSettings &settings,
+                                                                   CefRefPtr<CefClient> client,
+                                                                   bool is_devtools) override {
+    auto &pending = PendingPages();
+    for (auto it = pending.begin(); it != pending.end(); ++it) {
+      if (it->second.cefClient.get() != client.get()) continue;
+      FLXBrowserView *page = it->second;
+      pending.erase(it);
+      return new PageViewDelegate(page);
+    }
+    return new PageViewDelegate();
+  }
+
+  // Every popup delegate comes from the method above, so the cast is safe.
+  bool OnPopupBrowserViewCreated(CefRefPtr<CefBrowserView> browser_view,
+                                 CefRefPtr<CefBrowserView> popup_browser_view,
+                                 bool is_devtools) override {
+    auto *delegate = static_cast<PageViewDelegate *>(popup_browser_view->GetDelegate().get());
+    FLXBrowserView *page = delegate ? delegate->opened_page_ : nil;
+    if (!page) return false;
+    CefWindow::CreateTopLevelWindow(new PageWindowDelegate(popup_browser_view, page));
+    return true;
+  }
+
  private:
+  FLXBrowserView *opened_page_ = nil;
   IMPLEMENT_REFCOUNTING(PageViewDelegate);
 };
 
@@ -241,6 +355,17 @@ const CGFloat FLXPageCornerRadius = 10;
   return [self initWithURL:url profile:profile embedded:YES];
 }
 
+// Chromium creates the page itself, as a popup of the page that opened it.
+- (instancetype)initOpenedByPageWithURL:(NSString *)url profile:(FLXProfile *)profile {
+  self = [super initWithFrame:NSMakeRect(0, 0, 800, 600)];
+  if (!self) return nil;
+  _profile = profile;
+  _currentURL = [url copy];
+  _title = @"";
+  _client = new BrowserClient(self, true);
+  return self;
+}
+
 - (instancetype)initWithURL:(NSString *)url profile:(FLXProfile *)profile embedded:(BOOL)embedded {
   self = [super initWithFrame:NSMakeRect(0, 0, 800, 600)];
   if (!self) return nil;
@@ -248,13 +373,17 @@ const CGFloat FLXPageCornerRadius = 10;
   _profile = profile;
   _currentURL = [url copy];
   _title = @"";
-  _client = new BrowserClient(self);
+  _client = new BrowserClient(self, false);
 
   __weak FLXBrowserView *weakSelf = self;
   [profile whenReady:^{
     [weakSelf createBrowser];
   }];
   return self;
+}
+
+- (CefRefPtr<CefClient>)cefClient {
+  return _client;
 }
 
 // In a popover, vibrancy would wash out the page's colors.

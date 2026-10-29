@@ -45,6 +45,7 @@ struct PinnedGrid: NSViewRepresentable {
         collection.setDraggingSourceOperationMask(.move, forLocal: true)
         collection.dragExitHandler = { [weak coordinator = context.coordinator] in coordinator?.endPreview() }
         collection.menuProvider = { [weak coordinator = context.coordinator] index in coordinator?.menu(for: index) }
+        collection.middleClickHandler = { [weak coordinator = context.coordinator] index in coordinator?.unloadTab(at: index) }
         context.coordinator.collection = collection
         return collection
     }
@@ -246,6 +247,11 @@ struct PinnedGrid: NSViewRepresentable {
             return state.entry(id: id)
         }
 
+        func unloadTab(at index: Int) {
+            guard let tab = tiles[safe: index] ?? nil else { return }
+            state.close(tab)
+        }
+
         func menu(for index: Int) -> NSMenu? {
             guard let tab = tiles[safe: index] ?? nil else { return nil }
             let menu = NSMenu()
@@ -271,9 +277,10 @@ struct PinnedGrid: NSViewRepresentable {
     }
 }
 
-/// Builds its context menu for the tile under the click.
+/// Builds its context menu for the tile under the click. A middle click unloads the tile's tab.
 private final class PinnedCollectionView: NSCollectionView {
     var menuProvider: ((Int) -> NSMenu?)?
+    var middleClickHandler: ((Int) -> Void)?
     /// The delegate isn't told when a drag leaves the grid, so the preview is undone from here.
     var dragExitHandler: (() -> Void)?
 
@@ -286,6 +293,12 @@ private final class PinnedCollectionView: NSCollectionView {
         let point = convert(event.locationInWindow, from: nil)
         guard let index = indexPathForItem(at: point)?.item else { return nil }
         return menuProvider?(index)
+    }
+
+    override func otherMouseUp(with event: NSEvent) {
+        guard event.buttonNumber == 2 else { return super.otherMouseUp(with: event) }
+        let point = convert(event.locationInWindow, from: nil)
+        if let index = indexPathForItem(at: point)?.item { middleClickHandler?(index) }
     }
 }
 

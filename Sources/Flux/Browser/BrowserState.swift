@@ -85,10 +85,13 @@ final class BrowserState {
         }
     }
 
-    private func makeTab(_ node: SidebarNode) -> Tab {
-        let tab = Tab(node: node, profile: profiles[node.spaceID]!, favicons: faviconCaches[node.spaceID]!)
+    private func makeTab(_ node: SidebarNode, page: FLXBrowserView? = nil) -> Tab {
+        let tab = Tab(node: node, profile: profiles[node.spaceID]!, favicons: faviconCaches[node.spaceID]!, page: page)
         tab.onChange = { [weak self] tab in
             self?.save { try self?.profileDatabases[tab.spaceID]?.save(tab.node) }
+        }
+        tab.onOpenPage = { [weak self] opener, page, background in
+            self?.newTab(url: page.currentURL, in: opener.spaceID, page: page, selecting: !background)
         }
         return tab
     }
@@ -198,7 +201,9 @@ final class BrowserState {
     }
 
     @discardableResult
-    func newTab(url: String = BrowserState.newTabURL, in spaceID: UUID? = nil) -> Tab {
+    func newTab(
+        url: String = BrowserState.newTabURL, in spaceID: UUID? = nil, page: FLXBrowserView? = nil, selecting: Bool = true
+    ) -> Tab {
         let spaceID = spaceID ?? selectedSpaceID
         let last = entries(in: .today, parentID: nil, spaceID: spaceID).last?.node.position
         let node = SidebarNode(
@@ -207,10 +212,10 @@ final class BrowserState {
             isExpanded: true, lastActiveAt: Date(), createdAt: Date()
         )
         save { try profileDatabases[spaceID]?.save(node) }
-        let tab = makeTab(node)
+        let tab = makeTab(node, page: page)
         tabs.append(tab)
         sidebarRevision += 1
-        select(tab)
+        if selecting { select(tab) }
         return tab
     }
 

@@ -15,11 +15,14 @@ final class Tab: NSObject, Identifiable {
     @ObservationIgnored private(set) var node: SidebarNode
     /// Called after the URL or title changed, to save the tab.
     @ObservationIgnored var onChange: ((Tab) -> Void)?
+    /// Called when the page opens a link in a new tab, with the new page.
+    @ObservationIgnored var onOpenPage: ((Tab, FLXBrowserView, _ background: Bool) -> Void)?
     @ObservationIgnored private let profile: FLXProfile
     @ObservationIgnored private let favicons: FaviconCache
     @ObservationIgnored private var loadedView: FLXBrowserView?
 
-    init(node: SidebarNode, profile: FLXProfile, favicons: FaviconCache) {
+    /// `page` is a page already created, opened by another tab.
+    init(node: SidebarNode, profile: FLXProfile, favicons: FaviconCache, page: FLXBrowserView? = nil) {
         id = node.id
         spaceID = node.spaceID
         url = node.url ?? ""
@@ -28,6 +31,12 @@ final class Tab: NSObject, Identifiable {
         self.profile = profile
         self.favicons = favicons
         favicon = favicons.image(for: node.url ?? "")
+        super.init()
+        if let page {
+            page.delegate = self
+            loadedView = page
+            isLoaded = true
+        }
     }
 
     /// Created on first use, so tabs restored at launch don't load their page until shown.
@@ -119,6 +128,10 @@ extension Tab: FLXBrowserViewDelegate {
 
     func browserView(_ browserView: FLXBrowserView, didChangeTitle title: String) {
         update(title: title)
+    }
+
+    func browserView(_ browserView: FLXBrowserView, didOpenPage page: FLXBrowserView, inBackground background: Bool) {
+        onOpenPage?(self, page, background)
     }
 
     func browserView(_ browserView: FLXBrowserView, didChangeFavicon favicon: NSImage) {

@@ -11,7 +11,7 @@ struct SidebarOutline: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let outline = NSOutlineView()
+        let outline = SidebarOutlineView()
         outline.headerView = nil
         outline.style = .sourceList
         outline.backgroundColor = .clear
@@ -25,6 +25,9 @@ struct SidebarOutline: NSViewRepresentable {
         outline.registerForDraggedTypes([Coordinator.dragType])
         outline.setDraggingSourceOperationMask(.move, forLocal: true)
         outline.menu = context.coordinator.contextMenu
+        outline.middleClickHandler = { [weak coordinator = context.coordinator] item in
+            if let tab = item as? Tab { coordinator?.state.close(tab) }
+        }
 
         let scroll = NSScrollView()
         scroll.documentView = outline
@@ -307,5 +310,16 @@ private final class HostingCell: NSTableCellView {
 
     func show(_ view: AnyView) {
         host.rootView = view
+    }
+}
+
+/// A middle click closes the tab under it, like in other browsers.
+private final class SidebarOutlineView: NSOutlineView {
+    var middleClickHandler: ((Any) -> Void)?
+
+    override func otherMouseUp(with event: NSEvent) {
+        guard event.buttonNumber == 2 else { return super.otherMouseUp(with: event) }
+        let row = row(at: convert(event.locationInWindow, from: nil))
+        if row >= 0, let item = item(atRow: row) { middleClickHandler?(item) }
     }
 }
