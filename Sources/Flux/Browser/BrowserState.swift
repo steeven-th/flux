@@ -11,6 +11,7 @@ final class BrowserState {
     private static let searchEngineKey = "searchEngine"
     private static let sidebarWidthKey = "sidebarWidth"
     private static let sidebarCollapsedKey = "sidebarCollapsed"
+    private static let warnsBeforeQuittingKey = "warnsBeforeQuitting"
     private static let logger = Logger(subsystem: "com.flux-browser.Flux", category: "storage")
 
     private(set) var spaces: [Space] = []
@@ -202,9 +203,53 @@ final class BrowserState {
         set { save { try appDatabase.setSetting(Self.sidebarCollapsedKey, to: newValue ? "true" : nil) } }
     }
 
+    var warnsBeforeQuitting: Bool {
+        get { (try? appDatabase.setting(Self.warnsBeforeQuittingKey)) == "true" }
+        set { save { try appDatabase.setSetting(Self.warnsBeforeQuittingKey, to: newValue ? "true" : nil) } }
+    }
+
+    /// The selected space's, since each profile has its own.
     var searchEngine: SearchEngine {
-        get { SearchEngine(setting: try? appDatabase.setting(Self.searchEngineKey)) }
-        set { save { try appDatabase.setSetting(Self.searchEngineKey, to: newValue == .google ? nil : newValue.id) } }
+        searchEngine(forProfile: selectedSpace.profileFolder)
+    }
+
+    /// Profiles without a choice of their own use the engine chosen before engines were per
+    /// profile, or Google.
+    func searchEngine(forProfile folder: URL) -> SearchEngine {
+        let own = try? appDatabase.setting(Self.searchEngineKey(forProfile: folder))
+        return SearchEngine(setting: own ?? (try? appDatabase.setting(Self.searchEngineKey)))
+    }
+
+    func setSearchEngine(_ engine: SearchEngine, forProfile folder: URL) {
+        save { try appDatabase.setSetting(Self.searchEngineKey(forProfile: folder), to: engine.id) }
+    }
+
+    private static func searchEngineKey(forProfile folder: URL) -> String {
+        "\(searchEngineKey) \(folder.lastPathComponent)"
+    }
+
+    struct Profile: Identifiable {
+        let folder: URL
+        let spaces: [Space]
+
+        var id: URL { folder }
+
+        /// Profiles have no name of their own, they're named after their spaces.
+        var name: String {
+            spaces.map(\.name).joined(separator: ", ")
+        }
+    }
+
+    /// The profiles in use, in the order of their first space.
+    var profilesInUse: [Profile] {
+        var folders: [URL] = []
+        var spacesByFolder: [URL: [Space]] = [:]
+        for space in spaces {
+            let folder = space.profileFolder.standardizedFileURL
+            if spacesByFolder[folder] == nil { folders.append(folder) }
+            spacesByFolder[folder, default: []].append(space)
+        }
+        return folders.map { Profile(folder: $0, spaces: spacesByFolder[$0] ?? []) }
     }
 
     func select(_ tab: Tab) {
@@ -498,6 +543,14 @@ final class BrowserState {
 
     func showClearBrowsingDataOfSelectedSpace() {
         showChromePage("chrome://settings/clearBrowserData")
+    }
+
+    /// Shows one of Chromium's pages for a profile in a space using it, the selected one if it does.
+    func showChromePage(_ url: String, forProfile folder: URL) {
+        let candidates = spaces.filter { $0.profileFolder.standardizedFileURL == folder.standardizedFileURL }
+        guard let space = candidates.first(where: { $0.id == selectedSpaceID }) ?? candidates.first else { return }
+        selectedSpaceID = space.id
+        showChromePage(url)
     }
 
     /// Selects the space's tab already showing the page, or opens one.

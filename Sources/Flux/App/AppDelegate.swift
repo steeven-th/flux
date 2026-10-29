@@ -43,6 +43,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let state, state.warnsBeforeQuitting else { return .terminateNow }
+        let alert = NSAlert()
+        alert.messageText = "Quit Flux?"
+        alert.addButton(withTitle: "Quit")
+        alert.addButton(withTitle: "Cancel")
+        alert.showsSuppressionButton = true
+        alert.suppressionButton?.title = "Don't ask again"
+        guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }
+        if alert.suppressionButton?.state == .on { state.warnsBeforeQuitting = false }
+        return .terminateNow
+    }
+
+    @objc func showSettings(_ sender: Any?) {
+        guard let state else { return }
+        SettingsWindowController.show(state: state)
+    }
+
     @objc func newTab(_ sender: Any?) {
         windowController?.showCommandBar(.newTab)
     }

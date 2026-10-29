@@ -6,6 +6,8 @@ enum MainMenu {
     static func make(spacesMenuDelegate: NSMenuDelegate) -> NSMenu {
         let menu = NSMenu()
         menu.addItem(submenu(title: "Flux", items: [
+            NSMenuItem(title: "Settings…", action: #selector(AppDelegate.showSettings(_:)), keyEquivalent: ","),
+            .separator(),
             shifted(NSMenuItem(title: "Extensions…", action: #selector(AppDelegate.showExtensions(_:)), keyEquivalent: "e")),
             NSMenuItem(title: "Passwords…", action: #selector(AppDelegate.showPasswords(_:)), keyEquivalent: ""),
             .separator(),

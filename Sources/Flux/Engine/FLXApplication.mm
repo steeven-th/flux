@@ -40,8 +40,14 @@
 }
 
 // Quitting has to go through Chromium: every browser closes first, then the message loop ends
-// and main() shuts the engine down.
+// and main() shuts the engine down. AppKit's own terminate: is never called, so the delegate is
+// asked here.
 - (void)terminate:(id)sender {
+  id<NSApplicationDelegate> delegate = self.delegate;
+  if ([delegate respondsToSelector:@selector(applicationShouldTerminate:)] &&
+      [delegate applicationShouldTerminate:self] != NSTerminateNow) {
+    return;
+  }
   [FLXEngine closeAllBrowsersAndQuit];
 }
 
