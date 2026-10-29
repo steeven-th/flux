@@ -4,7 +4,7 @@ struct SectionHeaderRow: View {
     let section: SidebarNode.Section
 
     var body: some View {
-        Text(section == .pinned ? "Pinned" : "Today")
+        Text(section == .favorites ? "Favorites" : "Today")
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -31,20 +31,20 @@ struct TabRow: View {
             Text(tab.displayTitle)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                // Arc dims pinned tabs whose page isn't loaded.
-                .opacity(tab.isPinned && !tab.isLoaded ? 0.6 : 1)
+                // Arc dims kept tabs whose page isn't loaded.
+                .opacity(tab.isKept && !tab.isLoaded ? 0.6 : 1)
 
             Spacer(minLength: 0)
 
             if isHovered {
                 Button(action: onClose) {
-                    Image(systemName: tab.isPinned ? "minus" : "xmark")
+                    Image(systemName: tab.isKept ? "minus" : "xmark")
                         .font(.system(size: 10, weight: .semibold))
                         .frame(width: 18, height: 18)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
-                .help(tab.isPinned ? "Unload" : "Close")
+                .help(tab.isKept ? "Unload" : "Close")
             }
         }
         .padding(.trailing, 4)

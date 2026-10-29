@@ -68,6 +68,11 @@ targets:
         NSPrincipalClass: FLXApplication
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSSupportsAutomaticGraphicsSwitching: true
+        # Lets SwiftUI and AppKit drag and drop agree on the sidebar's own items.
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.flux-browser.sidebar-item
+            UTTypeDescription: Flux sidebar item
+            UTTypeConformsTo: [public.data]
     dependencies:
       - package: GRDB
       - target: Flux Helper

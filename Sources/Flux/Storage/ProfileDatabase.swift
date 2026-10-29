@@ -10,10 +10,10 @@ struct SidebarNode: Codable, Identifiable, FetchableRecord, PersistableRecord {
     }
 
     enum Section: String, Codable {
-        /// Icons at the top of the sidebar.
-        case favorites
-        /// Kept tabs, which can be grouped in folders.
+        /// Tabs kept as icons at the top of the sidebar.
         case pinned
+        /// Kept tabs, which can be grouped in folders.
+        case favorites
         /// Tabs opened today.
         case today
     }
@@ -26,8 +26,8 @@ struct SidebarNode: Codable, Identifiable, FetchableRecord, PersistableRecord {
     var position: String
     var title: String
     var url: String?
-    /// For pinned tabs, the page they were pinned on, which they can go back to.
-    var pinnedURL: String?
+    /// For kept tabs (pinned or favorites), the page they were kept on, which they can go back to.
+    var originalURL: String?
     /// For folders.
     var isExpanded: Bool
     var lastActiveAt: Date?
@@ -66,6 +66,16 @@ final class ProfileDatabase: Sendable {
             try db.alter(table: "node") { t in
                 t.add(column: "pinnedURL", .text)
                 t.add(column: "isExpanded", .boolean).notNull().defaults(to: true)
+            }
+        }
+        // The top icons used to be called favorites and the folder tree pinned, after Arc.
+        migrator.registerMigration("v3 swap pinned and favorites") { db in
+            try db.execute(sql: """
+                UPDATE node SET section = CASE section
+                    WHEN 'pinned' THEN 'favorites' WHEN 'favorites' THEN 'pinned' ELSE section END
+                """)
+            try db.alter(table: "node") { t in
+                t.rename(column: "pinnedURL", to: "originalURL")
             }
         }
         return migrator

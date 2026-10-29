@@ -4,6 +4,11 @@ struct SidebarView: View {
     @Bindable var state: BrowserState
     @State private var address = ""
 
+    private var pinnedCount: Int {
+        _ = state.sidebarRevision
+        return state.pinnedTabs.count
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             TextField("Search or enter address", text: $address)
@@ -13,6 +18,9 @@ struct SidebarView: View {
             if !state.extensionsInSelectedSpace.isEmpty {
                 ExtensionsBar(extensions: state.extensionsInSelectedSpace, profile: state.selectedProfile)
             }
+
+            PinnedGrid(state: state)
+                .frame(height: PinnedGrid.height(for: pinnedCount))
 
             SidebarOutline(state: state)
 

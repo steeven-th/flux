@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Pinned tabs with their folders, then today's tabs, in an outline view: AppKit's outline handles
+/// Favorites with their folders, then today's tabs, in an outline view: AppKit's outline handles
 /// dragging items between levels far better than SwiftUI lists.
 struct SidebarOutline: NSViewRepresentable {
     let state: BrowserState
@@ -57,7 +57,7 @@ struct SidebarOutline: NSViewRepresentable {
         let state: BrowserState
         weak var outline: NSOutlineView?
         let contextMenu = NSMenu()
-        private let sections = [SectionItem(.pinned), SectionItem(.today)]
+        private let sections = [SectionItem(.favorites), SectionItem(.today)]
         private var shownRevision = -1
         private var shownSpaceID: UUID?
         private var isSyncingSelection = false
@@ -90,7 +90,7 @@ struct SidebarOutline: NSViewRepresentable {
         }
 
         private func expandFolders(in parent: Folder?) {
-            for entry in state.entries(in: .pinned, parentID: parent?.id) {
+            for entry in state.entries(in: .favorites, parentID: parent?.id) {
                 guard case .folder(let folder) = entry, folder.node.isExpanded else { continue }
                 outline?.expandItem(folder)
                 expandFolders(in: folder)
@@ -131,7 +131,7 @@ struct SidebarOutline: NSViewRepresentable {
             case let section as SectionItem:
                 return state.entries(in: section.section, parentID: nil).map(\.object)
             case let folder as Folder:
-                return state.entries(in: .pinned, parentID: folder.id).map(\.object)
+                return state.entries(in: .favorites, parentID: folder.id).map(\.object)
             default:
                 return []
             }
@@ -235,7 +235,7 @@ struct SidebarOutline: NSViewRepresentable {
             case let section as SectionItem:
                 return (section.section, nil, childIndex)
             case let folder as Folder:
-                return (.pinned, folder.id, childIndex)
+                return (.favorites, folder.id, childIndex)
             default:
                 return nil
             }
@@ -247,41 +247,39 @@ struct SidebarOutline: NSViewRepresentable {
             let item = outline.clickedRow >= 0 ? outline.item(atRow: outline.clickedRow) : nil
             switch item {
             case let tab as Tab:
-                menu.addItem(action(tab.isPinned ? "Unpin Tab" : "Pin Tab") { [weak self] in self?.state.togglePin(tab) })
-                if tab.hasLeftPinnedURL {
-                    menu.addItem(action("Go Back to Pinned Page") { tab.goBackToPinnedURL() })
+                menu.addItem(MenuAction.item("Pin Tab") { [weak self] in self?.state.pin(tab) })
+                if tab.node.section == .today {
+                    menu.addItem(MenuAction.item("Add to Favorites") { [weak self] in self?.state.moveToFavorites(tab) })
+                } else {
+                    menu.addItem(MenuAction.item("Move to Today") { [weak self] in self?.state.moveToToday(tab) })
+                }
+                if tab.hasLeftOriginalURL {
+                    menu.addItem(MenuAction.item("Go Back to Original Page") { tab.goBackToOriginalURL() })
                 }
                 menu.addItem(.separator())
-                menu.addItem(action(tab.isPinned ? "Unload Tab" : "Close Tab") { [weak self] in self?.state.close(tab) })
+                if tab.isKept {
+                    menu.addItem(MenuAction.item("Unload Tab") { [weak self] in self?.state.close(tab) })
+                    menu.addItem(MenuAction.item("Remove from Favorites…") { [weak self] in
+                        guard let self, TabRemovalConfirmation.confirm(tab, state: self.state) else { return }
+                        self.state.remove(tab)
+                    })
+                } else {
+                    menu.addItem(MenuAction.item("Close Tab") { [weak self] in self?.state.close(tab) })
+                }
             case let folder as Folder:
-                menu.addItem(action("Rename Folder") { folder.isEditingTitle = true })
-                let newFolder = action("New Folder Inside") { [weak self] in
+                menu.addItem(MenuAction.item("Rename Folder") { folder.isEditingTitle = true })
+                let newFolder = MenuAction.item("New Folder Inside") { [weak self] in
                     self?.state.createFolder(parentID: folder.id)
                 }
                 newFolder.isEnabled = state.canPlace(nil, in: folder.id)
                 menu.addItem(newFolder)
                 menu.addItem(.separator())
-                menu.addItem(action("Delete Folder") { [weak self] in self?.state.delete(folder) })
+                menu.addItem(MenuAction.item("Delete Folder") { [weak self] in self?.state.delete(folder) })
             default:
-                menu.addItem(action("New Folder") { [weak self] in self?.state.createFolder() })
+                menu.addItem(MenuAction.item("New Folder") { [weak self] in self?.state.createFolder() })
             }
         }
-
-        private func action(_ title: String, _ handler: @escaping () -> Void) -> NSMenuItem {
-            let item = NSMenuItem(title: title, action: #selector(ClosureTarget.run), keyEquivalent: "")
-            let target = ClosureTarget(handler)
-            item.target = target
-            item.representedObject = target
-            return item
-        }
     }
-}
-
-/// Lets a menu item run a closure. The menu item keeps the target alive.
-private final class ClosureTarget: NSObject {
-    let handler: () -> Void
-    init(_ handler: @escaping () -> Void) { self.handler = handler }
-    @objc func run() { handler() }
 }
 
 /// An outline cell showing a SwiftUI row.

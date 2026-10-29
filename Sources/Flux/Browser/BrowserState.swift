@@ -8,6 +8,7 @@ final class BrowserState {
     static let newTabURL = "https://www.google.com"
     static let spaceColors = ["#F97316", "#3B82F6", "#22C55E", "#A855F7", "#EC4899", "#EAB308", "#14B8A6", "#EF4444"]
     private static let selectedSpaceKey = "selectedSpaceID"
+    private static let confirmsTabRemovalKey = "confirmsTabRemoval"
     private static let logger = Logger(subsystem: "com.flux-browser.Flux", category: "storage")
 
     private(set) var spaces: [Space] = []
@@ -179,6 +180,12 @@ final class BrowserState {
         return tabs.first { $0.id == id } ?? tabsInSelectedSpace.last
     }
 
+    /// Whether removing a pinned tab or a favorite asks first. On unless the user turned it off.
+    var confirmsTabRemoval: Bool {
+        get { (try? appDatabase.setting(Self.confirmsTabRemovalKey)) != "false" }
+        set { save { try appDatabase.setSetting(Self.confirmsTabRemovalKey, to: newValue ? nil : "false") } }
+    }
+
     func select(_ tab: Tab) {
         guard selectedTabIDs[tab.spaceID] != tab.id else { return }
         selectedTabIDs[tab.spaceID] = tab.id
@@ -196,7 +203,7 @@ final class BrowserState {
         let last = entries(in: .today, parentID: nil, spaceID: spaceID).last?.node.position
         let node = SidebarNode(
             id: UUID(), spaceID: spaceID, parentID: nil, kind: .tab, section: .today,
-            position: FractionalIndex.between(last, nil), title: "", url: url, pinnedURL: nil,
+            position: FractionalIndex.between(last, nil), title: "", url: url, originalURL: nil,
             isExpanded: true, lastActiveAt: Date(), createdAt: Date()
         )
         save { try profileDatabases[spaceID]?.save(node) }
@@ -207,10 +214,19 @@ final class BrowserState {
         return tab
     }
 
-    /// A pinned tab is only unloaded, like in Arc. Other tabs go away.
+    /// Pinned tabs and favorites are only unloaded, like in Arc. Other tabs go away.
     func close(_ tab: Tab) {
+        close(tab, removing: !tab.isKept)
+    }
+
+    /// Takes a kept tab out of the sidebar for good.
+    func remove(_ tab: Tab) {
+        close(tab, removing: true)
+    }
+
+    private func close(_ tab: Tab, removing: Bool) {
         let wasSelected = selectedTab?.id == tab.id
-        if tab.isPinned {
+        if !removing {
             tab.unload()
         } else {
             tabs.removeAll { $0 === tab }
@@ -219,7 +235,7 @@ final class BrowserState {
             sidebarRevision += 1
         }
         if wasSelected {
-            let candidates = tabs.filter { $0.spaceID == tab.spaceID && $0 !== tab && ($0.isLoaded || !$0.isPinned) }
+            let candidates = tabs.filter { $0.spaceID == tab.spaceID && $0 !== tab && ($0.isLoaded || !$0.isKept) }
             if let next = candidates.max(by: { ($0.node.lastActiveAt ?? .distantPast) < ($1.node.lastActiveAt ?? .distantPast) }) {
                 select(next)
             } else {
@@ -228,7 +244,7 @@ final class BrowserState {
         }
     }
 
-    // Sidebar tree. Folders only exist among pinned tabs.
+    // Sidebar tree. Folders only exist among favorites.
 
     @MainActor
     enum SidebarEntry {
@@ -274,17 +290,38 @@ final class BrowserState {
         return nil
     }
 
+    /// The pinned tabs shown as icons at the top of the sidebar.
+    var pinnedTabs: [Tab] {
+        entries(in: .pinned, parentID: nil).compactMap { entry in
+            if case .tab(let tab) = entry { tab } else { nil }
+        }
+    }
+
+    func pin(_ tab: Tab) {
+        move(.tab(tab), to: .pinned, parentID: nil, index: nil)
+    }
+
+    func moveToFavorites(_ tab: Tab) {
+        move(.tab(tab), to: .favorites, parentID: nil, index: nil)
+    }
+
+    func moveToToday(_ tab: Tab) {
+        move(.tab(tab), to: .today, parentID: nil, index: nil)
+    }
+
+    /// ⌘D pins a tab to the top of the sidebar, or sends a pinned tab back to today's tabs.
     func togglePin(_ tab: Tab) {
-        move(.tab(tab), to: tab.isPinned ? .today : .pinned, parentID: nil, index: nil)
+        tab.isPinned ? moveToToday(tab) : pin(tab)
     }
 
     /// A top-level folder can hold folders two levels deep, no more.
     static let maxFolderDepth = 2
 
     func canMove(_ entry: SidebarEntry, to section: SidebarNode.Section, parentID: UUID?) -> Bool {
-        guard section == .pinned || parentID == nil else { return false }
+        guard section == .favorites || parentID == nil else { return false }
+        if section == .pinned, case .folder = entry { return false }
         if case .folder(let folder) = entry {
-            return section == .pinned && !isDescendant(parentID, of: folder.id) && canPlace(folder, in: parentID)
+            return section == .favorites && !isDescendant(parentID, of: folder.id) && canPlace(folder, in: parentID)
         }
         return true
     }
@@ -347,10 +384,10 @@ final class BrowserState {
     @discardableResult
     func createFolder(parentID: UUID? = nil) -> Folder? {
         guard canPlace(nil, in: parentID) else { return nil }
-        let last = entries(in: .pinned, parentID: parentID).last?.node.position
+        let last = entries(in: .favorites, parentID: parentID).last?.node.position
         let node = SidebarNode(
-            id: UUID(), spaceID: selectedSpaceID, parentID: parentID, kind: .folder, section: .pinned,
-            position: FractionalIndex.between(last, nil), title: "New Folder", url: nil, pinnedURL: nil,
+            id: UUID(), spaceID: selectedSpaceID, parentID: parentID, kind: .folder, section: .favorites,
+            position: FractionalIndex.between(last, nil), title: "New Folder", url: nil, originalURL: nil,
             isExpanded: true, lastActiveAt: nil, createdAt: Date()
         )
         save { try profileDatabases[selectedSpaceID]?.save(node) }
@@ -377,8 +414,8 @@ final class BrowserState {
 
     /// The folder's content moves up to where the folder was, nothing is lost.
     func delete(_ folder: Folder) {
-        let content = entries(in: .pinned, parentID: folder.id, spaceID: folder.spaceID)
-        let siblings = entries(in: .pinned, parentID: folder.node.parentID, spaceID: folder.spaceID)
+        let content = entries(in: .favorites, parentID: folder.id, spaceID: folder.spaceID)
+        let siblings = entries(in: .favorites, parentID: folder.node.parentID, spaceID: folder.spaceID)
         var before = siblings.last { $0.node.position < folder.node.position }?.node.position
         let after = siblings.first { $0.node.position > folder.node.position }?.node.position
         var moved: [SidebarNode] = []
@@ -387,7 +424,7 @@ final class BrowserState {
             before = position
             switch entry {
             case .tab(let tab):
-                tab.place(section: .pinned, parentID: folder.node.parentID, position: position)
+                tab.place(section: .favorites, parentID: folder.node.parentID, position: position)
                 moved.append(tab.node)
             case .folder(let child):
                 child.place(parentID: folder.node.parentID, position: position)

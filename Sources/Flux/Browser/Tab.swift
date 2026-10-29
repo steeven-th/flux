@@ -50,10 +50,15 @@ final class Tab: NSObject, Identifiable {
         node.section == .pinned
     }
 
-    /// True for a pinned tab that has navigated away from the page it was pinned on.
-    var hasLeftPinnedURL: Bool {
-        guard isPinned, let pinnedURL = node.pinnedURL else { return false }
-        return pinnedURL != url
+    /// Pinned tabs and favorites stay in the sidebar until removed. Today's tabs go when closed.
+    var isKept: Bool {
+        node.section != .today
+    }
+
+    /// True for a kept tab that has navigated away from the page it was kept on.
+    var hasLeftOriginalURL: Bool {
+        guard isKept, let originalURL = node.originalURL else { return false }
+        return originalURL != url
     }
 
     func load(_ url: String) {
@@ -61,9 +66,9 @@ final class Tab: NSObject, Identifiable {
         update(url: url)
     }
 
-    func goBackToPinnedURL() {
-        guard let pinnedURL = node.pinnedURL else { return }
-        load(pinnedURL)
+    func goBackToOriginalURL() {
+        guard let originalURL = node.originalURL else { return }
+        load(originalURL)
     }
 
     func markActive() {
@@ -72,10 +77,10 @@ final class Tab: NSObject, Identifiable {
     }
 
     func place(section: SidebarNode.Section, parentID: UUID?, position: String) {
-        if section == .pinned, node.section != .pinned {
-            node.pinnedURL = url
-        } else if section != .pinned {
-            node.pinnedURL = nil
+        if section == .today {
+            node.originalURL = nil
+        } else if node.section == .today {
+            node.originalURL = url
         }
         node.section = section
         node.parentID = parentID
