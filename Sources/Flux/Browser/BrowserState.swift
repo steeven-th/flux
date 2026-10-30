@@ -26,6 +26,7 @@ final class BrowserState {
     private static let importedExtensionsKey = "importedExtensions"
     private static let importedExtensionsCardHiddenKey = "importedExtensionsCardHidden"
     private static let passwordExportKey = "passwordExport"
+    private static let tabSleepDelayKey = "tabSleepDelay"
     private static let hiddenDevicesKey = "hiddenDevices"
     private static let customDevicesKey = "customDevices"
     private static let archiveDelayKey = "archiveDelay"
@@ -55,6 +56,7 @@ final class BrowserState {
     private(set) var peek: Peek?
     @ObservationIgnored private var archiveTimer: Timer?
     @ObservationIgnored private var scrollTimer: Timer?
+    @ObservationIgnored private var sleepTimer: Timer?
     /// Each space's selected tab, saved in its space record as well.
     private var selectedTabIDs: [UUID: UUID] = [:]
     var selectedSpaceID: UUID {
@@ -333,6 +335,8 @@ final class BrowserState {
     func select(_ tab: Tab) {
         guard selectedTabIDs[tab.spaceID] != tab.id else { return }
         selectedTab?.saveScrollPosition()
+        // Seen until now: a tab looked at for a long time is not inactive the moment it is left.
+        for shown in shownTabs where shown !== tab { shown.markActive() }
         selectedTabIDs[tab.spaceID] = tab.id
         if var record = spaceRecords[tab.spaceID] {
             record.selectedTabID = tab.id
@@ -407,6 +411,45 @@ final class BrowserState {
                 select(next)
             } else {
                 selectedTabIDs[tab.spaceID] = nil
+            }
+        }
+    }
+
+    var tabSleepDelay: TabSleepDelay {
+        get {
+            _ = settingsRevision
+            return (try? appDatabase.setting(Self.tabSleepDelayKey)).flatMap(TabSleepDelay.init) ?? .standard
+        }
+        set {
+            save { try appDatabase.setSetting(Self.tabSleepDelayKey, to: newValue == .standard ? nil : newValue.rawValue) }
+            settingsRevision += 1
+        }
+    }
+
+    /// Chromium's memory saver only knows its own tab strip, where each of Flux's pages is the
+    /// active tab of a window of its own: Flux unloads the pages left unseen itself.
+    func startSleepingTabs() {
+        sleepTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.sleepInactiveTabs() }
+        }
+    }
+
+    private func sleepInactiveTabs() {
+        guard let interval = tabSleepDelay.interval else { return }
+        let limit = Date().addingTimeInterval(-interval)
+        let shown = shownTabs
+        let inactive = tabs.filter { tab in
+            tab.isLoaded && tab.devTools == nil && !shown.contains { $0 === tab }
+                && (tab.node.lastActiveAt ?? tab.node.createdAt) < limit
+        }
+        for tab in inactive {
+            // A page playing sound or a video keeps playing.
+            tab.browserView.evaluateJavaScript(
+                "String([...document.querySelectorAll('audio, video')].some(m => !m.paused && !m.ended))"
+            ) { [weak self, weak tab] value in
+                guard let self, let tab, value as? String != "true", tab.isLoaded,
+                      !self.shownTabs.contains(where: { $0 === tab }) else { return }
+                self.unload(tab)
             }
         }
     }

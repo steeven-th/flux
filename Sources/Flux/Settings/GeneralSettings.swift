@@ -6,6 +6,7 @@ struct GeneralSettings: View {
 
     @State private var warnsBeforeQuitting = false
     @State private var confirmsTabRemoval = true
+    @State private var tabSleepDelay = TabSleepDelay.standard
     @State private var language = AppLanguage.current
     @State private var asksToRelaunch = false
     @State private var isDefaultBrowser = DefaultBrowser.isFlux
@@ -35,6 +36,17 @@ struct GeneralSettings: View {
                 Toggle("Warn before quitting", isOn: $warnsBeforeQuitting)
                 Toggle("Ask before closing a pinned tab or a favorite", isOn: $confirmsTabRemoval)
             }
+            Section {
+                Picker("Put inactive tabs to sleep after", selection: $tabSleepDelay) {
+                    ForEach(TabSleepDelay.allCases) { delay in
+                        Text(delay.name).tag(delay)
+                    }
+                }
+            } footer: {
+                Text("Their page is unloaded to free memory, and loads again when you open them, where you left it. Tabs playing sound or a video stay awake.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             TranslationSettings(state: state)
             Section {
                 LabeledContent("Each profile has its own search engine, passwords and browsing data.") {
@@ -49,7 +61,9 @@ struct GeneralSettings: View {
             isDefaultBrowser = DefaultBrowser.isFlux
             warnsBeforeQuitting = state.warnsBeforeQuitting
             confirmsTabRemoval = state.confirmsTabRemoval
+            tabSleepDelay = state.tabSleepDelay
         }
+        .onChange(of: tabSleepDelay) { state.tabSleepDelay = tabSleepDelay }
         .onChange(of: warnsBeforeQuitting) { state.warnsBeforeQuitting = warnsBeforeQuitting }
         .onChange(of: confirmsTabRemoval) { state.confirmsTabRemoval = confirmsTabRemoval }
         .onChange(of: language) {

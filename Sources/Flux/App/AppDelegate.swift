@@ -51,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         prepare(state)
         state.startArchiving()
         state.startSavingScrollPositions()
+        state.startSleepingTabs()
         let windowController = MainWindowController(state: state)
         windowController.showWindow(nil)
         if state.isWindowFullScreen { windowController.window?.toggleFullScreen(nil) }

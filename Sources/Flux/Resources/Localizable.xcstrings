@@ -111,12 +111,42 @@
         }
       }
     },
+    "1 hour" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 heure"
+          }
+        }
+      }
+    },
     "12 hours" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "12 heures"
+          }
+        }
+      }
+    },
+    "15 minutes" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "15 minutes"
+          }
+        }
+      }
+    },
+    "2 hours" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2 heures"
           }
         }
       }
@@ -137,6 +167,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "30 jours"
+          }
+        }
+      }
+    },
+    "30 minutes" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "30 minutes"
           }
         }
       }
@@ -2201,6 +2241,16 @@
         }
       }
     },
+    "Put inactive tabs to sleep after" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mettre en veille les onglets inactifs après"
+          }
+        }
+      }
+    },
     "Quit" : {
       "localizations" : {
         "fr" : {
@@ -2977,6 +3027,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Le quota de traduction de ce mois est atteint"
+          }
+        }
+      }
+    },
+    "Their page is unloaded to free memory, and loads again when you open them, where you left it. Tabs playing sound or a video stay awake." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leur page est déchargée pour libérer la mémoire, puis rechargée à l'endroit où vous l'aviez laissée quand vous les rouvrez. Les onglets qui jouent du son ou une vidéo restent éveillés."
           }
         }
       }
