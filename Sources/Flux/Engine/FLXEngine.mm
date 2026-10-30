@@ -1,4 +1,5 @@
 #import <AppKit/AppKit.h>
+#import <Security/Security.h>
 
 #import "FLXEngine+Internal.h"
 #import "FLXDevTools+Internal.h"
@@ -126,9 +127,7 @@ class App : public CefApp, public CefBrowserProcessHandler {
 
   void OnBeforeCommandLineProcessing(const CefString& process_type,
                                      CefRefPtr<CefCommandLine> command_line) override {
-    // Chromium encrypts cookies and passwords with a Keychain item, and an ad hoc signed build
-    // gets a new access prompt on every rebuild. Real Keychain storage comes with signing.
-    command_line->AppendSwitch("use-mock-keychain");
+    if (!FLXEngine.usesSystemKeychain) command_line->AppendSwitch("use-mock-keychain");
     // The browser-wide DevTools protocol, for running extension toolbar actions. The pipe was
     // reserved at launch.
     if (FLXDevTools.isAvailable) {
@@ -187,6 +186,26 @@ void FLXEngineBrowserClosed(CefRefPtr<CefBrowser> browser) {
 }
 
 @implementation FLXEngine
+
++ (BOOL)usesSystemKeychain {
+  static BOOL uses = NO;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    SecCodeRef code = NULL;
+    SecStaticCodeRef staticCode = NULL;
+    CFDictionaryRef info = NULL;
+    if (SecCodeCopySelf(kSecCSDefaultFlags, &code) == errSecSuccess &&
+        SecCodeCopyStaticCode(code, kSecCSDefaultFlags, &staticCode) == errSecSuccess &&
+        SecCodeCopySigningInformation(staticCode, kSecCSSigningInformation, &info) == errSecSuccess) {
+      // Ad hoc signatures have no team.
+      uses = CFDictionaryGetValue(info, kSecCodeInfoTeamIdentifier) != NULL;
+    }
+    if (info) CFRelease(info);
+    if (staticCode) CFRelease(staticCode);
+    if (code) CFRelease(code);
+  });
+  return uses;
+}
 
 + (BOOL)startWithRootCachePath:(NSString *)rootCachePath {
   if (g_library_loader) return YES;

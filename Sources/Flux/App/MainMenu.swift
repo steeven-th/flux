@@ -20,6 +20,8 @@ enum MainMenu {
             NSMenuItem(title: String(localized: "Pin or Unpin Tab"), action: #selector(AppDelegate.togglePin(_:)), keyEquivalent: "d"),
             NSMenuItem(title: String(localized: "New Folder"), action: #selector(AppDelegate.newFolder(_:)), keyEquivalent: ""),
             NSMenuItem(title: String(localized: "Open in Space"), action: #selector(AppDelegate.openLittleWindowInSpace(_:)), keyEquivalent: "o"),
+            .separator(),
+            NSMenuItem(title: String(localized: "Import from Another Browser…"), action: #selector(AppDelegate.importFromBrowser(_:)), keyEquivalent: ""),
         ]))
         menu.addItem(submenu(title: String(localized: "Edit"), items: [
             NSMenuItem(title: String(localized: "Undo"), action: Selector(("undo:")), keyEquivalent: "z"),

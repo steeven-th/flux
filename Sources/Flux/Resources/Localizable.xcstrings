@@ -61,6 +61,46 @@
         }
       }
     },
+    "%lld tabs" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld tab"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld tabs"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld onglet"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld onglets"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "12 hours" : {
       "localizations" : {
         "fr" : {
@@ -241,6 +281,16 @@
         }
       }
     },
+    "Also import Today's tabs" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importer aussi les onglets du jour"
+          }
+        }
+      }
+    },
     "API key" : {
       "localizations" : {
         "fr" : {
@@ -257,6 +307,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Application"
+          }
+        }
+      }
+    },
+    "Arc's sidebar couldn't be read." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La barre latérale d'Arc n'a pas pu être lue."
           }
         }
       }
@@ -337,6 +397,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fond en mode responsive :"
+          }
+        }
+      }
+    },
+    "Bring your tabs, history, passwords and sign-ins from another browser." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Récupérez vos onglets, votre historique, vos mots de passe et vos connexions depuis un autre navigateur."
           }
         }
       }
@@ -567,6 +637,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fermer « %@ » ?"
+          }
+        }
+      }
+    },
+    "Coming from Arc?" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous venez d'Arc ?"
           }
         }
       }
@@ -951,6 +1031,16 @@
         }
       }
     },
+    "Extensions from Arc" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extensions d'Arc"
+          }
+        }
+      }
+    },
     "Extensions…" : {
       "localizations" : {
         "fr" : {
@@ -1011,6 +1101,16 @@
         }
       }
     },
+    "Flux can bring your Arc spaces, with their favorites, pinned tabs, folders and splits. Arc itself is left as it is." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flux peut reprendre vos espaces Arc, avec leurs favoris, onglets épinglés, dossiers et vues partagées. Arc lui-même n'est pas modifié."
+          }
+        }
+      }
+    },
     "Flux Capture %@" : {
       "localizations" : {
         "fr" : {
@@ -1047,6 +1147,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pliables"
+          }
+        }
+      }
+    },
+    "Folder" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dossier"
           }
         }
       }
@@ -1131,6 +1241,16 @@
         }
       }
     },
+    "Hide" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masquer"
+          }
+        }
+      }
+    },
     "Hide DevTools" : {
       "localizations" : {
         "fr" : {
@@ -1161,12 +1281,92 @@
         }
       }
     },
+    "Hide the extensions from Arc?" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masquer les extensions d'Arc ?"
+          }
+        }
+      }
+    },
     "History" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Historique"
+          }
+        }
+      }
+    },
+    "Import" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importer"
+          }
+        }
+      }
+    },
+    "Import from Another Browser" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importer depuis un navigateur"
+          }
+        }
+      }
+    },
+    "Import from Another Browser…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importer depuis un navigateur…"
+          }
+        }
+      }
+    },
+    "Import my %lld Arc spaces (%lld tabs)" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importer mes %lld espaces Arc (%lld onglets)"
+          }
+        }
+      }
+    },
+    "Install" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installer"
+          }
+        }
+      }
+    },
+    "Installed" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installée"
+          }
+        }
+      }
+    },
+    "Into" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans"
           }
         }
       }
@@ -1567,6 +1767,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aucun outil"
+          }
+        }
+      }
+    },
+    "Not installed" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non installé"
           }
         }
       }
@@ -2561,6 +2771,16 @@
         }
       }
     },
+    "Start with a new space" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commencer avec un nouvel espace"
+          }
+        }
+      }
+    },
     "Switch spaces" : {
       "localizations" : {
         "fr" : {
@@ -2677,6 +2897,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Le quota de traduction de ce mois est atteint"
+          }
+        }
+      }
+    },
+    "This card won't come back. Your extensions are in Flux > Extensions." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette carte ne reviendra pas. Vos extensions sont dans Flux > Extensions."
           }
         }
       }
@@ -2911,12 +3141,32 @@
         }
       }
     },
+    "You can import them later from File > Import from Another Browser." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous pourrez les importer plus tard depuis Fichier > Importer depuis un navigateur."
+          }
+        }
+      }
+    },
     "You're all set" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tout est prêt"
+          }
+        }
+      }
+    },
+    "Your Arc spaces come with their favorites, pinned tabs, folders and splits. Arc itself is left as it is." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos espaces Arc arrivent avec leurs favoris, onglets épinglés, dossiers et vues partagées. Arc lui-même n'est pas modifié."
           }
         }
       }

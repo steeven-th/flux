@@ -23,6 +23,8 @@ final class BrowserState {
     private static let responsiveOptionsKey = "responsiveOptions"
     private static let translationProviderKey = "translationProvider"
     private static let translatedCharactersKey = "translatedCharacters"
+    private static let arcExtensionsKey = "arcExtensions"
+    private static let arcExtensionsCardHiddenKey = "arcExtensionsCardHidden"
     private static let hiddenDevicesKey = "hiddenDevices"
     private static let customDevicesKey = "customDevices"
     private static let archiveDelayKey = "archiveDelay"
@@ -144,18 +146,27 @@ final class BrowserState {
         return tab
     }
 
-    /// A new space gets a profile of its own, so nothing is shared with other spaces.
-    func createSpace(name: String, icon: String?, color: String) {
+    /// A new space gets a profile of its own, so nothing is shared with other spaces, unless it is
+    /// to share another space's.
+    @discardableResult
+    func createSpace(
+        name: String, icon: String?, color: String, sharingProfileOf other: UUID? = nil,
+        preparingProfile prepare: ((URL) -> Void)? = nil
+    ) -> UUID {
         let id = UUID()
         let lastPosition = spaces.last.flatMap { spaceRecords[$0.id]?.position }
         let record = SpaceRecord(
             id: id, name: name, icon: icon, color: color,
             position: FractionalIndex.between(lastPosition, nil),
-            profileFolder: "Profile \(id.uuidString)", selectedTabID: nil, createdAt: Date()
+            profileFolder: other.flatMap { spaceRecords[$0]?.profileFolder } ?? "Profile \(id.uuidString)",
+            selectedTabID: nil, createdAt: Date()
         )
         save { try appDatabase.save(record) }
+        // Before Chromium opens the profile, which it does as soon as the space opens.
+        if other == nil { prepare?(AppPaths.profileFolder(named: record.profileFolder)) }
         save { try open(record) }
         selectedSpaceID = id
+        return id
     }
 
     func updateSpace(_ id: UUID, name: String, icon: String?, color: String) {
@@ -1181,6 +1192,91 @@ final class BrowserState {
     private func delete(_ split: Split) {
         splits.removeAll { $0 === split }
         save { try profileDatabases[split.spaceID]?.delete(nodeID: split.id) }
+    }
+
+    // Import from Arc.
+
+    /// Each of Arc's spaces goes to a new space, or into an existing one when `destinations` names
+    /// it. Arc's spaces sharing a profile give new spaces sharing one too.
+    /// Each space keeps the extensions its Arc space had, to install them again.
+    func importFromArc(_ arcSpaces: [ArcLibrary.Space], destinations: [String: UUID], includesToday: Bool) {
+        var spaceByArcProfile: [String: UUID] = [:]
+        var favicons: [String: ArcFavicons] = [:]
+        defer { favicons.values.forEach { $0.close() } }
+        var shownSpace: UUID?
+        let lastArcSpace = ArcLibrary.lastSpaceID
+        for arcSpace in arcSpaces {
+            // A new profile gets Arc's history, passwords and sign-ins. An open one can't.
+            let spaceID = destinations[arcSpace.id] ?? createSpace(
+                name: arcSpace.name, icon: arcSpace.icon, color: arcSpace.color ?? Self.spaceColors[0],
+                sharingProfileOf: spaceByArcProfile[arcSpace.profile]
+            ) { folder in
+                ArcProfileTransfer.transfer(from: arcSpace.profile, to: folder, keys: ArcProfileTransfer.keys())
+            }
+            if spaceByArcProfile[arcSpace.profile] == nil {
+                spaceByArcProfile[arcSpace.profile] = spaceID
+            }
+            if shownSpace == nil || arcSpace.id == lastArcSpace { shownSpace = spaceID }
+            addArcExtensions(ArcExtension.installed(inProfile: arcSpace.profile), to: spaceID)
+            let icons = favicons[arcSpace.profile] ?? ArcFavicons(profile: arcSpace.profile)
+            favicons[arcSpace.profile] = icons
+
+            var importer = ArcImporter(spaceID: spaceID, favicons: icons, cache: faviconCaches[spaceID])
+            // The grid takes twelve tabs: the others go first among favorites.
+            let favoriteTabs = arcSpace.favorites.flatMap(\.tabs)
+            let room = max(Self.maxPinnedTabs - pinnedTabs(in: spaceID).count, 0)
+            importer.add(favoriteTabs.prefix(room).map(ArcLibrary.Item.tab), section: .pinned, after: entries(in: .pinned, parentID: nil, spaceID: spaceID).last?.node.position)
+            importer.add(favoriteTabs.dropFirst(room).map(ArcLibrary.Item.tab) + arcSpace.pinned, section: .favorites,
+                         after: entries(in: .favorites, parentID: nil, spaceID: spaceID).last?.node.position)
+            if includesToday {
+                importer.add(arcSpace.today, section: .today, after: entries(in: .today, parentID: nil, spaceID: spaceID).last?.node.position)
+            }
+            save { try profileDatabases[spaceID]?.save(importer.nodes) }
+            for node in importer.nodes {
+                switch node.kind {
+                case .tab: tabs.append(makeTab(node))
+                case .folder: folders.append(Folder(node: node))
+                case .split: splits.append(Split(node: node))
+                }
+            }
+        }
+        sidebarRevision += 1
+        // The space Arc showed last, rather than its first one.
+        if let shownSpace { selectedSpaceID = shownSpace }
+    }
+
+    func arcExtensions(in spaceID: UUID) -> [ArcExtension] {
+        _ = settingsRevision
+        return (try? appDatabase.setting("\(Self.arcExtensionsKey) \(spaceID)"))
+            .flatMap { try? JSONDecoder().decode([ArcExtension].self, from: Data($0.utf8)) } ?? []
+    }
+
+    private func addArcExtensions(_ extensions: [ArcExtension], to spaceID: UUID) {
+        let current = arcExtensions(in: spaceID)
+        let all = current + extensions.filter { item in !current.contains { $0.id == item.id } }
+        guard all.count > current.count, let data = try? JSONEncoder().encode(all) else { return }
+        save { try appDatabase.setSetting("\(Self.arcExtensionsKey) \(spaceID)", to: String(decoding: data, as: UTF8.self)) }
+        settingsRevision += 1
+    }
+
+    func isArcExtensionsCardHidden(in spaceID: UUID) -> Bool {
+        _ = settingsRevision
+        return (try? appDatabase.setting("\(Self.arcExtensionsCardHiddenKey) \(spaceID)")) == "true"
+    }
+
+    func hideArcExtensionsCard(in spaceID: UUID) {
+        save { try appDatabase.setSetting("\(Self.arcExtensionsCardHiddenKey) \(spaceID)", to: "true") }
+        settingsRevision += 1
+    }
+
+    /// Extensions keep their Chrome Web Store id once installed.
+    func isExtensionInstalled(_ id: String, in spaceID: UUID) -> Bool {
+        guard let space = spaces.first(where: { $0.id == spaceID }) else { return false }
+        return extensionList(forProfile: space.profileFolder)?.extensions.contains { $0.id == id } ?? false
+    }
+
+    private func pinnedTabs(in spaceID: UUID) -> [Tab] {
+        tabs.filter { $0.spaceID == spaceID && $0.node.section == .pinned && $0.node.parentID == nil }
     }
 
     func openSelectedTabInChromeWindow() {

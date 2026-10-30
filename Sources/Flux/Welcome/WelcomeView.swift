@@ -9,6 +9,7 @@ struct WelcomeView: View {
             Group {
                 switch model.step {
                 case .welcome: IntroStep()
+                case .arc: ArcStep(model: model)
                 case .space: SpaceStep(model: model)
                 case .searchEngine: SearchEngineStep(model: model)
                 case .passwords: PasswordsStep(model: model)
@@ -73,6 +74,31 @@ private struct StepHeader: View {
             }
         }
         .padding(.bottom, 24)
+    }
+}
+
+private struct ArcStep: View {
+    @Bindable var model: WelcomeModel
+
+    var body: some View {
+        let tabs = model.arcSpaces.reduce(0) { $0 + $1.tabCount }
+        VStack(alignment: .leading, spacing: 16) {
+            StepHeader(title: "Coming from Arc?", message: "Flux can bring your Arc spaces, with their favorites, pinned tabs, folders and splits. Arc itself is left as it is.")
+            Picker(selection: $model.importsArc) {
+                Text("Import my \(model.arcSpaces.count) Arc spaces (\(tabs) tabs)").tag(true)
+                Text("Start with a new space").tag(false)
+            } label: {
+                EmptyView()
+            }
+            .pickerStyle(.radioGroup)
+            .labelsHidden()
+            Toggle("Also import Today's tabs", isOn: $model.importsArcToday)
+                .disabled(!model.importsArc)
+                .padding(.leading, 20)
+            Text("You can import them later from File > Import from Another Browser.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 }
 

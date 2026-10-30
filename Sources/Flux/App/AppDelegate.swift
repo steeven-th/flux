@@ -90,20 +90,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func finishWelcome(_ choices: WelcomeModel, database: AppDatabase) {
+        // Arc's first space becomes the first space, and its other spaces come after it.
+        let arcSpaces = choices.importsArc ? choices.arcSpaces : []
         do {
-            let name = choices.name.trimmingCharacters(in: .whitespacesAndNewlines)
-            _ = try BrowserState.createFirstSpace(
-                name: name, icon: choices.icon.isEmpty ? nil : choices.icon, color: choices.color, in: database
-            )
+            if let first = arcSpaces.first {
+                let record = try BrowserState.createFirstSpace(
+                    name: first.name, icon: first.icon, color: first.color ?? BrowserState.spaceColors[0], in: database
+                )
+                ArcProfileTransfer.transfer(
+                    from: first.profile, to: AppPaths.profileFolder(named: record.profileFolder), keys: ArcProfileTransfer.keys()
+                )
+            } else {
+                let name = choices.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                _ = try BrowserState.createFirstSpace(
+                    name: name, icon: choices.icon.isEmpty ? nil : choices.icon, color: choices.color, in: database
+                )
+            }
         } catch {
             showFatalError(error)
             return
         }
         startBrowsing(database: database) { state in
-            let profile = state.selectedSpace.profileFolder
-            state.setSearchEngine(choices.searchEngine, forProfile: profile)
+            if let first = arcSpaces.first {
+                state.importFromArc(arcSpaces, destinations: [first.id: state.selectedSpace.id], includesToday: choices.importsArcToday)
+            }
+            for profile in state.profilesInUse {
+                state.setSearchEngine(choices.searchEngine, forProfile: profile.folder)
+            }
             if let manager = choices.passwordManager {
-                state.passwordManager(forProfile: profile)?.setEnabled(false)
+                for profile in state.profilesInUse {
+                    state.passwordManager(forProfile: profile.folder)?.setEnabled(false)
+                }
                 state.newTab(url: manager.storeURL)
             }
         }
@@ -188,6 +205,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         guard let state, let tab = state.selectedTab else { return }
         state.close(tab)
+    }
+
+    @objc func importFromBrowser(_ sender: Any?) {
+        guard let state else { return }
+        ImportWindowController.show(state: state)
     }
 
     @objc func addSplitPane(_ sender: Any?) {

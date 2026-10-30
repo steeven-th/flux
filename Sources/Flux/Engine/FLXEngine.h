@@ -9,6 +9,11 @@ NS_SWIFT_UI_ACTOR
 /// engine, after the shared FLXApplication exists.
 + (BOOL)startWithRootCachePath:(NSString *)rootCachePath;
 
+/// Whether Chromium keeps the key of its passwords and cookies in the keychain. Only when Flux is
+/// signed with a certificate: an ad hoc signature changes with each build, and macOS would ask for
+/// the keychain again every time. Builds without one use Chromium's fixed test key.
+@property (class, nonatomic, readonly) BOOL usesSystemKeychain;
+
 /// Runs the AppKit event loop through Chromium. Returns once the engine has quit.
 + (void)runMessageLoop;
 

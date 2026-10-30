@@ -6,10 +6,14 @@ import Observation
 @Observable
 final class WelcomeModel {
     enum Step: Int, CaseIterable {
-        case welcome, space, searchEngine, passwords, done
+        case welcome, arc, space, searchEngine, passwords, done
     }
 
     var step = Step.welcome
+    /// Read when Arc is installed, for the step offering to bring its spaces.
+    let arcSpaces: [ArcLibrary.Space] = ArcLibrary.isInstalled ? (try? ArcLibrary.loadSpaces()) ?? [] : []
+    var importsArc = true
+    var importsArcToday = false
     var name = String(localized: "Personal")
     var icon = ""
     var color = BrowserState.spaceColors[0]
@@ -23,9 +27,21 @@ final class WelcomeModel {
 
     func goBack() {
         step = Step(rawValue: step.rawValue - 1) ?? step
+        if isSkipped(step) { goBack() }
     }
 
     func goForward() {
         step = Step(rawValue: step.rawValue + 1) ?? step
+        if isSkipped(step) { goForward() }
+    }
+
+    /// Without Arc there is nothing to import. Arc's spaces replace the first space's step, and
+    /// bring their passwords and, among their extensions, their password manager.
+    private func isSkipped(_ step: Step) -> Bool {
+        switch step {
+        case .arc: arcSpaces.isEmpty
+        case .space, .passwords: !arcSpaces.isEmpty && importsArc
+        default: false
+        }
     }
 }

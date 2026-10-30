@@ -44,6 +44,7 @@ struct SidebarView: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 SidebarOutline(state: state)
+                ArcExtensionsCard(state: state)
 
                 HStack {
                     Button {
