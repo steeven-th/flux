@@ -40,6 +40,8 @@ final class BrowserState {
     /// Bumped when the archive changes, since it is read from the database.
     private(set) var archiveRevision = 0
     var isArchiveShown = false
+    /// A tab being dragged from the sidebar, which can be dropped on the pages to split them.
+    var draggedTab: Tab?
     /// Downloads and media, shown in place of the sidebar.
     var isLibraryShown = false
     /// Bumped when a setting read from the database changes, for views showing it.
@@ -1000,6 +1002,46 @@ final class BrowserState {
             if pane.emulation != nil { pane.toggleResponsive() }
         }
         save { try profileDatabases[split.spaceID]?.save(panes.map(\.node)) }
+        if let previousSplit { dissolveIfNeeded(previousSplit) }
+        sidebarRevision += 1
+        select(tab)
+    }
+
+    func canDrop(_ tab: Tab, on target: SplitDropTarget) -> Bool {
+        switch target {
+        case .insert(let pane, _, _):
+            let split = split(of: pane)
+            guard tab !== pane, tab.spaceID == pane.spaceID, !tab.isPinned, !pane.isPinned,
+                  split == nil || self.split(of: tab) !== split else { return false }
+            return split.map { panes(of: $0).count < Self.maxSplitPanes } ?? true
+        case .replace(let pane):
+            // On a single page it would only show the tab, which a click in the sidebar does.
+            guard let split = split(of: pane) else { return false }
+            return tab !== pane && tab.spaceID == pane.spaceID && !tab.isPinned && self.split(of: tab) !== split
+        }
+    }
+
+    func drop(_ tab: Tab, on target: SplitDropTarget) {
+        guard canDrop(tab, on: target) else { return }
+        switch target {
+        case .insert(let pane, let after, let isVertical):
+            let isNew = split(of: pane) == nil
+            select(pane)
+            addToSplit(tab, after: after)
+            if isNew, let split = split(of: tab), split.isVertical != isVertical { toggleOrientation(split) }
+        case .replace(let pane):
+            replacePane(pane, with: tab)
+        }
+    }
+
+    /// The tab takes the pane's place, and the pane's tab leaves the split.
+    func replacePane(_ pane: Tab, with tab: Tab) {
+        guard let split = split(of: pane) else { return }
+        let previousSplit = self.split(of: tab)
+        tab.place(section: split.node.section, parentID: split.id, position: pane.node.position)
+        tab.setShare(pane.node.share)
+        save { try profileDatabases[tab.spaceID]?.save(tab.node) }
+        removeFromSplit(pane)
         if let previousSplit { dissolveIfNeeded(previousSplit) }
         sidebarRevision += 1
         select(tab)

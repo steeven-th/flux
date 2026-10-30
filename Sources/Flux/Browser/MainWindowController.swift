@@ -27,6 +27,7 @@ final class MainWindowController: NSWindowController {
     /// The panes' parts while a handle is dragged, saved when it is released.
     private var liveShares: [Double]?
     private var paneClickMonitor: Any?
+    private let dropOverlay = SplitDropOverlay()
     private let resizeHandle = SidebarResizeHandle()
     private let revealEdge = SidebarRevealEdge()
     private var overlay: SidebarOverlayWindow?
@@ -128,6 +129,7 @@ final class MainWindowController: NSWindowController {
         observeSelectedTab()
         observePeek()
         observePanes()
+        observeDraggedTab()
         // Pages are windows of their own, so a click in a pane only reaches Flux this way.
         paneClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
             if let self, let window = event.window,
@@ -291,6 +293,27 @@ final class MainWindowController: NSWindowController {
         layoutPages()
         // Page windows added since go above the handles.
         panes.values.forEach { $0.placeDevToolsHandle() }
+    }
+
+    private func observeDraggedTab() {
+        let tab = withObservationTracking {
+            state.draggedTab
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeDraggedTab() }
+        }
+        guard tab != nil, let window else { return dropOverlay.hide() }
+        dropOverlay.panes = { [weak self] in
+            guard let self else { return [] }
+            return self.state.shownTabs.compactMap { tab in self.panes[tab.id].map { (tab, $0.frame) } }
+        }
+        dropOverlay.isVertical = { [weak self] in self?.state.selectedSplit?.isVertical }
+        dropOverlay.tab = { [weak self] id in
+            guard case .tab(let tab) = self?.state.entry(id: id) else { return nil }
+            return tab
+        }
+        dropOverlay.canDrop = { [weak self] tab, target in self?.state.canDrop(tab, on: target) ?? false }
+        dropOverlay.onDrop = { [weak self] tab, target in self?.state.drop(tab, on: target) }
+        dropOverlay.show(frame: pageArea, over: window)
     }
 
     private func observePanes() {

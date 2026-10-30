@@ -255,6 +255,14 @@ struct SidebarOutline: NSViewRepresentable {
             return pasteboardItem
         }
 
+        func outlineView(_ outlineView: NSOutlineView, draggingSession session: NSDraggingSession, willBeginAt screenPoint: NSPoint, forItems draggedItems: [Any]) {
+            state.draggedTab = draggedItems.first as? Tab
+        }
+
+        func outlineView(_ outlineView: NSOutlineView, draggingSession session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
+            state.draggedTab = nil
+        }
+
         func outlineView(
             _ outlineView: NSOutlineView, validateDrop info: NSDraggingInfo,
             proposedItem item: Any?, proposedChildIndex index: Int
