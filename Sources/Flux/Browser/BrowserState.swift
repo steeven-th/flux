@@ -23,8 +23,8 @@ final class BrowserState {
     private static let responsiveOptionsKey = "responsiveOptions"
     private static let translationProviderKey = "translationProvider"
     private static let translatedCharactersKey = "translatedCharacters"
-    private static let arcExtensionsKey = "arcExtensions"
-    private static let arcExtensionsCardHiddenKey = "arcExtensionsCardHidden"
+    private static let importedExtensionsKey = "importedExtensions"
+    private static let importedExtensionsCardHiddenKey = "importedExtensionsCardHidden"
     private static let hiddenDevicesKey = "hiddenDevices"
     private static let customDevicesKey = "customDevices"
     private static let archiveDelayKey = "archiveDelay"
@@ -1194,42 +1194,42 @@ final class BrowserState {
         save { try profileDatabases[split.spaceID]?.delete(nodeID: split.id) }
     }
 
-    // Import from Arc.
+    // Import from other browsers.
 
-    /// Each of Arc's spaces goes to a new space, or into an existing one when `destinations` names
-    /// it. Arc's spaces sharing a profile give new spaces sharing one too.
-    /// Each space keeps the extensions its Arc space had, to install them again.
-    func importFromArc(_ arcSpaces: [ArcLibrary.Space], destinations: [String: UUID], includesToday: Bool) {
-        var spaceByArcProfile: [String: UUID] = [:]
-        var favicons: [String: ArcFavicons] = [:]
+    /// Each space goes to a new space, or into an existing one when `destinations` names it.
+    /// Spaces sharing a profile give new spaces sharing one too, and each space keeps the
+    /// extensions it had, to install them again.
+    func importSpaces(_ imported: [ImportedSpace], from source: ImportSource, destinations: [String: UUID], includesToday: Bool) {
+        var spaceByProfile: [URL: UUID] = [:]
+        var favicons: [URL: ChromiumFavicons] = [:]
         defer { favicons.values.forEach { $0.close() } }
         var shownSpace: UUID?
-        let lastArcSpace = ArcLibrary.lastSpaceID
-        for arcSpace in arcSpaces {
-            // A new profile gets Arc's history, passwords and sign-ins. An open one can't.
-            let spaceID = destinations[arcSpace.id] ?? createSpace(
-                name: arcSpace.name, icon: arcSpace.icon, color: arcSpace.color ?? Self.spaceColors[0],
-                sharingProfileOf: spaceByArcProfile[arcSpace.profile]
+        let lastSpace = source.lastSpaceID
+        for space in imported {
+            // A new profile gets the browser's history, passwords and sign-ins. An open one can't.
+            let spaceID = destinations[space.id] ?? createSpace(
+                name: space.name, icon: space.icon, color: space.color ?? Self.spaceColors[0],
+                sharingProfileOf: spaceByProfile[space.profileFolder]
             ) { folder in
-                ArcProfileTransfer.transfer(from: arcSpace.profile, to: folder, keys: ArcProfileTransfer.keys())
+                ProfileTransfer.transfer(from: space.profileFolder, to: folder, keys: ProfileTransfer.keys(for: source))
             }
-            if spaceByArcProfile[arcSpace.profile] == nil {
-                spaceByArcProfile[arcSpace.profile] = spaceID
+            if spaceByProfile[space.profileFolder] == nil {
+                spaceByProfile[space.profileFolder] = spaceID
             }
-            if shownSpace == nil || arcSpace.id == lastArcSpace { shownSpace = spaceID }
-            addArcExtensions(ArcExtension.installed(inProfile: arcSpace.profile), to: spaceID)
-            let icons = favicons[arcSpace.profile] ?? ArcFavicons(profile: arcSpace.profile)
-            favicons[arcSpace.profile] = icons
+            if shownSpace == nil || space.id == lastSpace { shownSpace = spaceID }
+            addImportedExtensions(ImportedExtension.installed(inProfile: space.profileFolder), to: spaceID)
+            let icons = favicons[space.profileFolder] ?? ChromiumFavicons(profileFolder: space.profileFolder)
+            favicons[space.profileFolder] = icons
 
-            var importer = ArcImporter(spaceID: spaceID, favicons: icons, cache: faviconCaches[spaceID])
+            var importer = SidebarImporter(spaceID: spaceID, favicons: icons, cache: faviconCaches[spaceID])
             // The grid takes twelve tabs: the others go first among favorites.
-            let favoriteTabs = arcSpace.favorites.flatMap(\.tabs)
+            let pinned = space.pinned.flatMap(\.tabs)
             let room = max(Self.maxPinnedTabs - pinnedTabs(in: spaceID).count, 0)
-            importer.add(favoriteTabs.prefix(room).map(ArcLibrary.Item.tab), section: .pinned, after: entries(in: .pinned, parentID: nil, spaceID: spaceID).last?.node.position)
-            importer.add(favoriteTabs.dropFirst(room).map(ArcLibrary.Item.tab) + arcSpace.pinned, section: .favorites,
+            importer.add(pinned.prefix(room).map(ImportedItem.tab), section: .pinned, after: entries(in: .pinned, parentID: nil, spaceID: spaceID).last?.node.position)
+            importer.add(pinned.dropFirst(room).map(ImportedItem.tab) + space.favorites, section: .favorites,
                          after: entries(in: .favorites, parentID: nil, spaceID: spaceID).last?.node.position)
             if includesToday {
-                importer.add(arcSpace.today, section: .today, after: entries(in: .today, parentID: nil, spaceID: spaceID).last?.node.position)
+                importer.add(space.today, section: .today, after: entries(in: .today, parentID: nil, spaceID: spaceID).last?.node.position)
             }
             save { try profileDatabases[spaceID]?.save(importer.nodes) }
             for node in importer.nodes {
@@ -1241,31 +1241,31 @@ final class BrowserState {
             }
         }
         sidebarRevision += 1
-        // The space Arc showed last, rather than its first one.
+        // The space the browser showed last, rather than its first one.
         if let shownSpace { selectedSpaceID = shownSpace }
     }
 
-    func arcExtensions(in spaceID: UUID) -> [ArcExtension] {
+    func importedExtensions(in spaceID: UUID) -> [ImportedExtension] {
         _ = settingsRevision
-        return (try? appDatabase.setting("\(Self.arcExtensionsKey) \(spaceID)"))
-            .flatMap { try? JSONDecoder().decode([ArcExtension].self, from: Data($0.utf8)) } ?? []
+        return (try? appDatabase.setting("\(Self.importedExtensionsKey) \(spaceID)"))
+            .flatMap { try? JSONDecoder().decode([ImportedExtension].self, from: Data($0.utf8)) } ?? []
     }
 
-    private func addArcExtensions(_ extensions: [ArcExtension], to spaceID: UUID) {
-        let current = arcExtensions(in: spaceID)
+    private func addImportedExtensions(_ extensions: [ImportedExtension], to spaceID: UUID) {
+        let current = importedExtensions(in: spaceID)
         let all = current + extensions.filter { item in !current.contains { $0.id == item.id } }
         guard all.count > current.count, let data = try? JSONEncoder().encode(all) else { return }
-        save { try appDatabase.setSetting("\(Self.arcExtensionsKey) \(spaceID)", to: String(decoding: data, as: UTF8.self)) }
+        save { try appDatabase.setSetting("\(Self.importedExtensionsKey) \(spaceID)", to: String(decoding: data, as: UTF8.self)) }
         settingsRevision += 1
     }
 
-    func isArcExtensionsCardHidden(in spaceID: UUID) -> Bool {
+    func isImportedExtensionsCardHidden(in spaceID: UUID) -> Bool {
         _ = settingsRevision
-        return (try? appDatabase.setting("\(Self.arcExtensionsCardHiddenKey) \(spaceID)")) == "true"
+        return (try? appDatabase.setting("\(Self.importedExtensionsCardHiddenKey) \(spaceID)")) == "true"
     }
 
-    func hideArcExtensionsCard(in spaceID: UUID) {
-        save { try appDatabase.setSetting("\(Self.arcExtensionsCardHiddenKey) \(spaceID)", to: "true") }
+    func hideImportedExtensionsCard(in spaceID: UUID) {
+        save { try appDatabase.setSetting("\(Self.importedExtensionsCardHiddenKey) \(spaceID)", to: "true") }
         settingsRevision += 1
     }
 

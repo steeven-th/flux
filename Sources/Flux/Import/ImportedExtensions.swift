@@ -1,12 +1,12 @@
 import AppKit
 import SwiftUI
 
-/// An extension installed in one of Arc's profiles from the Chrome Web Store. Each space keeps
-/// those its Arc space had, to install them again.
-struct ArcExtension: Identifiable, Codable, Hashable {
+/// An extension installed from the Chrome Web Store in another browser's profile. Each imported
+/// space keeps those it had, to install them again.
+struct ImportedExtension: Identifiable, Codable, Hashable {
     let id: String
     let name: String
-    /// In Arc's profile, which may be gone by the time it is shown.
+    /// In the other browser's profile, which may be gone by the time it is shown.
     let iconPath: String?
 
     var icon: NSImage? {
@@ -19,8 +19,7 @@ struct ArcExtension: Identifiable, Codable, Hashable {
 
     /// Chromium lists them in the profile's preferences. Those it installed itself, or that were
     /// loaded from a folder, have no store page.
-    static func installed(inProfile profile: String) -> [ArcExtension] {
-        let folder = ArcLibrary.profileFolder(profile)
+    static func installed(inProfile folder: URL) -> [ImportedExtension] {
         var settings: [String: Any] = [:]
         for file in ["Preferences", "Secure Preferences"] {
             guard let data = try? Data(contentsOf: folder.appending(path: file)),
@@ -28,14 +27,14 @@ struct ArcExtension: Identifiable, Codable, Hashable {
                   let list = (root["extensions"] as? [String: Any])?["settings"] as? [String: Any] else { continue }
             settings.merge(list) { _, new in new }
         }
-        return settings.compactMap { id, value -> ArcExtension? in
+        return settings.compactMap { id, value -> ImportedExtension? in
             guard let entry = value as? [String: Any], entry["from_webstore"] as? Bool == true,
                   let path = entry["path"] as? String else { return nil }
             let directory = path.hasPrefix("/") ? URL(filePath: path) : folder.appending(path: "Extensions/\(path)")
             guard let data = try? Data(contentsOf: directory.appending(path: "manifest.json")),
                   let manifest = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   manifest["theme"] == nil else { return nil }
-            return ArcExtension(id: id, name: name(in: manifest, directory: directory) ?? id, iconPath: iconPath(in: manifest, directory: directory))
+            return ImportedExtension(id: id, name: name(in: manifest, directory: directory) ?? id, iconPath: iconPath(in: manifest, directory: directory))
         }
         .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
@@ -65,9 +64,9 @@ struct ArcExtension: Identifiable, Codable, Hashable {
 }
 
 /// An extension with a button opening its store page in the space, or a check mark once installed.
-struct ArcExtensionRow: View {
+struct ImportedExtensionRow: View {
     let state: BrowserState
-    let item: ArcExtension
+    let item: ImportedExtension
     let spaceID: UUID
 
     var body: some View {
@@ -93,21 +92,21 @@ struct ArcExtensionRow: View {
     }
 }
 
-/// In the sidebar of a space imported from Arc, its extensions to install again. Chromium signs
+/// In the sidebar of an imported space, its extensions to install again. Chromium signs
 /// its list of extensions, so a copied list would be turned off: they are installed again from the
 /// Chrome Web Store. Once closed, the card is gone for good.
-struct ArcExtensionsCard: View {
+struct ImportedExtensionsCard: View {
     let state: BrowserState
 
     @State private var asksToHide = false
 
     var body: some View {
         let spaceID = state.selectedSpaceID
-        let extensions = state.arcExtensions(in: spaceID)
-        if !extensions.isEmpty, !state.isArcExtensionsCardHidden(in: spaceID) {
+        let extensions = state.importedExtensions(in: spaceID)
+        if !extensions.isEmpty, !state.isImportedExtensionsCardHidden(in: spaceID) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    Text("Extensions from Arc").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                    Text("Extensions to Install Again").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
                     Spacer()
                     Button { asksToHide = true } label: {
                         Image(systemName: "xmark").font(.system(size: 9, weight: .semibold)).frame(width: 16, height: 16).contentShape(Rectangle())
@@ -118,7 +117,7 @@ struct ArcExtensionsCard: View {
                 ScrollView {
                     VStack(spacing: 4) {
                         ForEach(extensions) { item in
-                            ArcExtensionRow(state: state, item: item, spaceID: spaceID)
+                            ImportedExtensionRow(state: state, item: item, spaceID: spaceID)
                         }
                     }
                 }
@@ -129,8 +128,8 @@ struct ArcExtensionsCard: View {
                 let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
                 shape.fill(.primary.opacity(0.06)).overlay(shape.strokeBorder(.primary.opacity(0.08)))
             }
-            .alert("Hide the extensions from Arc?", isPresented: $asksToHide) {
-                Button("Hide") { state.hideArcExtensionsCard(in: spaceID) }
+            .alert("Hide the extensions to install again?", isPresented: $asksToHide) {
+                Button("Hide") { state.hideImportedExtensionsCard(in: spaceID) }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("This card won't come back. Your extensions are in Flux > Extensions.")

@@ -9,7 +9,7 @@ struct WelcomeView: View {
             Group {
                 switch model.step {
                 case .welcome: IntroStep()
-                case .arc: ArcStep(model: model)
+                case .imports: ImportStep(model: model)
                 case .space: SpaceStep(model: model)
                 case .searchEngine: SearchEngineStep(model: model)
                 case .passwords: PasswordsStep(model: model)
@@ -77,24 +77,31 @@ private struct StepHeader: View {
     }
 }
 
-private struct ArcStep: View {
+private struct ImportStep: View {
     @Bindable var model: WelcomeModel
 
     var body: some View {
-        let tabs = model.arcSpaces.reduce(0) { $0 + $1.tabCount }
         VStack(alignment: .leading, spacing: 16) {
-            StepHeader(title: "Coming from Arc?", message: "Flux can bring your Arc spaces, with their favorites, pinned tabs, folders and splits. Arc itself is left as it is.")
-            Picker(selection: $model.importsArc) {
-                Text("Import my \(model.arcSpaces.count) Arc spaces (\(tabs) tabs)").tag(true)
-                Text("Start with a new space").tag(false)
+            if model.sources.count == 1, let only = model.sources.first {
+                StepHeader(title: "Coming from \(only.source.name)?", message: "Flux can bring your spaces, with their pinned tabs, favorites, folders, history, passwords and sign-ins. \(only.source.name) itself is left as it is.")
+            } else {
+                StepHeader(title: "Coming from another browser?", message: "Flux can bring your spaces, with their pinned tabs, favorites, folders, history, passwords and sign-ins. The other browser is left as it is.")
+            }
+            Picker(selection: $model.importSource) {
+                ForEach(model.sources, id: \.source) { source, spaces in
+                    let tabs = spaces.reduce(0) { $0 + $1.tabCount }
+                    Text("Import my \(spaces.count) \(source.name) spaces (\(tabs) tabs)").tag(ImportSource?.some(source))
+                }
+                Text("Start with a new space").tag(ImportSource?.none)
             } label: {
                 EmptyView()
             }
             .pickerStyle(.radioGroup)
             .labelsHidden()
-            Toggle("Also import Today's tabs", isOn: $model.importsArcToday)
-                .disabled(!model.importsArc)
-                .padding(.leading, 20)
+            if model.importSource?.hasToday == true {
+                Toggle("Also import Today's tabs", isOn: $model.importsToday)
+                    .padding(.leading, 20)
+            }
             Text("You can import them later from File > Import from Another Browser.")
                 .font(.caption)
                 .foregroundStyle(.secondary)

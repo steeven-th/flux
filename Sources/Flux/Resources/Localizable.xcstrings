@@ -21,6 +21,16 @@
         }
       }
     },
+    "%@'s spaces couldn't be read." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les espaces de %@ n'ont pas pu être lus."
+          }
+        }
+      }
+    },
     "%lld Spaces" : {
       "localizations" : {
         "en" : {
@@ -307,16 +317,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Application"
-          }
-        }
-      }
-    },
-    "Arc's sidebar couldn't be read." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La barre latérale d'Arc n'a pas pu être lue."
           }
         }
       }
@@ -641,12 +641,22 @@
         }
       }
     },
-    "Coming from Arc?" : {
+    "Coming from %@?" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Vous venez d'Arc ?"
+            "value" : "Vous venez de %@ ?"
+          }
+        }
+      }
+    },
+    "Coming from another browser?" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous venez d'un autre navigateur ?"
           }
         }
       }
@@ -1031,12 +1041,12 @@
         }
       }
     },
-    "Extensions from Arc" : {
+    "Extensions to Install Again" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Extensions d'Arc"
+            "value" : "Extensions à réinstaller"
           }
         }
       }
@@ -1101,12 +1111,22 @@
         }
       }
     },
-    "Flux can bring your Arc spaces, with their favorites, pinned tabs, folders and splits. Arc itself is left as it is." : {
+    "Flux can bring your spaces, with their pinned tabs, favorites, folders, history, passwords and sign-ins. %@ itself is left as it is." : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Flux peut reprendre vos espaces Arc, avec leurs favoris, onglets épinglés, dossiers et vues partagées. Arc lui-même n'est pas modifié."
+            "value" : "Flux peut reprendre vos espaces, avec leurs onglets épinglés, favoris, dossiers, historique, mots de passe et connexions. %@ lui-même n'est pas modifié."
+          }
+        }
+      }
+    },
+    "Flux can bring your spaces, with their pinned tabs, favorites, folders, history, passwords and sign-ins. The other browser is left as it is." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flux peut reprendre vos espaces, avec leurs onglets épinglés, favoris, dossiers, historique, mots de passe et connexions. L'autre navigateur n'est pas modifié."
           }
         }
       }
@@ -1281,12 +1301,12 @@
         }
       }
     },
-    "Hide the extensions from Arc?" : {
+    "Hide the extensions to install again?" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Masquer les extensions d'Arc ?"
+            "value" : "Masquer les extensions à réinstaller ?"
           }
         }
       }
@@ -1331,12 +1351,12 @@
         }
       }
     },
-    "Import my %lld Arc spaces (%lld tabs)" : {
+    "Import my %lld %@ spaces (%lld tabs)" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Importer mes %lld espaces Arc (%lld onglets)"
+            "value" : "Importer mes %lld espaces %@ (%lld onglets)"
           }
         }
       }
@@ -3161,16 +3181,6 @@
         }
       }
     },
-    "Your Arc spaces come with their favorites, pinned tabs, folders and splits. Arc itself is left as it is." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vos espaces Arc arrivent avec leurs favoris, onglets épinglés, dossiers et vues partagées. Arc lui-même n'est pas modifié."
-          }
-        }
-      }
-    },
     "Your Data and Settings" : {
       "localizations" : {
         "fr" : {
@@ -3187,6 +3197,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Votre premier espace"
+          }
+        }
+      }
+    },
+    "Your spaces come with their pinned tabs, favorites, folders and splits, and new ones with their history, passwords and sign-ins. %@ itself is left as it is." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos espaces arrivent avec leurs onglets épinglés, favoris, dossiers et vues partagées, et les nouveaux avec leur historique, leurs mots de passe et leurs connexions. %@ lui-même n'est pas modifié."
           }
         }
       }

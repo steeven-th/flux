@@ -3,46 +3,7 @@ import Foundation
 /// Arc's spaces and sidebar, read from its own files, which are left as they are. Arc keeps them
 /// in StorableSidebar.json: flat lists where an id is followed by its object, items linked by
 /// their parent and children ids.
-struct ArcLibrary {
-    struct Space: Identifiable {
-        let id: String
-        let name: String
-        let icon: String?
-        /// "#RRGGBB", when Arc has one.
-        let color: String?
-        /// The space's Chromium profile, a folder of Arc's User Data.
-        let profile: String
-        /// Arc's favorites, the icons at the top of the sidebar, shared by the profile's spaces.
-        let favorites: [Item]
-        /// Arc's pinned tabs and their folders.
-        let pinned: [Item]
-        let today: [Item]
-
-        var tabCount: Int {
-            (favorites + pinned).reduce(0) { $0 + $1.tabCount }
-        }
-    }
-
-    struct Tab {
-        let title: String
-        let url: String
-    }
-
-    indirect enum Item {
-        case tab(Tab)
-        case folder(title: String, items: [Item])
-        /// `shares` are the parts of the width Arc kept, nil for equal ones.
-        case split(tabs: [Tab], shares: [Double?], isVertical: Bool)
-
-        var tabCount: Int {
-            switch self {
-            case .tab: 1
-            case .folder(_, let items): items.reduce(0) { $0 + $1.tabCount }
-            case .split(let tabs, _, _): tabs.count
-            }
-        }
-    }
-
+enum ArcLibrary {
     static let folder = FileManager.default.homeDirectoryForCurrentUser
         .appending(path: "Library/Application Support/Arc", directoryHint: .isDirectory)
 
@@ -66,19 +27,15 @@ struct ArcLibrary {
         folder.appending(path: "User Data/\(profile)", directoryHint: .isDirectory)
     }
 
-    enum LoadError: Error {
-        case unreadable
-    }
-
-    static func loadSpaces() throws -> [Space] {
+    static func loadSpaces() throws -> [ImportedSpace] {
         guard let root = try JSONSerialization.jsonObject(with: Data(contentsOf: sidebarFile)) as? [String: Any],
               let containers = (root["sidebar"] as? [String: Any])?["containers"] as? [Any],
               let container = containers.compactMap({ $0 as? [String: Any] }).first(where: { $0["spaces"] != nil })
-        else { throw LoadError.unreadable }
+        else { throw ImportError.unreadable }
         let reader = Reader(items: objects(container["items"]))
 
         // Favorites belong to a profile: the list alternates a profile and its container's id.
-        var favoritesByProfile: [String: [Item]] = [:]
+        var favoritesByProfile: [String: [ImportedItem]] = [:]
         let topApps = container["topAppsContainerIDs"] as? [Any] ?? []
         for index in stride(from: 0, to: topApps.count - 1, by: 2) {
             if let id = topApps[index + 1] as? String {
@@ -95,14 +52,16 @@ struct ArcLibrary {
                 return containerIDs[index + 1] as? String
             }
             let info = space["customInfo"] as? [String: Any]
-            return Space(
+            // Arc's favorites are the icons at the top, Flux's pinned tabs, and Arc's pinned tabs
+            // with their folders are Flux's favorites.
+            return ImportedSpace(
                 id: id,
                 name: space["title"] as? String ?? "Arc",
                 icon: emoji(info?["iconType"]),
                 color: color(info?["windowTheme"]),
-                profile: profile,
-                favorites: favoritesByProfile[profile] ?? [],
-                pinned: container("pinned").map(reader.children(of:)) ?? [],
+                profileFolder: profileFolder(profile),
+                pinned: favoritesByProfile[profile] ?? [],
+                favorites: container("pinned").map(reader.children(of:)) ?? [],
                 today: container("unpinned").map(reader.children(of:)) ?? []
             )
         }
@@ -119,20 +78,20 @@ struct ArcLibrary {
             self.items = byID
         }
 
-        func children(of id: String) -> [Item] {
+        func children(of id: String) -> [ImportedItem] {
             (items[id]?["childrenIds"] as? [String] ?? []).compactMap(item)
         }
 
-        private func tab(_ id: String) -> Tab? {
+        private func tab(_ id: String) -> ImportedTab? {
             guard let item = items[id], let data = (item["data"] as? [String: Any])?["tab"] as? [String: Any],
                   let url = data["savedURL"] as? String, !url.isEmpty else { return nil }
             // A title the user gave the tab comes before the page's.
             let title = item["title"] as? String ?? data["savedTitle"] as? String ?? ""
             // Arc's own pages are Chromium's, under another name.
-            return Tab(title: title, url: url.hasPrefix("arc://") ? "chrome://" + url.dropFirst(6) : url)
+            return ImportedTab(title: title, url: url.hasPrefix("arc://") ? "chrome://" + url.dropFirst(6) : url)
         }
 
-        private func item(_ id: String) -> Item? {
+        private func item(_ id: String) -> ImportedItem? {
             guard let item = items[id], let data = item["data"] as? [String: Any] else { return nil }
             if let tab = tab(id) {
                 return .tab(tab)

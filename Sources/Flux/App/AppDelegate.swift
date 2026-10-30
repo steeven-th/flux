@@ -90,15 +90,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func finishWelcome(_ choices: WelcomeModel, database: AppDatabase) {
-        // Arc's first space becomes the first space, and its other spaces come after it.
-        let arcSpaces = choices.importsArc ? choices.arcSpaces : []
+        // The other browser's first space becomes the first space, and its other spaces come after it.
+        let source = choices.importSource
+        let imported = choices.importedSpaces
         do {
-            if let first = arcSpaces.first {
+            if let source, let first = imported.first {
                 let record = try BrowserState.createFirstSpace(
                     name: first.name, icon: first.icon, color: first.color ?? BrowserState.spaceColors[0], in: database
                 )
-                ArcProfileTransfer.transfer(
-                    from: first.profile, to: AppPaths.profileFolder(named: record.profileFolder), keys: ArcProfileTransfer.keys()
+                ProfileTransfer.transfer(
+                    from: first.profileFolder, to: AppPaths.profileFolder(named: record.profileFolder), keys: ProfileTransfer.keys(for: source)
                 )
             } else {
                 let name = choices.name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -111,8 +112,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         startBrowsing(database: database) { state in
-            if let first = arcSpaces.first {
-                state.importFromArc(arcSpaces, destinations: [first.id: state.selectedSpace.id], includesToday: choices.importsArcToday)
+            if let source, let first = imported.first {
+                state.importSpaces(imported, from: source, destinations: [first.id: state.selectedSpace.id], includesToday: choices.importsToday)
             }
             for profile in state.profilesInUse {
                 state.setSearchEngine(choices.searchEngine, forProfile: profile.folder)

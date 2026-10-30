@@ -1,33 +1,35 @@
 import Foundation
 import GRDB
 
-/// Brings an Arc profile's history, passwords and sign-ins into a Flux profile that Chromium
-/// hasn't opened yet. Arc runs the same Chromium as Flux, so its databases are used as they are,
-/// with each password and cookie protected again with Flux's key.
+/// Brings a profile's history, passwords and sign-ins from another browser into a Flux profile
+/// that Chromium hasn't opened yet. Arc and Dia run the same Chromium as Flux, so their databases
+/// are used as they are, with each password and cookie protected again with Flux's key.
 @MainActor
-enum ArcProfileTransfer {
+enum ProfileTransfer {
     struct Keys {
-        let arc: ChromiumSafeStorage
+        let source: ChromiumSafeStorage
         let flux: ChromiumSafeStorage
     }
 
-    private static var loadedKeys: Keys??
+    private static var loadedKeys: [ImportSource: Keys?] = [:]
 
-    /// Read once: macOS asks the user's password to let Flux read Arc's. Nil when Flux keeps no
-    /// key in the keychain itself, since passwords would be protected with Chromium's fixed one.
-    static func keys() -> Keys? {
-        if let loadedKeys { return loadedKeys }
+    /// Read once per browser: macOS asks the user's password to let Flux read its key. Nil when
+    /// Flux keeps no key in the keychain itself, since passwords would be protected with
+    /// Chromium's fixed one.
+    static func keys(for source: ImportSource) -> Keys? {
+        if let loaded = loadedKeys[source] { return loaded }
         var keys: Keys?
-        if FLXEngine.usesSystemKeychain, let arc = ChromiumSafeStorage.arc(), let flux = ChromiumSafeStorage.flux() {
-            keys = Keys(arc: arc, flux: flux)
+        let item = source.keychainItem
+        if FLXEngine.usesSystemKeychain, let key = ChromiumSafeStorage.of(service: item.service, account: item.account),
+           let flux = ChromiumSafeStorage.flux() {
+            keys = Keys(source: key, flux: flux)
         }
-        loadedKeys = .some(keys)
+        loadedKeys[source] = .some(keys)
         return keys
     }
 
     /// Without keys, only the history comes: it isn't protected.
-    static func transfer(from arcProfile: String, to folder: URL, keys: Keys?) {
-        let source = ArcLibrary.profileFolder(arcProfile)
+    static func transfer(from source: URL, to folder: URL, keys: Keys?) {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         copy("History", from: source, to: folder)
         guard let keys else { return }
@@ -39,7 +41,8 @@ enum ArcProfileTransfer {
         }
     }
 
-    /// With its journal: Arc may be writing, and opening the copy rolls an unfinished write back.
+    /// With its journal: the browser may be writing, and opening the copy rolls an unfinished write
+    /// back.
     @discardableResult
     private static func copy(_ name: String, from source: URL, to folder: URL) -> Bool {
         let manager = FileManager.default
@@ -51,7 +54,7 @@ enum ArcProfileTransfer {
         return true
     }
 
-    /// Values that don't open with Arc's key would be unreadable with Flux's: their rows go.
+    /// Values that don't open with the browser's key would be unreadable with Flux's: their rows go.
     private static func protectAgain(table: String, column: String, in file: URL, keys: Keys) {
         guard let database = try? DatabaseQueue(path: file.path) else { return }
         try? database.write { db in
@@ -59,7 +62,7 @@ enum ArcProfileTransfer {
             let rows = try Row.fetchAll(db, sql: "SELECT rowid AS flux_row, \(column) FROM \(table) WHERE length(\(column)) > 0")
             for row in rows {
                 guard let id = row["flux_row"] as Int64?, let value = row[column] as Data? else { continue }
-                if let plain = keys.arc.decrypt(value) {
+                if let plain = keys.source.decrypt(value) {
                     try db.execute(sql: "UPDATE \(table) SET \(column) = ? WHERE rowid = ?", arguments: [keys.flux.encrypt(plain), id])
                 } else {
                     try db.execute(sql: "DELETE FROM \(table) WHERE rowid = ?", arguments: [id])

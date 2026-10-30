@@ -24,9 +24,9 @@ struct ChromiumSafeStorage {
         self.key = key
     }
 
-    /// Arc's, which macOS lets Flux read once the user enters their password.
-    static func arc() -> ChromiumSafeStorage? {
-        secret(service: "Arc Safe Storage", account: "Arc").map(ChromiumSafeStorage.init(secret:))
+    /// Another browser's, which macOS lets Flux read once the user enters their password.
+    static func of(service: String, account: String) -> ChromiumSafeStorage? {
+        secret(service: service, account: account).map(ChromiumSafeStorage.init(secret:))
     }
 
     /// Flux's own, which Chromium makes the first time it needs it: when an import comes first,

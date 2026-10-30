@@ -6,14 +6,24 @@ import Observation
 @Observable
 final class WelcomeModel {
     enum Step: Int, CaseIterable {
-        case welcome, arc, space, searchEngine, passwords, done
+        case welcome, imports, space, searchEngine, passwords, done
     }
 
     var step = Step.welcome
-    /// Read when Arc is installed, for the step offering to bring its spaces.
-    let arcSpaces: [ArcLibrary.Space] = ArcLibrary.isInstalled ? (try? ArcLibrary.loadSpaces()) ?? [] : []
-    var importsArc = true
-    var importsArcToday = false
+    /// The browsers installed that Flux imports from, with their spaces, for the step offering to
+    /// bring them.
+    let sources = ImportSource.available()
+    /// Nil to start with a new space.
+    var importSource: ImportSource?
+    var importsToday = false
+
+    init() {
+        importSource = sources.first?.source
+    }
+
+    var importedSpaces: [ImportedSpace] {
+        sources.first { $0.source == importSource }?.spaces ?? []
+    }
     var name = String(localized: "Personal")
     var icon = ""
     var color = BrowserState.spaceColors[0]
@@ -35,12 +45,12 @@ final class WelcomeModel {
         if isSkipped(step) { goForward() }
     }
 
-    /// Without Arc there is nothing to import. Arc's spaces replace the first space's step, and
-    /// bring their passwords and, among their extensions, their password manager.
+    /// Without another browser there is nothing to import. Its spaces replace the first space's
+    /// step, and bring their passwords and, among their extensions, their password manager.
     private func isSkipped(_ step: Step) -> Bool {
         switch step {
-        case .arc: arcSpaces.isEmpty
-        case .space, .passwords: !arcSpaces.isEmpty && importsArc
+        case .imports: sources.isEmpty
+        case .space, .passwords: importSource != nil
         default: false
         }
     }

@@ -1,16 +1,15 @@
 import AppKit
 import GRDB
 
-/// Favicons from the Favicons database Chromium keeps in each of Arc's profiles, so imported tabs
-/// show their icon before their page is loaded. Arc may be running and holding a lock on the file,
-/// so a copy is read, journal included.
-struct ArcFavicons {
+/// Favicons from the Favicons database Chromium keeps in each profile of another browser, so
+/// imported tabs show their icon before their page is loaded. The browser may be running and
+/// holding a lock on the file, so a copy is read, journal included.
+struct ChromiumFavicons {
     private let database: DatabaseQueue?
     private let copyFolder: URL
 
-    init(profile: String) {
-        let source = ArcLibrary.profileFolder(profile)
-        copyFolder = FileManager.default.temporaryDirectory.appending(path: "Arc Favicons \(UUID().uuidString)", directoryHint: .isDirectory)
+    init(profileFolder source: URL) {
+        copyFolder = FileManager.default.temporaryDirectory.appending(path: "Favicons \(UUID().uuidString)", directoryHint: .isDirectory)
         let manager = FileManager.default
         do {
             try manager.createDirectory(at: copyFolder, withIntermediateDirectories: true)

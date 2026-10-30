@@ -1,35 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// The browsers Flux imports from. Each one shows its own choices once picked.
-enum ImportSource: CaseIterable, Identifiable {
-    case arc
-
-    var id: Self { self }
-
-    var name: String {
-        switch self {
-        case .arc: "Arc"
-        }
-    }
-
-    private var bundleIdentifier: String {
-        switch self {
-        case .arc: "company.thebrowser.Browser"
-        }
-    }
-
-    var isAvailable: Bool {
-        switch self {
-        case .arc: ArcLibrary.isInstalled
-        }
-    }
-
-    var icon: NSImage? {
-        NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier).map { NSWorkspace.shared.icon(forFile: $0.path) }
-    }
-}
-
 /// From File > Import from Another Browser: the browsers Flux knows, then what to bring from the
 /// one picked.
 @MainActor
@@ -71,10 +42,9 @@ private struct ImportView: View {
     @State private var source: ImportSource?
 
     var body: some View {
-        switch source {
-        case .arc:
-            ArcImportView(state: state, back: { source = nil }, close: close)
-        case nil:
+        if let source {
+            SpacesImportView(state: state, source: source, back: { self.source = nil }, close: close)
+        } else {
             VStack(alignment: .leading, spacing: 14) {
                 Text("Bring your tabs, history, passwords and sign-ins from another browser.")
                     .foregroundStyle(.secondary)
@@ -110,30 +80,31 @@ private struct ImportView: View {
     }
 }
 
-/// Chooses which of Arc's spaces come into Flux, and where.
-private struct ArcImportView: View {
+/// Chooses which of the browser's spaces come into Flux, and where.
+private struct SpacesImportView: View {
     let state: BrowserState
+    let source: ImportSource
     let back: () -> Void
     let close: () -> Void
 
-    @State private var arcSpaces: [ArcLibrary.Space] = []
+    @State private var spaces: [ImportedSpace] = []
     @State private var chosen: Set<String> = []
-    /// Arc's space id to a Flux space's, nil for a new space.
+    /// The browser's space id to a Flux space's, nil for a new space.
     @State private var destinations: [String: UUID] = [:]
     @State private var includesToday = false
     @State private var failed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Your Arc spaces come with their favorites, pinned tabs, folders and splits. Arc itself is left as it is.")
+            Text("Your spaces come with their pinned tabs, favorites, folders and splits, and new ones with their history, passwords and sign-ins. \(source.name) itself is left as it is.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if failed {
-                Text("Arc's sidebar couldn't be read.")
+                Text("\(source.name)'s spaces couldn't be read.")
                     .foregroundStyle(.red)
             }
             List {
-                ForEach(arcSpaces) { space in
+                ForEach(spaces) { space in
                     HStack {
                         Toggle(isOn: Binding(
                             get: { chosen.contains(space.id) },
@@ -165,15 +136,17 @@ private struct ArcImportView: View {
                 }
             }
             .listStyle(.bordered(alternatesRowBackgrounds: false))
-            Toggle("Also import Today's tabs", isOn: $includesToday)
+            if source.hasToday {
+                Toggle("Also import Today's tabs", isOn: $includesToday)
+            }
             HStack {
                 Button("Back", action: back)
                 Spacer()
                 Button("Cancel", role: .cancel, action: close)
                     .keyboardShortcut(.cancelAction)
                 Button("Import") {
-                    state.importFromArc(
-                        arcSpaces.filter { chosen.contains($0.id) },
+                    state.importSpaces(
+                        spaces.filter { chosen.contains($0.id) }, from: source,
                         destinations: destinations.filter { chosen.contains($0.key) },
                         includesToday: includesToday
                     )
@@ -187,8 +160,8 @@ private struct ArcImportView: View {
         .frame(width: 520, height: 460)
         .onAppear {
             do {
-                arcSpaces = try ArcLibrary.loadSpaces()
-                chosen = Set(arcSpaces.map(\.id))
+                spaces = try source.loadSpaces()
+                chosen = Set(spaces.map(\.id))
             } catch {
                 failed = true
             }
