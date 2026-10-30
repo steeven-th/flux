@@ -18,13 +18,13 @@ final class LittleWindowModel: NSObject {
     /// Called when the page closes itself.
     @ObservationIgnored var onClose: (() -> Void)?
 
-    init?(url: String, state: BrowserState) {
-        guard let profile = state.profile(ofSpace: state.selectedSpaceID) else { return nil }
+    init?(url: String, spaceID: UUID, state: BrowserState) {
+        guard let profile = state.profile(ofSpace: spaceID) else { return nil }
         self.state = state
-        spaceID = state.selectedSpaceID
+        self.spaceID = spaceID
         self.url = url
         page = FLXBrowserView(url: url, profile: profile)
-        favicon = state.favicon(for: url, inSpace: state.selectedSpaceID)
+        favicon = state.favicon(for: url, inSpace: spaceID)
         super.init()
         page.delegate = self
     }
@@ -83,8 +83,8 @@ final class LittleWindowController: NSWindowController, NSWindowDelegate {
     private let pageContainer = NSView()
     private var pageMoved = false
 
-    static func show(url: String, state: BrowserState) {
-        guard let model = LittleWindowModel(url: url, state: state) else { return }
+    static func show(url: String, inSpace spaceID: UUID, state: BrowserState) {
+        guard let model = LittleWindowModel(url: url, spaceID: spaceID, state: state) else { return }
         let controller = LittleWindowController(model: model)
         controllers.append(controller)
         controller.showWindow(nil)

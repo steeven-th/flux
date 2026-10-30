@@ -8,7 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isRelaunching = false
     private var welcome: WelcomeWindowController?
     /// Links from other apps that came before the browser window, at the first launch.
-    private var pendingURLs: [URL] = []
+    private var pendingLinks: [(url: URL, app: SourceApp?)] = []
     private let database: Result<AppDatabase, any Error>
 
     init(database: Result<AppDatabase, any Error>) {
@@ -58,29 +58,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.state = state
         self.windowController = windowController
         watchSplitShortcuts()
-        let urls = pendingURLs
-        pendingURLs = []
-        urls.forEach(openFromOtherApp)
-        if state.selectedTab == nil, urls.isEmpty {
+        let links = pendingLinks
+        pendingLinks = []
+        links.forEach { openFromOtherApp($0.url, from: $0.app) }
+        if state.selectedTab == nil, links.isEmpty {
             windowController.showCommandBar(.newTab)
         }
     }
 
     /// Links clicked in other apps, and HTML files opened with Flux.
     func application(_ application: NSApplication, open urls: [URL]) {
+        let app = SourceApp.sendingCurrentEvent()
         guard state != nil else {
-            pendingURLs += urls
+            pendingLinks += urls.map { ($0, app) }
             return
         }
-        urls.forEach(openFromOtherApp)
+        urls.forEach { openFromOtherApp($0, from: app) }
     }
 
-    private func openFromOtherApp(_ url: URL) {
+    /// The first link rule that matches decides where the link opens, the Links settings otherwise.
+    private func openFromOtherApp(_ url: URL, from app: SourceApp?) {
         guard let state else { return }
-        if state.outsideLinksOpenLittleWindow {
-            LittleWindowController.show(url: url.absoluteString, state: state)
+        if let app, app.bundleID != Bundle.main.bundleIdentifier { state.noteLinkSource(app) }
+        let rule = state.linkRule(for: url, from: app)
+        let spaceID = rule?.spaceID ?? state.selectedSpaceID
+        if rule?.opensLittleWindow ?? state.outsideLinksOpenLittleWindow {
+            LittleWindowController.show(url: url.absoluteString, inSpace: spaceID, state: state)
         } else {
-            state.newTab(url: url.absoluteString)
+            state.selectedSpaceID = spaceID
+            state.newTab(url: url.absoluteString, in: spaceID)
             windowController?.window?.makeKeyAndOrderFront(nil)
             NSApp.activate()
         }

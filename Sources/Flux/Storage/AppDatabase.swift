@@ -50,6 +50,17 @@ final class AppDatabase: Sendable {
                 t.add(column: "icon", .text)
             }
         }
+        migrator.registerMigration("v3 link rules") { db in
+            try db.create(table: "linkRule") { t in
+                t.primaryKey("id", .blob)
+                t.column("position", .integer).notNull()
+                t.column("urlContains", .text)
+                t.column("sourceAppID", .text)
+                t.column("sourceAppName", .text)
+                t.column("spaceID", .blob).references("space", onDelete: .cascade)
+                t.column("opensLittleWindow", .boolean).notNull()
+            }
+        }
         return migrator
     }()
 
@@ -65,6 +76,24 @@ final class AppDatabase: Sendable {
 
     func delete(_ space: SpaceRecord) throws {
         _ = try queue.write { db in try space.delete(db) }
+    }
+
+    func linkRules() throws -> [LinkRule] {
+        try queue.read { db in
+            try LinkRule.order(Column("position")).fetchAll(db)
+        }
+    }
+
+    /// Rules go in the order given.
+    func saveLinkRules(_ rules: [LinkRule]) throws {
+        try queue.write { db in
+            try LinkRule.filter(!rules.map(\.id).contains(Column("id"))).deleteAll(db)
+            for (position, rule) in rules.enumerated() {
+                var rule = rule
+                rule.position = position
+                try rule.save(db)
+            }
+        }
     }
 
     func setting(_ key: String) throws -> String? {

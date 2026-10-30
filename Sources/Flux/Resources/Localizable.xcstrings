@@ -221,6 +221,16 @@
         }
       }
     },
+    "A new tab" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un nouvel onglet"
+          }
+        }
+      }
+    },
     "A new tab of the current space" : {
       "localizations" : {
         "fr" : {
@@ -267,6 +277,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ajouter un panneau à droite"
+          }
+        }
+      }
+    },
+    "Add Rule…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter une règle…"
           }
         }
       }
@@ -341,6 +361,16 @@
         }
       }
     },
+    "Any app" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "N'importe quelle app"
+          }
+        }
+      }
+    },
     "API key" : {
       "localizations" : {
         "fr" : {
@@ -357,6 +387,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Application"
+          }
+        }
+      }
+    },
+    "Apps that sent links to Flux are in the list. When both are set, a link must match both." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La liste propose les apps qui ont déjà envoyé des liens à Flux. Si les deux sont remplis, le lien doit correspondre aux deux."
           }
         }
       }
@@ -387,6 +427,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Les onglets archivés ne pourront plus être rouverts d'ici. Leurs pages restent dans l'historique."
+          }
+        }
+      }
+    },
+    "As" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comme"
           }
         }
       }
@@ -537,6 +587,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choisissez les outils de la barre de développement, affichée sur les sites en mode développeur. Faites-les glisser pour changer leur ordre."
+          }
+        }
+      }
+    },
+    "Choose…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir…"
           }
         }
       }
@@ -881,6 +941,16 @@
         }
       }
     },
+    "Delete Rule" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer la règle"
+          }
+        }
+      }
+    },
     "Delete Space…" : {
       "localizations" : {
         "fr" : {
@@ -1017,6 +1087,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Édition"
+          }
+        }
+      }
+    },
+    "Edit Rule" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifier la règle"
           }
         }
       }
@@ -1257,6 +1337,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Page suivante"
+          }
+        }
+      }
+    },
+    "From app" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Depuis l'app"
           }
         }
       }
@@ -1541,12 +1631,52 @@
         }
       }
     },
+    "Link contains" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le lien contient"
+          }
+        }
+      }
+    },
     "Links" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Liens"
+          }
+        }
+      }
+    },
+    "Links containing “%@”" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liens contenant « %@ »"
+          }
+        }
+      }
+    },
+    "Links containing “%@” from %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liens contenant « %1$@ » venant de %2$@"
+          }
+        }
+      }
+    },
+    "Links from %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liens venant de %@"
           }
         }
       }
@@ -1931,12 +2061,62 @@
         }
       }
     },
+    "Open in" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir dans"
+          }
+        }
+      }
+    },
     "Open in %@" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ouvrir dans %@"
+          }
+        }
+      }
+    },
+    "Open in a little window of %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir dans une petite fenêtre de %@"
+          }
+        }
+      }
+    },
+    "Open in a little window of the current space" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir dans une petite fenêtre de l'espace courant"
+          }
+        }
+      }
+    },
+    "Open in a new tab of %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir dans un nouvel onglet de %@"
+          }
+        }
+      }
+    },
+    "Open in a new tab of the current space" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir dans un nouvel onglet de l'espace courant"
           }
         }
       }
@@ -2437,6 +2617,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Faire pivoter"
+          }
+        }
+      }
+    },
+    "Rules for links from other apps" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Règles pour les liens des autres apps"
           }
         }
       }
@@ -2981,12 +3171,32 @@
         }
       }
     },
+    "The current space" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'espace courant"
+          }
+        }
+      }
+    },
     "The developer bar" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "La barre de développement"
+          }
+        }
+      }
+    },
+    "The first rule that matches decides where a link opens. Links no rule matches open as chosen above. Right-click a rule to change its order." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La première règle qui correspond décide où s'ouvre le lien. Les liens sans règle s'ouvrent comme choisi plus haut. Faites un clic droit sur une règle pour changer son ordre."
           }
         }
       }

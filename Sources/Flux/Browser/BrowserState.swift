@@ -33,6 +33,7 @@ final class BrowserState {
     private static let linkTargetsOpenPeekKey = "linkTargetsOpenPeek"
     private static let shiftClickOpensPeekKey = "shiftClickOpensPeek"
     private static let outsideLinksOpenLittleWindowKey = "outsideLinksOpenLittleWindow"
+    private static let linkSourceAppsKey = "linkSourceApps"
     /// Archived tabs are kept this long. The pages stay in the history after that.
     private static let archiveLifetime: TimeInterval = 30 * 86_400
     private static let logger = Logger(subsystem: "com.flux-browser.Flux", category: "storage")
@@ -90,6 +91,7 @@ final class BrowserState {
         for record in records {
             try open(record)
         }
+        linkRules = try appDatabase.linkRules()
         ExtensionActions.shared.onSidePanel = { [weak self] page, url in
             self?.tabs.first { $0.isLoaded && $0.browserView === page }?.showSidePanel(url)
         }
@@ -213,6 +215,8 @@ final class BrowserState {
         folders.removeAll { $0.spaceID == id }
         splits.removeAll { $0.spaceID == id }
         sidebarRevision += 1
+        // The database removes them with the space.
+        linkRules.removeAll { $0.spaceID == id }
         if selectedSpaceID == id {
             selectedSpaceID = spaces[0].id
         }
@@ -533,6 +537,34 @@ final class BrowserState {
     var outsideLinksOpenLittleWindow: Bool {
         get { (try? appDatabase.setting(Self.outsideLinksOpenLittleWindowKey)) != "false" }
         set { save { try appDatabase.setSetting(Self.outsideLinksOpenLittleWindowKey, to: newValue ? nil : "false") } }
+    }
+
+    /// Tried in order on links from other apps.
+    private(set) var linkRules: [LinkRule] = []
+
+    func setLinkRules(_ rules: [LinkRule]) {
+        linkRules = rules.enumerated().map { position, rule in
+            var rule = rule
+            rule.position = position
+            return rule
+        }
+        save { try appDatabase.saveLinkRules(linkRules) }
+    }
+
+    func linkRule(for url: URL, from app: SourceApp?) -> LinkRule? {
+        linkRules.first { $0.matches(url, from: app) }
+    }
+
+    /// Apps links came from lately, offered when making a rule.
+    var linkSourceApps: [SourceApp] {
+        guard let json = try? appDatabase.setting(Self.linkSourceAppsKey) else { return [] }
+        return (try? JSONDecoder().decode([SourceApp].self, from: Data(json.utf8))) ?? []
+    }
+
+    func noteLinkSource(_ app: SourceApp) {
+        let apps = Array(([app] + linkSourceApps.filter { $0.bundleID != app.bundleID }).prefix(20))
+        let json = (try? JSONEncoder().encode(apps)).flatMap { String(data: $0, encoding: .utf8) }
+        save { try appDatabase.setSetting(Self.linkSourceAppsKey, to: json) }
     }
 
     var downloadsOfSelectedSpace: DownloadList? {
