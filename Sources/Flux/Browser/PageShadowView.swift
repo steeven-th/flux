@@ -5,6 +5,11 @@ import AppKit
 final class PageShadowView: NSView {
     static let outset: CGFloat = 16
 
+    /// The shapes to shadow, in the view's coordinates, when the page area holds several pages.
+    var shapes: [NSRect]? {
+        didSet { needsDisplay = true }
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let page = bounds.insetBy(dx: Self.outset, dy: Self.outset)
@@ -18,9 +23,11 @@ final class PageShadowView: NSView {
             color: NSColor.black.withAlphaComponent(0.15).cgColor
         )
         context.translateBy(x: -away, y: 0)
-        context.addPath(CGPath(
-            roundedRect: page, cornerWidth: FLXPageCornerRadius, cornerHeight: FLXPageCornerRadius, transform: nil
-        ))
+        for shape in shapes ?? [page] {
+            context.addPath(CGPath(
+                roundedRect: shape, cornerWidth: FLXPageCornerRadius, cornerHeight: FLXPageCornerRadius, transform: nil
+            ))
+        }
         context.fillPath()
     }
 }

@@ -25,6 +25,8 @@ struct SidebarOutline: NSViewRepresentable {
         outline.registerForDraggedTypes([Coordinator.dragType])
         outline.setDraggingSourceOperationMask(.move, forLocal: true)
         outline.menu = context.coordinator.contextMenu
+        outline.target = context.coordinator
+        outline.action = #selector(Coordinator.clickRow)
         outline.middleClickHandler = { [weak coordinator = context.coordinator] item in
             if let tab = item as? Tab { coordinator?.state.close(tab) }
         }
@@ -105,7 +107,7 @@ struct SidebarOutline: NSViewRepresentable {
             isSyncingSelection = true
             defer { isSyncingSelection = false }
             if let tab = state.selectedTab {
-                let row = outline.row(forItem: tab)
+                let row = outline.row(forItem: state.split(of: tab) ?? tab)
                 if row >= 0 {
                     outline.selectRowIndexes([row], byExtendingSelection: false)
                     return
@@ -162,6 +164,10 @@ struct SidebarOutline: NSViewRepresentable {
                         self.state.close(tab)
                     }
                 })
+            case let split as Split:
+                row = AnyView(SplitRow(state: state, split: split) { [weak self] tab in
+                    self?.state.closePane(tab)
+                })
             case let folder as Folder:
                 row = AnyView(FolderRow(folder: folder) { [weak self] title in
                     self?.state.rename(folder, to: title)
@@ -186,13 +192,44 @@ struct SidebarOutline: NSViewRepresentable {
                 }
                 return false
             }
-            return item is Tab
+            return item is Tab || item is Split
         }
 
         func outlineViewSelectionDidChange(_ notification: Notification) {
-            guard !isSyncingSelection, let outline,
-                  let tab = outline.item(atRow: outline.selectedRow) as? Tab else { return }
-            state.select(tab)
+            guard !isSyncingSelection, let outline else { return }
+            switch outline.item(atRow: outline.selectedRow) {
+            case let tab as Tab:
+                // ⌥-click puts the tab in a split with the one shown, like in Arc.
+                if NSApp.currentEvent?.modifierFlags.contains(.option) == true, state.canSplit(with: tab) {
+                    state.addToSplit(tab)
+                } else {
+                    state.select(tab)
+                }
+            case let split as Split:
+                if let pane = pane(of: split, clickedIn: outline, row: outline.selectedRow) { state.select(pane) }
+            default:
+                break
+            }
+        }
+
+        /// A click on a split already selected changes no selection, but may pick another pane.
+        @objc func clickRow() {
+            guard let outline, outline.clickedRow >= 0,
+                  let split = outline.item(atRow: outline.clickedRow) as? Split,
+                  let pane = pane(of: split, clickedIn: outline, row: outline.clickedRow) else { return }
+            state.select(pane)
+        }
+
+        /// Panes share the row's width equally.
+        private func pane(of split: Split, clickedIn outline: NSOutlineView, row: Int) -> Tab? {
+            let panes = state.panes(of: split)
+            guard !panes.isEmpty, let event = NSApp.currentEvent, event.type == .leftMouseDown || event.type == .leftMouseUp else {
+                return panes.first { $0 === state.selectedTab } ?? panes.first
+            }
+            let cell = outline.frameOfCell(atColumn: 0, row: row)
+            let x = outline.convert(event.locationInWindow, from: nil).x - cell.minX
+            let index = Int(x / (cell.width / CGFloat(panes.count)))
+            return panes[min(max(index, 0), panes.count - 1)]
         }
 
         func outlineView(_ outlineView: NSOutlineView, shouldCollapseItem item: Any) -> Bool {
@@ -212,7 +249,7 @@ struct SidebarOutline: NSViewRepresentable {
         }
 
         func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
-            guard let id = (item as? Tab)?.id ?? (item as? Folder)?.id else { return nil }
+            guard let id = (item as? Tab)?.id ?? (item as? Folder)?.id ?? (item as? Split)?.id else { return nil }
             let pasteboardItem = NSPasteboardItem()
             pasteboardItem.setString(id.uuidString, forType: Self.dragType)
             return pasteboardItem
@@ -271,6 +308,9 @@ struct SidebarOutline: NSViewRepresentable {
                 if tab.hasLeftOriginalURL {
                     menu.addItem(MenuAction.item("Go Back to Original Page") { tab.goBackToOriginalURL() })
                 }
+                let split = MenuAction.item("Open in Split View") { [weak self] in self?.state.addToSplit(tab) }
+                split.isEnabled = state.canSplit(with: tab)
+                menu.addItem(split)
                 menu.addItem(.separator())
                 if tab.isKept {
                     menu.addItem(MenuAction.item("Unload Tab") { [weak self] in self?.state.close(tab) })
@@ -284,6 +324,11 @@ struct SidebarOutline: NSViewRepresentable {
                     }
                     menu.addItem(MenuAction.item("Close Tab") { [weak self] in self?.state.close(tab) })
                 }
+            case let split as Split:
+                menu.addItem(MenuAction.item("Separate Tabs") { [weak self] in self?.state.separate(split) })
+                menu.addItem(MenuAction.item(split.isVertical ? "Convert to Horizontal Split View" : "Convert to Vertical Split View") { [weak self] in
+                    self?.state.toggleOrientation(split)
+                })
             case let folder as Folder:
                 menu.addItem(MenuAction.item("Rename Folder") { folder.isEditingTitle = true })
                 let newFolder = MenuAction.item("New Folder Inside") { [weak self] in

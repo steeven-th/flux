@@ -34,6 +34,7 @@ final class BrowserState {
     private(set) var spaces: [Space] = []
     private(set) var tabs: [Tab] = []
     private(set) var folders: [Folder] = []
+    private(set) var splits: [Split] = []
     /// Bumped whenever the sidebar's structure changes: items added, removed or moved.
     private(set) var sidebarRevision = 0
     /// Bumped when the archive changes, since it is read from the database.
@@ -114,7 +115,11 @@ final class BrowserState {
             switch node.kind {
             case .tab: tabs.append(makeTab(node))
             case .folder: folders.append(Folder(node: node))
+            case .split: splits.append(Split(node: node))
             }
+        }
+        for split in splits where split.spaceID == space.id {
+            dissolveIfNeeded(split)
         }
     }
 
@@ -179,6 +184,7 @@ final class BrowserState {
         histories[id] = nil
         passwordManagers[id] = nil
         folders.removeAll { $0.spaceID == id }
+        splits.removeAll { $0.spaceID == id }
         sidebarRevision += 1
         if selectedSpaceID == id {
             selectedSpaceID = spaces[0].id
@@ -354,6 +360,8 @@ final class BrowserState {
 
     private func close(_ tab: Tab, removing: Bool) {
         let wasSelected = selectedTab?.id == tab.id
+        let split = split(of: tab)
+        let otherPanes = split.map(panes(of:))?.filter { $0 !== tab } ?? []
         if !removing {
             tab.unload()
         } else {
@@ -363,9 +371,15 @@ final class BrowserState {
             tabs.removeAll { $0 === tab }
             tab.close()
             save { try profileDatabases[tab.spaceID]?.delete(nodeID: tab.id) }
+            if let split { dissolveIfNeeded(split) }
             sidebarRevision += 1
         }
         if wasSelected {
+            // Another pane of the split, if it stays, rather than another tab.
+            if removing, let pane = otherPanes.first {
+                select(pane)
+                return
+            }
             let candidates = tabs.filter { $0.spaceID == tab.spaceID && $0 !== tab && ($0.isLoaded || !$0.isKept) }
             if let next = candidates.max(by: { ($0.node.lastActiveAt ?? .distantPast) < ($1.node.lastActiveAt ?? .distantPast) }) {
                 select(next)
@@ -658,9 +672,12 @@ final class BrowserState {
         for space in spaces {
             save { try profileDatabases[space.id]?.deleteArchivedTabs(before: now.addingTimeInterval(-Self.archiveLifetime)) }
             guard let interval = archiveDelay(forProfile: space.profileFolder).interval else { continue }
+            // The tabs of a split go together, when none of them was seen for that long.
             let inactive = tabs.filter { tab in
-                tab.spaceID == space.id && tab.node.section == .today && tab.id != selectedTabIDs[space.id]
-                    && (tab.node.lastActiveAt ?? tab.node.createdAt) < now.addingTimeInterval(-interval)
+                let group = split(of: tab).map(panes(of:)) ?? [tab]
+                return tab.spaceID == space.id && tab.node.section == .today
+                    && !group.contains { $0.id == selectedTabIDs[space.id] }
+                    && group.allSatisfy { ($0.node.lastActiveAt ?? $0.node.createdAt) < now.addingTimeInterval(-interval) }
             }
             inactive.forEach(remove)
         }
@@ -700,11 +717,13 @@ final class BrowserState {
     enum SidebarEntry {
         case tab(Tab)
         case folder(Folder)
+        case split(Split)
 
         var id: UUID {
             switch self {
             case .tab(let tab): tab.id
             case .folder(let folder): folder.id
+            case .split(let split): split.id
             }
         }
 
@@ -712,6 +731,7 @@ final class BrowserState {
             switch self {
             case .tab(let tab): tab.node
             case .folder(let folder): folder.node
+            case .split(let split): split.node
             }
         }
 
@@ -719,6 +739,7 @@ final class BrowserState {
             switch self {
             case .tab(let tab): tab
             case .folder(let folder): folder
+            case .split(let split): split
             }
         }
     }
@@ -731,12 +752,16 @@ final class BrowserState {
         let folderEntries = folders
             .filter { $0.spaceID == spaceID && $0.node.section == section && $0.node.parentID == parentID }
             .map(SidebarEntry.folder)
-        return (tabEntries + folderEntries).sorted { $0.node.position < $1.node.position }
+        let splitEntries = splits
+            .filter { $0.spaceID == spaceID && $0.node.section == section && $0.node.parentID == parentID }
+            .map(SidebarEntry.split)
+        return (tabEntries + folderEntries + splitEntries).sorted { $0.node.position < $1.node.position }
     }
 
     func entry(id: UUID) -> SidebarEntry? {
         if let tab = tabs.first(where: { $0.id == id }) { return .tab(tab) }
         if let folder = folders.first(where: { $0.id == id }) { return .folder(folder) }
+        if let split = splits.first(where: { $0.id == id }) { return .split(split) }
         return nil
     }
 
@@ -772,6 +797,7 @@ final class BrowserState {
     func canMove(_ entry: SidebarEntry, to section: SidebarNode.Section, parentID: UUID?) -> Bool {
         guard section == .favorites || parentID == nil else { return false }
         if section == .pinned, case .folder = entry { return false }
+        if section == .pinned, case .split = entry { return false }
         if section == .pinned, case .tab(let tab) = entry, !tab.isPinned, pinnedTabs.count >= Self.maxPinnedTabs {
             return false
         }
@@ -817,11 +843,20 @@ final class BrowserState {
 
         switch entry {
         case .tab(let tab):
+            let split = split(of: tab)
             tab.place(section: section, parentID: parentID, position: position)
             save { try profileDatabases[tab.spaceID]?.save(tab.node) }
+            if let split { dissolveIfNeeded(split) }
         case .folder(let folder):
             folder.place(parentID: parentID, position: position)
             save { try profileDatabases[folder.spaceID]?.save(folder.node) }
+        case .split(let split):
+            split.place(section: section, parentID: parentID, position: position)
+            let panes = panes(of: split)
+            for pane in panes {
+                pane.place(section: section, parentID: split.id, position: pane.node.position)
+            }
+            save { try profileDatabases[split.spaceID]?.save([split.node] + panes.map(\.node)) }
         }
         sidebarRevision += 1
         return true
@@ -884,12 +919,175 @@ final class BrowserState {
             case .folder(let child):
                 child.place(parentID: folder.node.parentID, position: position)
                 moved.append(child.node)
+            case .split(let split):
+                split.place(section: .favorites, parentID: folder.node.parentID, position: position)
+                moved.append(split.node)
             }
         }
         folders.removeAll { $0 === folder }
         save { try profileDatabases[folder.spaceID]?.save(moved) }
         save { try profileDatabases[folder.spaceID]?.delete(nodeID: folder.id) }
         sidebarRevision += 1
+    }
+
+    // Split view.
+
+    static let maxSplitPanes = 4
+
+    func split(of tab: Tab) -> Split? {
+        guard let parentID = tab.node.parentID else { return nil }
+        return splits.first { $0.id == parentID }
+    }
+
+    func panes(of split: Split) -> [Tab] {
+        tabs.filter { $0.node.parentID == split.id }.sorted { $0.node.position < $1.node.position }
+    }
+
+    var selectedSplit: Split? {
+        selectedTab.flatMap(split(of:))
+    }
+
+    /// The tabs in the page area: the selected one, or all of its split's.
+    var shownTabs: [Tab] {
+        if let split = selectedSplit { return panes(of: split) }
+        return selectedTab.map { [$0] } ?? []
+    }
+
+    /// Whether the tab can join the selected tab in a split. Pinned tabs stay icons, they don't
+    /// split.
+    func canSplit(with tab: Tab) -> Bool {
+        guard let selected = selectedTab, tab !== selected, tab.spaceID == selected.spaceID,
+              !tab.isPinned, !selected.isPinned else { return false }
+        guard let split = selectedSplit else { return true }
+        return self.split(of: tab) !== split && panes(of: split).count < Self.maxSplitPanes
+    }
+
+    /// Whether a new pane can be added next to the selected tab.
+    var canAddSplitPane: Bool {
+        guard let selected = selectedTab, !selected.isPinned else { return false }
+        return selectedSplit.map { panes(of: $0).count < Self.maxSplitPanes } ?? true
+    }
+
+    /// Adds the tab to the selected tab's split, or makes one of the two in the selected tab's place.
+    /// The new pane goes right after the selected one, or right before it.
+    func addToSplit(_ tab: Tab, after: Bool = true) {
+        guard canSplit(with: tab), let selected = selectedTab else { return }
+        let previousSplit = split(of: tab)
+        let split: Split
+        if let selectedSplit {
+            split = selectedSplit
+        } else {
+            let node = SidebarNode(
+                id: UUID(), spaceID: selected.spaceID, parentID: selected.node.parentID, kind: .split,
+                section: selected.node.section, position: selected.node.position, title: "", url: nil,
+                originalURL: nil, isExpanded: true, lastActiveAt: Date(), createdAt: Date()
+            )
+            save { try profileDatabases[node.spaceID]?.save(node) }
+            split = Split(node: node)
+            splits.append(split)
+            selected.place(section: node.section, parentID: split.id, position: FractionalIndex.between(nil, nil))
+        }
+        let current = panes(of: split).filter { $0 !== tab }
+        let anchor = current.firstIndex { $0 === selected } ?? current.count - 1
+        let (before, next) = after
+            ? (current[anchor].node.position, current.indices.contains(anchor + 1) ? current[anchor + 1].node.position : nil)
+            : (anchor > 0 ? current[anchor - 1].node.position : nil, current[anchor].node.position)
+        tab.place(section: split.node.section, parentID: split.id, position: FractionalIndex.between(before, next))
+        let panes = panes(of: split)
+        // A new pane starts with an equal part.
+        for pane in panes {
+            pane.setShare(nil)
+            if pane.emulation != nil { pane.toggleResponsive() }
+        }
+        save { try profileDatabases[split.spaceID]?.save(panes.map(\.node)) }
+        if let previousSplit { dissolveIfNeeded(previousSplit) }
+        sidebarRevision += 1
+        select(tab)
+    }
+
+    /// Swaps the pane with the one before or after it.
+    func movePane(_ tab: Tab, by offset: Int) {
+        guard let split = split(of: tab) else { return }
+        let panes = panes(of: split)
+        guard let index = panes.firstIndex(where: { $0 === tab }), panes.indices.contains(index + offset) else { return }
+        let other = panes[index + offset]
+        let position = tab.node.position
+        tab.place(section: split.node.section, parentID: split.id, position: other.node.position)
+        other.place(section: split.node.section, parentID: split.id, position: position)
+        save { try profileDatabases[split.spaceID]?.save([tab.node, other.node]) }
+        sidebarRevision += 1
+    }
+
+    /// The tab leaves its split and goes just after it.
+    func removeFromSplit(_ tab: Tab) {
+        guard let split = split(of: tab) else { return }
+        let siblings = entries(in: split.node.section, parentID: split.node.parentID, spaceID: split.spaceID)
+        let after = siblings.first { $0.node.position > split.node.position }?.node.position
+        tab.place(section: split.node.section, parentID: split.node.parentID, position: FractionalIndex.between(split.node.position, after))
+        tab.setShare(nil)
+        save { try profileDatabases[tab.spaceID]?.save(tab.node) }
+        dissolveIfNeeded(split)
+        sidebarRevision += 1
+        if let pane = panes(of: split).first, selectedTab === tab { select(pane) }
+    }
+
+    /// Closes the pane's tab, or takes a kept tab out of the split: closing it would only unload it.
+    func closePane(_ tab: Tab) {
+        if tab.isKept {
+            removeFromSplit(tab)
+        } else {
+            close(tab)
+        }
+    }
+
+    /// Every tab takes the split's place, in pane order.
+    func separate(_ split: Split) {
+        let siblings = entries(in: split.node.section, parentID: split.node.parentID, spaceID: split.spaceID)
+        var before = siblings.last { $0.node.position < split.node.position }?.node.position
+        let after = siblings.first { $0.node.position > split.node.position }?.node.position
+        let panes = panes(of: split)
+        for pane in panes {
+            let position = FractionalIndex.between(before, after)
+            before = position
+            pane.place(section: split.node.section, parentID: split.node.parentID, position: position)
+            pane.setShare(nil)
+        }
+        save { try profileDatabases[split.spaceID]?.save(panes.map(\.node)) }
+        delete(split)
+        sidebarRevision += 1
+    }
+
+    func toggleOrientation(_ split: Split) {
+        split.setVertical(!split.isVertical)
+        save { try profileDatabases[split.spaceID]?.save(split.node) }
+    }
+
+    /// `shares` are in pane order and add up to 1.
+    func setShares(_ shares: [Double], of split: Split) {
+        let panes = panes(of: split)
+        guard panes.count == shares.count else { return }
+        for (pane, share) in zip(panes, shares) {
+            pane.setShare(share)
+        }
+        save { try profileDatabases[split.spaceID]?.save(panes.map(\.node)) }
+    }
+
+    /// A split of one tab is no split: the tab takes its place.
+    private func dissolveIfNeeded(_ split: Split) {
+        let panes = panes(of: split)
+        guard panes.count < 2 else { return }
+        if let last = panes.first {
+            last.place(section: split.node.section, parentID: split.node.parentID, position: split.node.position)
+            last.setShare(nil)
+            save { try profileDatabases[split.spaceID]?.save(last.node) }
+        }
+        delete(split)
+    }
+
+    /// The node's children are deleted with it, so the tabs must have left it first.
+    private func delete(_ split: Split) {
+        splits.removeAll { $0 === split }
+        save { try profileDatabases[split.spaceID]?.delete(nodeID: split.id) }
     }
 
     func openSelectedTabInChromeWindow() {

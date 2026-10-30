@@ -1,12 +1,12 @@
 import Foundation
 import GRDB
 
-/// One entry of a space's sidebar: a tab or a folder.
+/// One entry of a space's sidebar: a tab, a folder, or a split of tabs shown side by side.
 struct SidebarNode: Codable, Identifiable, FetchableRecord, PersistableRecord {
     static let databaseTableName = "node"
 
     enum Kind: String, Codable {
-        case tab, folder
+        case tab, folder, split
     }
 
     enum Section: String, Codable {
@@ -34,6 +34,10 @@ struct SidebarNode: Codable, Identifiable, FetchableRecord, PersistableRecord {
     var createdAt: Date
     /// How far the page at `url` was scrolled, to put it back there when it loads again.
     var scrollY: Double?
+    /// For splits, whether their tabs are stacked rather than side by side.
+    var isVertical = false
+    /// For tabs in a split, their part of its width or height. Nil until the user resizes them.
+    var share: Double?
 }
 
 /// A tab of Today that was closed or left unseen for too long.
@@ -126,6 +130,12 @@ final class ProfileDatabase: Sendable {
                 t.column("mimeType", .text).notNull()
                 t.column("size", .integer).notNull()
                 t.column("finishedAt", .datetime).notNull()
+            }
+        }
+        migrator.registerMigration("v7 split view") { db in
+            try db.alter(table: "node") { t in
+                t.add(column: "isVertical", .boolean).notNull().defaults(to: false)
+                t.add(column: "share", .double)
             }
         }
         return migrator

@@ -247,6 +247,10 @@ final class Tab: NSObject, Identifiable {
         load(originalURL)
     }
 
+    func setShare(_ share: Double?) {
+        node.share = share
+    }
+
     func markActive() {
         node.lastActiveAt = Date()
         onChange?(self)

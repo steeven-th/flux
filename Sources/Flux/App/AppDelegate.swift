@@ -54,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if state.isWindowFullScreen { windowController.window?.toggleFullScreen(nil) }
         self.state = state
         self.windowController = windowController
+        watchSplitShortcuts()
         let urls = pendingURLs
         pendingURLs = []
         urls.forEach(openFromOtherApp)
@@ -189,6 +190,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state.close(tab)
     }
 
+    @objc func addSplitPane(_ sender: Any?) {
+        showSplitPaneCommandBar(after: true)
+    }
+
+    func showSplitPaneCommandBar(after: Bool) {
+        windowController?.showCommandBar(.splitPane(after: after))
+    }
+
+    @objc func closeSplitPane(_ sender: Any?) {
+        guard let state, state.selectedSplit != nil, let tab = state.selectedTab else { return }
+        state.closePane(tab)
+    }
+
+    /// ⌃⇧= and ⌃⇧−, read from the key itself: what Shift makes of it depends on the keyboard,
+    /// "+" or "_" on some, "+" or "6" on a French one, so the menu can't match it.
+    private func watchSplitShortcuts() {
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.control, .shift],
+                  let key = event.characters(byApplyingModifiers: []) else { return event }
+            switch key {
+            case "=":
+                if self?.state?.canAddSplitPane == true { self?.addSplitPane(nil) }
+            case "-":
+                self?.closeSplitPane(nil)
+            default:
+                return event
+            }
+            return nil
+        }
+    }
+
     @objc func togglePin(_ sender: Any?) {
         guard let state, let tab = state.selectedTab else { return }
         state.togglePin(tab)
@@ -272,6 +304,12 @@ extension AppDelegate: NSMenuDelegate, NSMenuItemValidation {
         }
         if menuItem.action == #selector(selectSpace(_:)) {
             return state?.spaces.indices.contains(menuItem.tag) ?? false
+        }
+        if menuItem.action == #selector(addSplitPane(_:)) {
+            return state?.canAddSplitPane ?? false
+        }
+        if menuItem.action == #selector(closeSplitPane(_:)) {
+            return state?.selectedSplit != nil
         }
         if menuItem.action == #selector(togglePin(_:)) {
             guard let state, let tab = state.selectedTab else { return false }

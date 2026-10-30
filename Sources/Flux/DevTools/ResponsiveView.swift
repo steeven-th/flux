@@ -15,6 +15,7 @@ final class ResponsiveLayout {
 /// a window of its own, laid over this view.
 struct ResponsiveView: View {
     let state: BrowserState
+    let tab: Tab
     let layout: ResponsiveLayout
 
     static let toolbarHeight: CGFloat = 34
@@ -25,7 +26,7 @@ struct ResponsiveView: View {
     @Environment(\.colorScheme) private var systemScheme
 
     var body: some View {
-        if let tab = state.selectedTab, let emulation = tab.emulation {
+        if let emulation = tab.emulation {
             let options = state.responsiveOptions
             let page = layout.pageFrame
             ZStack(alignment: .topLeading) {

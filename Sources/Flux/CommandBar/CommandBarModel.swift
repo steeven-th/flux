@@ -5,11 +5,14 @@ import Observation
 @MainActor
 @Observable
 final class CommandBarModel {
-    enum Target {
+    enum Target: Equatable {
         /// Opens pages in a new tab. Nothing is created until a suggestion is chosen.
         case newTab
         /// Loads pages in the selected tab. The bar starts with its URL.
         case selectedTab
+        /// Opens pages in a new pane of the selected tab's split, or of a split made with it, after
+        /// the selected pane or before it.
+        case splitPane(after: Bool)
     }
 
     enum Suggestion: Identifiable {
@@ -68,7 +71,11 @@ final class CommandBarModel {
         guard suggestions.indices.contains(selectedIndex) else { return }
         switch suggestions[selectedIndex] {
         case .tab(let tab):
-            state.select(tab)
+            if case .splitPane(let after) = target, state.canSplit(with: tab) {
+                state.addToSplit(tab, after: after)
+            } else {
+                state.select(tab)
+            }
         case .page(let page):
             open(page.url, inBackground: background)
         case .url(let url):
@@ -80,9 +87,12 @@ final class CommandBarModel {
     }
 
     private func open(_ url: String, inBackground background: Bool) {
-        if target == .selectedTab, let tab = state.selectedTab {
-            tab.load(url)
-        } else {
+        switch target {
+        case .selectedTab:
+            state.selectedTab?.load(url)
+        case .splitPane(let after):
+            state.addToSplit(state.newTab(url: url, selecting: false), after: after)
+        case .newTab:
             state.newTab(url: url, selecting: !background)
         }
     }

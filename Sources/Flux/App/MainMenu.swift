@@ -33,6 +33,9 @@ enum MainMenu {
         menu.addItem(submenu(title: String(localized: "View"), items: [
             NSMenuItem(title: String(localized: "Toggle Sidebar"), action: #selector(AppDelegate.showOrHideSidebar(_:)), keyEquivalent: "s"),
             .separator(),
+            controlShift(NSMenuItem(title: String(localized: "Add Split View"), action: #selector(AppDelegate.addSplitPane(_:)), keyEquivalent: "=")),
+            controlShift(NSMenuItem(title: String(localized: "Close Split Pane"), action: #selector(AppDelegate.closeSplitPane(_:)), keyEquivalent: "-")),
+            .separator(),
             NSMenuItem(title: String(localized: "Reload Page"), action: #selector(AppDelegate.reloadPage(_:)), keyEquivalent: "r"),
             shifted(NSMenuItem(title: String(localized: "Reload Ignoring Cache"), action: #selector(AppDelegate.reloadPageIgnoringCache(_:)), keyEquivalent: "r")),
             NSMenuItem(title: String(localized: "Back"), action: #selector(AppDelegate.goBack(_:)), keyEquivalent: "["),
@@ -78,6 +81,12 @@ enum MainMenu {
 
     private static func optionCommand(_ item: NSMenuItem) -> NSMenuItem {
         item.keyEquivalentModifierMask = [.command, .option]
+        return item
+    }
+
+    /// Arc's split view shortcuts.
+    private static func controlShift(_ item: NSMenuItem) -> NSMenuItem {
+        item.keyEquivalentModifierMask = [.control, .shift]
         return item
     }
 

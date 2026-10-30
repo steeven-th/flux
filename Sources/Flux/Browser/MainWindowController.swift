@@ -21,27 +21,12 @@ final class MainWindowController: NSWindowController {
     }()
     private let pageContainer = NSView()
     private let pageShadow = PageShadowView()
-    private lazy var developerBar: NSView = {
-        let view = NSHostingView(rootView: DeveloperBar(state: state))
-        view.safeAreaRegions = []
-        return view
-    }()
-    private let responsiveLayout = ResponsiveLayout()
-    private lazy var responsiveView: NSView = {
-        let view = NSHostingView(rootView: ResponsiveView(state: state, layout: responsiveLayout))
-        view.safeAreaRegions = []
-        // Its content is empty while the responsive mode is off, and its size would then pull the
-        // window down to its smallest.
-        view.sizingOptions = []
-        return view
-    }()
-    private var pageTop: NSLayoutConstraint!
-    private let devToolsContainer = NSView()
-    /// Fills the point between the page and its DevTools, which are two windows.
-    private let devToolsLine = NSBox()
-    private var devToolsWidth: NSLayoutConstraint!
-    private var devToolsGap: NSLayoutConstraint!
-    private lazy var devToolsHandle = DevToolsResizeHandle { [weak self] delta in self?.resizeDevTools(by: delta) }
+    /// By tab, for the tabs shown.
+    private var panes: [UUID: PaneView] = [:]
+    private var splitHandles: [SplitHandleView] = []
+    /// The panes' parts while a handle is dragged, saved when it is released.
+    private var liveShares: [Double]?
+    private var paneClickMonitor: Any?
     private let resizeHandle = SidebarResizeHandle()
     private let revealEdge = SidebarRevealEdge()
     private var overlay: SidebarOverlayWindow?
@@ -69,31 +54,17 @@ final class MainWindowController: NSWindowController {
         super.init(window: window)
 
         let background = NSHostingView(rootView: SpaceBackground(state: state))
-        for view in [background, pageShadow, devToolsContainer, developerBar, devToolsLine, pageContainer, responsiveView, resizeHandle, revealEdge] as [NSView] {
+        for view in [background, pageShadow, pageContainer, resizeHandle, revealEdge] as [NSView] {
             view.translatesAutoresizingMaskIntoConstraints = false
-        }
-        devToolsLine.boxType = .custom
-        devToolsLine.borderWidth = 0
-        devToolsLine.fillColor = NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                ? NSColor(white: 0.25, alpha: 1)
-                : NSColor(white: 0.82, alpha: 1)
         }
         content.addSubview(background)
         content.addSubview(pageShadow)
-        content.addSubview(devToolsContainer)
-        content.addSubview(developerBar)
-        content.addSubview(devToolsLine)
         content.addSubview(pageContainer)
-        content.addSubview(responsiveView)
         content.addSubview(resizeHandle)
         content.addSubview(revealEdge)
         window.contentView = content
 
         pageLeading = pageContainer.leadingAnchor.constraint(equalTo: content.leadingAnchor)
-        pageTop = pageContainer.topAnchor.constraint(equalTo: content.topAnchor, constant: Self.pageMargin)
-        devToolsWidth = devToolsContainer.widthAnchor.constraint(equalToConstant: 0)
-        devToolsGap = devToolsContainer.leadingAnchor.constraint(equalTo: pageContainer.trailingAnchor)
         handleLeading = resizeHandle.leadingAnchor.constraint(equalTo: content.leadingAnchor)
         NSLayoutConstraint.activate([
             background.leadingAnchor.constraint(equalTo: content.leadingAnchor),
@@ -102,29 +73,12 @@ final class MainWindowController: NSWindowController {
             background.bottomAnchor.constraint(equalTo: content.bottomAnchor),
             // The page sits in its own window above this one, so the title bar doesn't cover it.
             pageLeading,
-            // The page and its DevTools make one card, under the developer bar when it shows.
-            devToolsGap,
-            devToolsWidth,
-            devToolsLine.leadingAnchor.constraint(equalTo: pageContainer.trailingAnchor),
-            devToolsLine.trailingAnchor.constraint(equalTo: devToolsContainer.leadingAnchor),
-            devToolsLine.topAnchor.constraint(equalTo: pageContainer.topAnchor),
-            devToolsLine.bottomAnchor.constraint(equalTo: pageContainer.bottomAnchor),
-            devToolsContainer.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -Self.pageMargin),
-            devToolsContainer.topAnchor.constraint(equalTo: pageContainer.topAnchor),
-            devToolsContainer.bottomAnchor.constraint(equalTo: pageContainer.bottomAnchor),
-            pageTop,
-            developerBar.leadingAnchor.constraint(equalTo: pageContainer.leadingAnchor),
-            developerBar.trailingAnchor.constraint(equalTo: devToolsContainer.trailingAnchor),
-            developerBar.topAnchor.constraint(equalTo: content.topAnchor, constant: Self.pageMargin),
-            developerBar.heightAnchor.constraint(equalToConstant: DeveloperBar.height + FLXPageCornerRadius),
+            pageContainer.topAnchor.constraint(equalTo: content.topAnchor, constant: Self.pageMargin),
+            pageContainer.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -Self.pageMargin),
             pageContainer.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -Self.pageMargin),
-            responsiveView.leadingAnchor.constraint(equalTo: pageContainer.leadingAnchor),
-            responsiveView.trailingAnchor.constraint(equalTo: pageContainer.trailingAnchor),
-            responsiveView.topAnchor.constraint(equalTo: pageContainer.topAnchor),
-            responsiveView.bottomAnchor.constraint(equalTo: pageContainer.bottomAnchor),
             pageShadow.leadingAnchor.constraint(equalTo: pageContainer.leadingAnchor, constant: -PageShadowView.outset),
-            pageShadow.trailingAnchor.constraint(equalTo: devToolsContainer.trailingAnchor, constant: PageShadowView.outset),
-            pageShadow.topAnchor.constraint(equalTo: developerBar.topAnchor, constant: -PageShadowView.outset),
+            pageShadow.trailingAnchor.constraint(equalTo: pageContainer.trailingAnchor, constant: PageShadowView.outset),
+            pageShadow.topAnchor.constraint(equalTo: pageContainer.topAnchor, constant: -PageShadowView.outset),
             pageShadow.bottomAnchor.constraint(equalTo: pageContainer.bottomAnchor, constant: PageShadowView.outset),
             handleLeading,
             resizeHandle.widthAnchor.constraint(equalToConstant: Self.resizeHandleWidth),
@@ -148,7 +102,7 @@ final class MainWindowController: NSWindowController {
                 guard let self else { return }
                 self.overlay?.updateFrame(self.overlayFrame)
                 self.peekPresenter?.updateFrame(self.pageArea)
-                self.placeDevToolsHandle()
+                self.panes.values.forEach { $0.placeDevToolsHandle() }
             }
         }
         peekPresenter = PeekPresenter(host: window, state: state)
@@ -159,6 +113,12 @@ final class MainWindowController: NSWindowController {
             }
         }
 
+        // Before the first layout, which split panes need to follow.
+        pageContainer.postsFrameChangedNotifications = true
+        NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: pageContainer, queue: .main) {
+            [weak self] _ in
+            MainActor.assumeIsolated { self?.layoutPages() }
+        }
         if state.isSidebarCollapsed {
             collapse(animated: false)
         } else {
@@ -167,13 +127,15 @@ final class MainWindowController: NSWindowController {
         showSelectedTab()
         observeSelectedTab()
         observePeek()
-        observeDeveloperMode()
-        observeDevTools()
-        observeEmulation()
-        pageContainer.postsFrameChangedNotifications = true
-        NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: pageContainer, queue: .main) {
-            [weak self] _ in
-            MainActor.assumeIsolated { self?.layoutEmulation() }
+        observePanes()
+        // Pages are windows of their own, so a click in a pane only reaches Flux this way.
+        paneClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            if let self, let window = event.window,
+               let tab = self.state.shownTabs.first(where: { $0.browserView.pageWindow === window || $0.devTools?.pageWindow === window }),
+               tab !== self.state.selectedTab {
+                self.state.select(tab)
+            }
+            return event
         }
     }
 
@@ -288,132 +250,6 @@ final class MainWindowController: NSWindowController {
         return window.convertToScreen(pageContainer.convert(pageContainer.bounds, to: nil))
     }
 
-    private func observeEmulation() {
-        withObservationTracking {
-            _ = state.selectedTab?.emulation
-            _ = state.responsiveOptions
-        } onChange: { [weak self] in
-            Task { @MainActor in self?.observeEmulation() }
-        }
-        layoutEmulation()
-        roundCorners()
-    }
-
-    /// In responsive mode the page takes the size it is shown at, centered under the device
-    /// toolbar and shrunk to fit if needed, as in DevTools' device mode.
-    private func layoutEmulation() {
-        let tab = state.selectedTab
-        responsiveView.isHidden = tab?.emulation == nil
-        guard let tab, tab.isLoaded else { return }
-        let page = tab.browserView
-        guard page.superview === pageContainer else { return }
-        guard let emulation = tab.emulation else {
-            page.autoresizingMask = [.width, .height]
-            page.frame = pageContainer.bounds
-            return
-        }
-        let bounds = pageContainer.bounds
-        let options = state.responsiveOptions
-        let ruler = options.contains(.rulers) ? ResponsiveView.rulerSize : 0
-        let mediaQueries = options.contains(.mediaQueries) ? ResponsiveView.mediaQueriesHeight : 0
-        let side = 20 + ruler
-        let top = ResponsiveView.toolbarHeight + 12 + ruler + mediaQueries
-        let bottom = 12 + ResponsiveView.handleSize
-        let room = NSRect(x: side, y: bottom, width: max(bounds.width - side * 2, 50), height: max(bounds.height - top - bottom, 50))
-        let fit = min(room.width / CGFloat(emulation.width), room.height / CGFloat(emulation.height))
-        // A page larger than the room would spill out of the window, so zooming in stops at the fit.
-        let scale = min(emulation.zoom.value.map { CGFloat($0) } ?? 1, fit)
-        let size = NSSize(width: (CGFloat(emulation.width) * scale).rounded(), height: (CGFloat(emulation.height) * scale).rounded())
-        let frame = NSRect(x: (room.midX - size.width / 2).rounded(), y: room.maxY - size.height, width: size.width, height: size.height)
-        page.autoresizingMask = []
-        page.frame = frame
-        responsiveLayout.pageFrame = CGRect(x: frame.minX, y: bounds.height - frame.maxY, width: frame.width, height: frame.height)
-        responsiveLayout.scale = Double(scale)
-        tab.applyEmulation(scale: Double(scale))
-        page.roundedCorners = []
-    }
-
-    /// The selected tab's DevTools sit at the right of its page, which gets narrower.
-    private func observeDevTools() {
-        let devTools = withObservationTracking {
-            state.selectedTab?.devTools
-        } onChange: { [weak self] in
-            Task { @MainActor in self?.observeDevTools() }
-        }
-        devToolsContainer.subviews.filter { $0 !== devTools }.forEach { $0.removeFromSuperview() }
-        devToolsContainer.isHidden = devTools == nil
-        devToolsLine.isHidden = devTools == nil
-        devToolsWidth.constant = devTools == nil ? 0 : state.devToolsWidth
-        devToolsGap.constant = devTools == nil ? 0 : 1
-        content.layoutSubtreeIfNeeded()
-        if let devTools, devTools.superview !== devToolsContainer {
-            devTools.frame = devToolsContainer.bounds
-            devTools.autoresizingMask = [.width, .height]
-            devToolsContainer.addSubview(devTools)
-        }
-        placeDevToolsHandle()
-        roundCorners()
-    }
-
-    /// Only the outer corners of the card are rounded: the page and its DevTools meet the developer
-    /// bar and each other with square ones.
-    private func roundCorners() {
-        let top: CACornerMask = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
-        let all: CACornerMask = [.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMinXMaxYCorner, .layerMaxXMaxYCorner]
-        var page = all
-        var devToolsCorners: CACornerMask = [.layerMaxXMinYCorner, .layerMaxXMaxYCorner]
-        if !developerBar.isHidden {
-            page.subtract(top)
-            devToolsCorners.subtract(top)
-        }
-        let devTools = state.selectedTab?.devTools
-        if devTools != nil { page.subtract([.layerMaxXMinYCorner, .layerMaxXMaxYCorner]) }
-        // In responsive mode the background around the page takes the page's corners.
-        for view in [pageContainer, responsiveView] {
-            view.wantsLayer = true
-            view.layer?.cornerRadius = FLXPageCornerRadius
-            // SwiftUI's view is flipped, so its top corners are the ones at min Y.
-            view.layer?.maskedCorners = view.isFlipped ? page.flipped : page
-            view.layer?.masksToBounds = true
-        }
-        if state.selectedTab?.emulation == nil {
-            state.selectedTab?.browserView.roundedCorners = page
-        }
-        devTools?.roundedCorners = devToolsCorners
-    }
-
-    /// The handle is a window of its own, over the line between the page and its DevTools, since
-    /// both are windows too.
-    private func placeDevToolsHandle() {
-        guard let window, !devToolsContainer.isHidden else { return devToolsHandle.hide() }
-        let line = devToolsContainer.convert(devToolsContainer.bounds, to: nil)
-        let frame = window.convertToScreen(NSRect(x: line.minX - 4, y: line.minY, width: 8, height: line.height))
-        devToolsHandle.show(frame: frame, over: window)
-    }
-
-    private func resizeDevTools(by delta: CGFloat) {
-        let available = pageContainer.frame.width + devToolsContainer.frame.width
-        let width = min(max(devToolsWidth.constant - delta, 280), available - 320)
-        devToolsWidth.constant = width
-        state.devToolsWidth = width
-        content.layoutSubtreeIfNeeded()
-        placeDevToolsHandle()
-    }
-
-    /// The page makes room for the developer bar while its site is in developer mode.
-    private func observeDeveloperMode() {
-        let isOn = withObservationTracking {
-            state.isDeveloperModeOnSelectedTab
-        } onChange: { [weak self] in
-            Task { @MainActor in self?.observeDeveloperMode() }
-        }
-        developerBar.isHidden = !isOn
-        pageTop.constant = Self.pageMargin + (isOn ? DeveloperBar.height : 0)
-        content.layoutSubtreeIfNeeded()
-        placeDevToolsHandle()
-        roundCorners()
-    }
-
     private func observePeek() {
         withObservationTracking {
             _ = state.peek
@@ -430,27 +266,105 @@ final class MainWindowController: NSWindowController {
         }
     }
 
-    /// Pages of other tabs stay alive. Only the selected one is in the view hierarchy.
     private func showSelectedTab() {
         // A Peek belongs to the tab it was opened from.
         if state.peek != nil { state.closePeek() }
         defer { if overlay?.isShown == true { showOverlay() } }
-        let selected = state.selectedTab?.browserView
-        pageShadow.isHidden = selected == nil
-        for view in pageContainer.subviews where view !== selected {
-            view.removeFromSuperview()
+        showPanes()
+        state.selectedTab?.browserView.focus()
+    }
+
+    /// Pages of other tabs stay alive. Only the shown ones, the selected tab or its split's, are in
+    /// the view hierarchy.
+    private func showPanes() {
+        let tabs = state.shownTabs
+        for (id, pane) in panes where !tabs.contains(where: { $0.id == id }) {
+            pane.removeFromSuperview()
+            panes[id] = nil
         }
-        // Page windows added since go above the handle.
-        defer {
-            placeDevToolsHandle()
-            roundCorners()
-            layoutEmulation()
+        for tab in tabs {
+            let pane = panes[tab.id] ?? PaneView(tab: tab, state: state)
+            panes[tab.id] = pane
+            pane.isInSplit = tabs.count > 1
+            if pane.superview !== pageContainer { pageContainer.addSubview(pane) }
         }
-        guard let selected, selected.superview !== pageContainer else { return }
-        selected.frame = pageContainer.bounds
-        selected.autoresizingMask = [.width, .height]
-        pageContainer.addSubview(selected)
-        selected.focus()
+        layoutPages()
+        // Page windows added since go above the handles.
+        panes.values.forEach { $0.placeDevToolsHandle() }
+    }
+
+    private func observePanes() {
+        withObservationTracking {
+            _ = state.shownTabs.map(\.id)
+            _ = state.selectedSplit?.isVertical
+            _ = state.sidebarRevision
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.showPanes()
+                self?.observePanes()
+            }
+        }
+    }
+
+    private func layoutPages() {
+        let tabs = state.shownTabs
+        pageShadow.isHidden = tabs.isEmpty
+        var frames = [pageContainer.bounds]
+        if tabs.count > 1, let split = state.selectedSplit {
+            let shares = liveShares ?? SplitLayout.normalized(tabs.map(\.node.share))
+            frames = SplitLayout.frames(in: pageContainer.bounds, shares: shares, isVertical: split.isVertical)
+            placeSplitHandles(between: frames, of: split)
+        } else {
+            splitHandles.forEach { $0.isHidden = true }
+        }
+        for (tab, frame) in zip(tabs, frames) {
+            panes[tab.id]?.frame = frame
+        }
+        pageShadow.shapes = frames.map { pageShadow.convert($0, from: pageContainer) }
+    }
+
+    private func placeSplitHandles(between frames: [NSRect], of split: Split) {
+        while splitHandles.count < frames.count - 1 {
+            let handle = SplitHandleView()
+            let index = splitHandles.count
+            handle.onDrag = { [weak self] delta in self?.resizePanes(after: index, by: delta) }
+            handle.onEnd = { [weak self] in
+                guard let self, let shares = self.liveShares, let split = self.state.selectedSplit else { return }
+                self.liveShares = nil
+                self.state.setShares(shares, of: split)
+            }
+            handle.onReset = { [weak self] in
+                guard let self, let split = self.state.selectedSplit else { return }
+                let count = self.state.panes(of: split).count
+                self.state.setShares(Array(repeating: 1 / Double(count), count: count), of: split)
+                self.layoutPages()
+            }
+            content.addSubview(handle)
+            splitHandles.append(handle)
+        }
+        for (index, handle) in splitHandles.enumerated() {
+            guard index < frames.count - 1 else {
+                handle.isHidden = true
+                continue
+            }
+            let before = frames[index]
+            let gap = split.isVertical
+                ? NSRect(x: before.minX, y: before.minY - SplitLayout.gap, width: before.width, height: SplitLayout.gap)
+                : NSRect(x: before.maxX, y: before.minY, width: SplitLayout.gap, height: before.height)
+            handle.isVertical = split.isVertical
+            handle.frame = content.convert(gap, from: pageContainer)
+            handle.isHidden = false
+            handle.window?.invalidateCursorRects(for: handle)
+        }
+    }
+
+    private func resizePanes(after index: Int, by delta: CGFloat) {
+        guard let split = state.selectedSplit else { return }
+        let panes = state.shownTabs
+        let shares = liveShares ?? SplitLayout.normalized(panes.map(\.node.share))
+        let length = split.isVertical ? pageContainer.bounds.height : pageContainer.bounds.width
+        liveShares = SplitLayout.resized(shares, after: index, by: delta, length: length)
+        layoutPages()
     }
 
     private func observeSelectedTab() {
@@ -462,17 +376,6 @@ final class MainWindowController: NSWindowController {
                 self?.observeSelectedTab()
             }
         }
-    }
-}
-
-private extension CACornerMask {
-    var flipped: CACornerMask {
-        var mask: CACornerMask = []
-        if contains(.layerMinXMinYCorner) { mask.insert(.layerMinXMaxYCorner) }
-        if contains(.layerMaxXMinYCorner) { mask.insert(.layerMaxXMaxYCorner) }
-        if contains(.layerMinXMaxYCorner) { mask.insert(.layerMinXMinYCorner) }
-        if contains(.layerMaxXMaxYCorner) { mask.insert(.layerMaxXMinYCorner) }
-        return mask
     }
 }
 

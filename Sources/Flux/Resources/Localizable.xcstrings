@@ -161,6 +161,56 @@
         }
       }
     },
+    "Add Left Split" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter un panneau à gauche"
+          }
+        }
+      }
+    },
+    "Add Right Split" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter un panneau à droite"
+          }
+        }
+      }
+    },
+    "Add Split Above" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter un panneau au-dessus"
+          }
+        }
+      }
+    },
+    "Add Split Below" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter un panneau en dessous"
+          }
+        }
+      }
+    },
+    "Add Split View" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter une vue partagée"
+          }
+        }
+      }
+    },
     "Add to Favorites" : {
       "localizations" : {
         "fr" : {
@@ -481,6 +531,16 @@
         }
       }
     },
+    "Close Split Pane" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermer le panneau"
+          }
+        }
+      }
+    },
     "Close Tab" : {
       "localizations" : {
         "fr" : {
@@ -527,6 +587,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Continuer"
+          }
+        }
+      }
+    },
+    "Convert to Horizontal Split View" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passer en vue côte à côte"
+          }
+        }
+      }
+    },
+    "Convert to Vertical Split View" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passer en vue superposée"
           }
         }
       }
@@ -1241,6 +1321,36 @@
         }
       }
     },
+    "Move Down" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplacer vers le bas"
+          }
+        }
+      }
+    },
+    "Move Left" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplacer vers la gauche"
+          }
+        }
+      }
+    },
+    "Move Right" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplacer vers la droite"
+          }
+        }
+      }
+    },
     "Move this page to the space's Today" : {
       "localizations" : {
         "fr" : {
@@ -1277,6 +1387,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Placer dans la corbeille"
+          }
+        }
+      }
+    },
+    "Move Up" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplacer vers le haut"
           }
         }
       }
@@ -1507,6 +1627,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ouvrir dans l'espace"
+          }
+        }
+      }
+    },
+    "Open in Split View" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir en vue partagée"
           }
         }
       }
@@ -2111,6 +2241,26 @@
         }
       }
     },
+    "Separate Tab from Split" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sortir l'onglet de la vue partagée"
+          }
+        }
+      }
+    },
+    "Separate Tabs" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Séparer les onglets"
+          }
+        }
+      }
+    },
     "Settings" : {
       "localizations" : {
         "fr" : {
@@ -2207,6 +2357,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Afficher dans le Finder"
+          }
+        }
+      }
+    },
+    "Show Media Queries" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les media queries"
           }
         }
       }
@@ -2317,6 +2477,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Espaces"
+          }
+        }
+      }
+    },
+    "Split View" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vue partagée"
           }
         }
       }

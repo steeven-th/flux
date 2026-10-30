@@ -96,3 +96,66 @@ struct FolderRow: View {
         .contentShape(Rectangle())
     }
 }
+
+/// A split's tabs side by side, the one shown in the focused pane marked.
+struct SplitRow: View {
+    let state: BrowserState
+    let split: Split
+    let onClose: (Tab) -> Void
+
+    var body: some View {
+        let panes = state.panes(of: split)
+        HStack(spacing: 0) {
+            ForEach(Array(panes.enumerated()), id: \.element.id) { index, tab in
+                if index > 0 {
+                    Rectangle().fill(.primary.opacity(0.15)).frame(width: 1, height: 14)
+                }
+                SplitPaneItem(tab: tab, isFocused: tab === state.selectedTab) { onClose(tab) }
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.trailing, 4)
+        .frame(maxHeight: .infinity)
+    }
+}
+
+private struct SplitPaneItem: View {
+    let tab: Tab
+    let isFocused: Bool
+    let onClose: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Group {
+                if let favicon = tab.favicon {
+                    Image(nsImage: favicon).resizable().interpolation(.high)
+                } else {
+                    Image(systemName: "globe").foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 14, height: 14)
+            Text(tab.displayTitle)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .opacity(tab.isLoaded ? 1 : 0.6)
+            Spacer(minLength: 0)
+            if isHovered {
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .semibold))
+                        .frame(width: 16, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .help("Close")
+            }
+        }
+        .padding(.horizontal, 5)
+        .frame(maxHeight: .infinity)
+        .background(RoundedRectangle(cornerRadius: 5).fill(.primary.opacity(isFocused ? 0.08 : 0)).padding(.vertical, 3))
+        .contentShape(Rectangle())
+        .onHover { isHovered = $0 }
+    }
+}
