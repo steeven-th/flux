@@ -9,29 +9,41 @@ struct SpaceBar: View {
     @State private var isCreating = false
     @State private var spaceToDelete: Space?
 
+    private var spaceIcons: some View {
+        ForEach(Array(state.spaces.enumerated()), id: \.element.id) { index, space in
+            SpaceIcon(space: space, isSelected: space.id == state.selectedSpaceID)
+                .id(space.id)
+                .onTapGesture { state.selectedSpaceID = space.id }
+                .help(index < 9 ? "\(space.name) (⌃\(index + 1))" : space.name)
+                .contextMenu {
+                    Button("Edit Space…") { editedSpaceID = space.id }
+                    Button("Delete Space…", role: .destructive) { spaceToDelete = space }
+                        .disabled(state.spaces.count == 1)
+                }
+                .popover(isPresented: editingBinding(for: space.id), arrowEdge: .top) {
+                    SpaceEditor(title: "Edit Space", space: space) { name, icon, color in
+                        state.updateSpace(space.id, name: name, icon: icon, color: color)
+                        editedSpaceID = nil
+                    } onCancel: {
+                        editedSpaceID = nil
+                    }
+                }
+        }
+    }
+
     var body: some View {
         HStack(spacing: 6) {
             LibraryButton(state: state, recentFiles: recentFiles)
                 .padding(.trailing, 4)
-            ForEach(Array(state.spaces.enumerated()), id: \.element.id) { index, space in
-                SpaceIcon(space: space, isSelected: space.id == state.selectedSpaceID)
-                    .onTapGesture { state.selectedSpaceID = space.id }
-                    .help(index < 9 ? "\(space.name) (⌃\(index + 1))" : space.name)
-                    .contextMenu {
-                        Button("Edit Space…") { editedSpaceID = space.id }
-                        Button("Delete Space…", role: .destructive) { spaceToDelete = space }
-                            .disabled(state.spaces.count == 1)
+            // Arc users often have many spaces: past the sidebar's width, the icons scroll.
+            ScrollViewReader { scroller in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        spaceIcons
                     }
-                    .popover(isPresented: editingBinding(for: space.id), arrowEdge: .top) {
-                        SpaceEditor(title: "Edit Space", space: space) { name, icon, color in
-                            state.updateSpace(space.id, name: name, icon: icon, color: color)
-                            editedSpaceID = nil
-                        } onCancel: {
-                            editedSpaceID = nil
-                        }
-                    }
+                }
+                .onChange(of: state.selectedSpaceID) { scroller.scrollTo(state.selectedSpaceID) }
             }
-            Spacer(minLength: 0)
             Button {
                 isCreating = true
             } label: {
