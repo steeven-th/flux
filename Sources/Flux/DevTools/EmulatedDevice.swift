@@ -160,5 +160,5 @@ enum ResponsiveBackdrop: String, CaseIterable {
 }
 
 enum ResponsiveOption: String, Codable {
-    case rulers, pixelRatio, deviceType
+    case rulers, mediaQueries, pixelRatio, deviceType
 }

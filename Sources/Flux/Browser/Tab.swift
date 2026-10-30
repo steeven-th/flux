@@ -16,6 +16,8 @@ final class Tab: NSObject, Identifiable {
     private(set) var devTools: FLXBrowserView?
     /// What the responsive mode shows the page as, while it is on.
     private(set) var emulation: Emulation?
+    /// The page's width breakpoints, read while the responsive mode shows them.
+    private(set) var mediaQueries: [MediaQuery] = []
 
     /// The stored form of the tab, kept in step with the properties above.
     @ObservationIgnored private(set) var node: SidebarNode
@@ -200,6 +202,21 @@ final class Tab: NSObject, Identifiable {
         }
     }
 
+    /// The protocol only lists media queries while its CSS domain is on, which makes Chromium report
+    /// every stylesheet change, so it is turned off again once they are read.
+    func loadMediaQueries() {
+        let page = browserView
+        page.sendDevToolsMethod("DOM.enable", params: nil) { _ in
+            page.sendDevToolsMethod("CSS.enable", params: nil) { _ in
+                page.sendDevToolsMethod("CSS.getMediaQueries", params: nil) { [weak self] result in
+                    self?.mediaQueries = MediaQuery.parse(result)
+                    page.sendDevToolsMethod("CSS.disable", params: nil) { _ in }
+                    page.sendDevToolsMethod("DOM.disable", params: nil) { _ in }
+                }
+            }
+        }
+    }
+
     /// `scale` shrinks or enlarges the page in the room it has.
     func applyEmulation(scale: Double) {
         guard let emulation, scale != emulationScale || emulation != appliedEmulation else { return }
@@ -319,6 +336,7 @@ extension Tab: FLXBrowserViewDelegate {
     }
 
     func browserViewDidFinishLoading(_ browserView: FLXBrowserView) {
+        if emulation != nil { loadMediaQueries() }
         guard let y = scrollToRestore else { return }
         scrollToRestore = nil
         browserView.evaluateJavaScript("window.scrollTo(0, \(y))") { _ in }

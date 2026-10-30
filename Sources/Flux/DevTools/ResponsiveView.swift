@@ -20,6 +20,7 @@ struct ResponsiveView: View {
     static let toolbarHeight: CGFloat = 34
     static let rulerSize: CGFloat = 16
     static let handleSize: CGFloat = 12
+    static let mediaQueriesHeight: CGFloat = MediaQueryBars.height + 6
 
     @Environment(\.colorScheme) private var systemScheme
 
@@ -29,6 +30,12 @@ struct ResponsiveView: View {
             let page = layout.pageFrame
             ZStack(alignment: .topLeading) {
                 backdrop
+                if options.contains(.mediaQueries) {
+                    let ruler = options.contains(.rulers) ? Self.rulerSize : 0
+                    MediaQueryBars(tab: tab, center: page.midX, scale: layout.scale)
+                        .frame(height: MediaQueryBars.height)
+                        .offset(y: page.minY - ruler - Self.mediaQueriesHeight)
+                }
                 if options.contains(.rulers) {
                     Ruler(axis: .horizontal, length: emulation.width, scale: layout.scale)
                         .frame(width: page.width, height: Self.rulerSize)
@@ -163,6 +170,7 @@ private struct DeviceToolbar: View {
             .help("Rotate")
 
             Menu {
+                OptionToggle(state: state, option: .mediaQueries, title: "Show Media Queries")
                 OptionToggle(state: state, option: .rulers, title: "Show Rulers")
                 OptionToggle(state: state, option: .pixelRatio, title: "Show Device Pixel Ratio")
                 OptionToggle(state: state, option: .deviceType, title: "Show Device Type")
@@ -185,6 +193,107 @@ private struct DeviceToolbar: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.primary.opacity(0.05))
         .overlay(alignment: .bottom) { Divider() }
+    }
+}
+
+/// One row per kind of query, like DevTools': up to a width, between two, and from a width. The
+/// page grows on both sides of its center, so each bar is centered on it too.
+private struct MediaQueryBars: View {
+    static let rowHeight: CGFloat = 10
+    static let height = rowHeight * 3 + 4
+
+    let tab: Tab
+    let center: CGFloat
+    let scale: Double
+
+    @State private var hovered: MediaQuery?
+    @State private var pointer = CGPoint.zero
+
+    var body: some View {
+        GeometryReader { geometry in
+            let edge = max(center, geometry.size.width - center)
+            VStack(spacing: 2) {
+                ForEach(MediaQuery.Kind.allCases, id: \.self) { kind in
+                    let queries = tab.mediaQueries.filter { $0.kind == kind }
+                    ZStack(alignment: .topLeading) {
+                        // Narrower bars over wider ones. A larger minimum width leaves narrower bars.
+                        ForEach(kind == .min ? queries.reversed() : queries, id: \.self) { query in
+                            bar(for: query, edge: edge)
+                        }
+                    }
+                    .frame(width: geometry.size.width, height: Self.rowHeight, alignment: .topLeading)
+                    .clipped()
+                    // Bars overlap, so the row finds the one under the pointer itself.
+                    .contentShape(Rectangle())
+                    .onContinuousHover { phase in
+                        switch phase {
+                        case .active(let location):
+                            hovered = query(in: queries, at: location.x)
+                            pointer = location
+                        case .ended:
+                            hovered = nil
+                        }
+                    }
+                    .onTapGesture { location in
+                        guard let query = query(in: queries, at: location.x), let emulation = tab.emulation else { return }
+                        tab.resize(width: query.width, height: emulation.height)
+                    }
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if let hovered {
+                    Text(verbatim: "@media \(hovered.text)")
+                        .font(.system(size: 10, design: .monospaced))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(RoundedRectangle(cornerRadius: 3).fill(.background))
+                        .fixedSize()
+                        .offset(x: min(pointer.x + 10, geometry.size.width - 260), y: -16)
+                        .allowsHitTesting(false)
+                }
+            }
+        }
+        .onAppear { tab.loadMediaQueries() }
+    }
+
+    /// The narrowest of the row's ranges that holds the width at that distance from the center.
+    private func query(in queries: [MediaQuery], at x: CGFloat) -> MediaQuery? {
+        let width = abs(x - center) * 2 / scale
+        return queries
+            .filter { $0.contains(width) }
+            .min { ($0.max ?? .infinity) - ($0.min ?? 0) < ($1.max ?? .infinity) - ($1.min ?? 0) }
+    }
+
+    @ViewBuilder
+    private func bar(for query: MediaQuery, edge: CGFloat) -> some View {
+        let inner = (query.min ?? 0) * scale / 2
+        let outer = query.max.map { $0 * scale / 2 } ?? edge
+        let color = color(for: query.kind)
+        let isLit = query == hovered || tab.emulation.map { query.contains(Double($0.width)) } == true
+        if query.min == nil {
+            segment(from: center - outer, to: center + outer, color: color, isLit: isLit)
+        } else {
+            // Two segments, outside the minimum width on each side, out to the maximum or the edge.
+            segment(from: center - outer, to: center - inner, color: color, isLit: isLit)
+            segment(from: center + inner, to: center + outer, color: color, isLit: isLit)
+        }
+    }
+
+    private func segment(from start: CGFloat, to end: CGFloat, color: Color, isLit: Bool) -> some View {
+        Rectangle()
+            .fill(color.opacity(isLit ? 0.55 : 0.25))
+            .overlay(alignment: .leading) { Rectangle().fill(color).frame(width: 1) }
+            .overlay(alignment: .trailing) { Rectangle().fill(color).frame(width: 1) }
+            .frame(width: max(end - start, 1), height: Self.rowHeight)
+            .offset(x: start)
+    }
+
+    private func color(for kind: MediaQuery.Kind) -> Color {
+        switch kind {
+        case .max: .blue
+        case .range: .green
+        case .min: .orange
+        }
     }
 }
 

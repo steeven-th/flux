@@ -313,9 +313,11 @@ final class MainWindowController: NSWindowController {
             return
         }
         let bounds = pageContainer.bounds
-        let ruler = state.responsiveOptions.contains(.rulers) ? ResponsiveView.rulerSize : 0
+        let options = state.responsiveOptions
+        let ruler = options.contains(.rulers) ? ResponsiveView.rulerSize : 0
+        let mediaQueries = options.contains(.mediaQueries) ? ResponsiveView.mediaQueriesHeight : 0
         let side = 20 + ruler
-        let top = ResponsiveView.toolbarHeight + 12 + ruler
+        let top = ResponsiveView.toolbarHeight + 12 + ruler + mediaQueries
         let bottom = 12 + ResponsiveView.handleSize
         let room = NSRect(x: side, y: bottom, width: max(bounds.width - side * 2, 50), height: max(bounds.height - top - bottom, 50))
         let fit = min(room.width / CGFloat(emulation.width), room.height / CGFloat(emulation.height))

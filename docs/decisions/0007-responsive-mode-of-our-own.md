@@ -20,8 +20,9 @@ Flux drives the emulation itself, through the same protocol device mode uses:
 `setUserAgentOverride`, and `Network.emulateNetworkConditions` for throttling.
 
 The page window takes the emulated size, centered under a toolbar drawn by Flux, with the device
-list, editable size, zoom, throttling, rotation and an options menu like Chrome's (rulers, pixel
-ratio, device type, captures). In Responsive, handles around the page resize it. The responsive
+list, editable size, zoom, throttling, rotation and an options menu like Chrome's (media queries,
+rulers, pixel ratio, device type, captures). Media queries are read with `CSS.getMediaQueries`,
+with the CSS domain turned on only for that, since it reports every stylesheet change while on. In Responsive, handles around the page resize it. The responsive
 mode is turned on from the developer bar and works whether DevTools are open or not.
 
 ## Alternatives considered
@@ -32,7 +33,8 @@ mode is turned on from the developer bar and works whether DevTools are open or 
 
 ## Consequences
 
-- Each feature of device mode has to be written again. Media query bars are not there yet.
+- Each feature of device mode has to be written again. Media query bars only know `min-width` and
+  `max-width` so far, not the range syntax.
 - A page larger than the window can't scroll inside it the way device mode does, since it is a
   window of its own. Zooming in stops where the page fills the room it has.
 - The mode is independent of DevTools, so it stays on when they close and can be used without them.
