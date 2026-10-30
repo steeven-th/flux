@@ -62,7 +62,10 @@ final class BrowserState {
     private var selectedTabIDs: [UUID: UUID] = [:]
     var selectedSpaceID: UUID {
         willSet { selectedTab?.saveScrollPosition() }
-        didSet { save { try appDatabase.setSetting(Self.selectedSpaceKey, to: selectedSpaceID.uuidString) } }
+        didSet {
+            profiles[selectedSpaceID]?.load()
+            save { try appDatabase.setSetting(Self.selectedSpaceKey, to: selectedSpaceID.uuidString) }
+        }
     }
 
     @ObservationIgnored private let appDatabase: AppDatabase
@@ -91,6 +94,8 @@ final class BrowserState {
         for record in records {
             try open(record)
         }
+        // Other spaces' profiles load when first shown.
+        profiles[selectedSpaceID]?.load()
         linkRules = try appDatabase.linkRules()
         ExtensionActions.shared.onSidePanel = { [weak self] page, url in
             self?.tabs.first { $0.isLoaded && $0.browserView === page }?.showSidePanel(url)
@@ -317,6 +322,11 @@ final class BrowserState {
         var name: String {
             spaces.map(\.name).joined(separator: ", ")
         }
+    }
+
+    /// For settings shown about a profile no space has shown yet.
+    func loadProfile(_ folder: URL) {
+        firstSpace(usingProfile: folder).flatMap { profiles[$0.id] }?.load()
     }
 
     func extensionList(forProfile folder: URL) -> ExtensionList? {

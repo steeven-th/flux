@@ -117,6 +117,7 @@ private struct ProfileDetail: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .onAppear {
+            state.loadProfile(profile.folder)
             archiveDelay = state.archiveDelay(forProfile: profile.folder)
             asksWhereToSave = state.asksWhereToSaveDownloads(forProfile: profile.folder)
             let engine = state.searchEngine(forProfile: profile.folder)

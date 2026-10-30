@@ -29,9 +29,14 @@ NS_SWIFT_UI_ACTOR
 NS_SWIFT_UI_ACTOR
 @interface FLXProfile : NSObject
 
-/// Returns the profile stored at `path`, loading it if needed. The folder has to be a direct
-/// child of the engine's root cache path.
+/// Returns the profile stored at `path`. The folder has to be a direct child of the engine's root
+/// cache path.
 + (instancetype)profileAtPath:(NSString *)path;
+
+/// Chromium loads a profile with its extensions, which run in processes of their own, so a profile
+/// only loads when it is first needed: with its first page, or when this is called.
+- (void)load;
+@property (nonatomic, readonly, getter=isLoaded) BOOL loaded;
 
 /// The languages sites are asked for by default, as Chromium lists them ("fr-FR,fr,en"), for the
 /// profile at a path. The user's own choice in chrome://settings/languages comes first.
@@ -47,10 +52,11 @@ NS_SWIFT_UI_ACTOR
 
 /// Calls `handler` with the current value of a Chromium preference (a dictionary, array, string or
 /// number), then again each time it changes. Chromium only writes preferences to disk every few
-/// seconds, so files can't be relied on for this. The first call waits for the profile to load.
+/// seconds, so files can't be relied on for this. The first call waits for the profile to load,
+/// without loading it.
 - (void)observePreference:(NSString *)name handler:(void (^)(id _Nullable value))handler;
 
-/// Sets a Chromium preference of this profile, once the profile has loaded.
+/// Sets a Chromium preference of this profile, once the profile has loaded, without loading it.
 - (void)setPreference:(NSString *)name boolValue:(BOOL)value;
 - (void)setPreference:(NSString *)name stringValue:(NSString *)value;
 

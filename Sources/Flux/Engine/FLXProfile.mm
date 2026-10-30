@@ -156,6 +156,7 @@ class PreferenceObserver : public CefPreferenceObserver {
 
 @implementation FLXProfile {
   CefRefPtr<CefRequestContext> _requestContext;
+  BOOL _loadStarted;
   BOOL _loaded;
   NSMutableArray<void (^)(void)> *_loadedBlocks;
   std::vector<CefRefPtr<CefRegistration>> _preferenceRegistrations;
@@ -186,7 +187,12 @@ static NSString *_Nullable (^g_languages_provider)(NSString *) = nil;
   if (!self) return nil;
   _path = [path copy];
   _loadedBlocks = [NSMutableArray array];
+  return self;
+}
 
+- (void)load {
+  if (_loadStarted) return;
+  _loadStarted = YES;
   __weak FLXProfile *weakSelf = self;
   [FLXEngine whenReady:^{
     FLXProfile *profile = weakSelf;
@@ -198,7 +204,10 @@ static NSString *_Nullable (^g_languages_provider)(NSString *) = nil;
     if (languages.length > 0) CefString(&settings.accept_language_list) = languages.UTF8String;
     profile->_requestContext = CefRequestContext::CreateContext(settings, new ProfileHandler(profile));
   }];
-  return self;
+}
+
+- (BOOL)isLoaded {
+  return _loaded;
 }
 
 - (void)showExtensionsWindowWithTitle:(NSString *)title {
@@ -223,7 +232,7 @@ static NSString *_Nullable (^g_languages_provider)(NSString *) = nil;
 
 - (void)observePreference:(NSString *)name handler:(void (^)(id))handler {
   __weak FLXProfile *weakSelf = self;
-  [self whenReady:^{
+  [self whenLoaded:^{
     FLXProfile *profile = weakSelf;
     if (!profile || !profile->_requestContext) return;
     CefRefPtr<CefRegistration> registration = profile->_requestContext->AddPreferenceObserver(
@@ -247,7 +256,7 @@ static NSString *_Nullable (^g_languages_provider)(NSString *) = nil;
 
 - (void)setPreference:(NSString *)name value:(CefRefPtr<CefValue>)preference {
   __weak FLXProfile *weakSelf = self;
-  [self whenReady:^{
+  [self whenLoaded:^{
     FLXProfile *profile = weakSelf;
     if (!profile || !profile->_requestContext) return;
     CefString error;
@@ -272,6 +281,11 @@ static NSString *_Nullable (^g_languages_provider)(NSString *) = nil;
 }
 
 - (void)whenReady:(void (^)(void))block {
+  [self load];
+  [self whenLoaded:block];
+}
+
+- (void)whenLoaded:(void (^)(void))block {
   if (_loaded) {
     block();
     return;
