@@ -2621,6 +2621,16 @@
         }
       }
     },
+    "Translate Selection" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traduire la sélection"
+          }
+        }
+      }
+    },
     "Turn Off Chromium's" : {
       "localizations" : {
         "fr" : {

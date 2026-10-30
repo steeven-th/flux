@@ -41,6 +41,15 @@ NS_SWIFT_UI_ACTOR
 - (void)browserViewDidChangeNavigationState:(FLXBrowserView *)browserView;
 /// Sent each time the page has finished loading.
 - (void)browserViewDidFinishLoading:(FLXBrowserView *)browserView;
+/// Titles of items Flux adds to the page's context menu. `selectedText` is empty without a
+/// selection.
+- (NSArray<NSString *> *)browserView:(FLXBrowserView *)browserView
+    contextMenuItemsForSelectedText:(NSString *)selectedText;
+/// `point` is where the menu was opened, in screen coordinates.
+- (void)browserView:(FLXBrowserView *)browserView
+    didChooseContextMenuItemAtIndex:(NSInteger)index
+                       selectedText:(NSString *)selectedText
+                              point:(NSPoint)point;
 /// Sent when the page closes itself, with window.close() for example.
 - (void)browserViewDidClose:(FLXBrowserView *)browserView;
 @end

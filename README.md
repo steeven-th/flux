@@ -11,7 +11,7 @@ Flux is at an early stage and not usable yet.
 
 ## Requirements
 
-- macOS 14 or later on Apple silicon
+- macOS 15 or later on Apple silicon
 - Xcode 16 or later
 - XcodeGen and CMake: `brew install xcodegen cmake`
 

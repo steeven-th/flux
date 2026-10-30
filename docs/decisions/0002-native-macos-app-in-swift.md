@@ -13,7 +13,8 @@ CEF in native views, so any UI drawn above the page also has to be native.
 Write the app in Swift. Use AppKit for windows, view hierarchy and anything that sits next to CEF
 views, and SwiftUI for self-contained UI such as the sidebar content, settings and command bar.
 
-- macOS 14 or later, Apple silicon only.
+- macOS 15 or later, Apple silicon only. It started at macOS 14, and moved to 15 for the
+  Translation framework's batch sessions, which page translation needs.
 - Swift 6 language mode. CEF runs its UI thread on the main thread on macOS, so browser code can be
   `@MainActor` and strict concurrency should not get in the way. To be confirmed in the first
   prototype.

@@ -339,6 +339,14 @@ extension Tab: FLXBrowserViewDelegate {
         canGoForward = browserView.canGoForward
     }
 
+    func browserView(_ browserView: FLXBrowserView, contextMenuItemsForSelectedText selectedText: String) -> [String] {
+        selectedText.isEmpty ? [] : [String(localized: "Translate Selection")]
+    }
+
+    func browserView(_ browserView: FLXBrowserView, didChooseContextMenuItemAt index: Int, selectedText: String, point: NSPoint) {
+        SelectionTranslation.show(selectedText, at: point)
+    }
+
     func browserViewDidFinishLoading(_ browserView: FLXBrowserView) {
         if emulation != nil { loadMediaQueries() }
         guard let y = scrollToRestore else { return }

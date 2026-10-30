@@ -12,6 +12,7 @@
 #include <map>
 
 #include "include/cef_client.h"
+#include "include/cef_command_ids.h"
 #include "include/cef_devtools_message_observer.h"
 #include "include/views/cef_browser_view.h"
 #include "include/views/cef_window.h"
@@ -106,7 +107,8 @@ class BrowserClient : public CefClient,
                       public CefDisplayHandler,
                       public CefDownloadHandler,
                       public CefRequestHandler,
-                      public CefLoadHandler {
+                      public CefLoadHandler,
+                      public CefContextMenuHandler {
  public:
   BrowserClient(FLXBrowserView *owner, bool opened_by_page)
       : owner_(owner), profile_(owner.profile), opened_by_page_(opened_by_page) {}
@@ -116,6 +118,57 @@ class BrowserClient : public CefClient,
   CefRefPtr<CefDownloadHandler> GetDownloadHandler() override { return this; }
   CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
   CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
+  CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override { return this; }
+
+  // Chrome's translation needs a Google key Flux doesn't have, so its items give way to Flux's
+  // own, which translate with Apple's framework.
+  void OnBeforeContextMenu(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+                           CefRefPtr<CefContextMenuParams> params, CefRefPtr<CefMenuModel> model) override {
+    if (!IsOwnPage(browser)) return;
+    size_t index = model->GetCount();
+    for (int command : {IDC_CONTENT_CONTEXT_TRANSLATE, IDC_CONTENT_CONTEXT_PARTIAL_TRANSLATE}) {
+      int found = model->GetIndexOf(command);
+      if (found < 0) continue;
+      index = std::min(index, static_cast<size_t>(found));
+      model->Remove(command);
+    }
+    menu_text_ = params->GetSelectionText().ToString();
+    menu_point_ = CefPoint(params->GetXCoord(), params->GetYCoord());
+    FLXBrowserView *owner = owner_;
+    if (![owner.delegate respondsToSelector:@selector(browserView:contextMenuItemsForSelectedText:)]) return;
+    NSArray<NSString *> *titles = [owner.delegate browserView:owner
+                                contextMenuItemsForSelectedText:@(menu_text_.c_str())];
+    if (titles.count == 0) return;
+    // InsertItemAt can't add at the end, where the items go when Chrome offered none of its own.
+    bool atEnd = index == model->GetCount();
+    if (atEnd) model->AddSeparator();
+    for (NSUInteger i = 0; i < titles.count && MENU_ID_USER_FIRST + i <= MENU_ID_USER_LAST; i++) {
+      int command = MENU_ID_USER_FIRST + static_cast<int>(i);
+      if (atEnd) {
+        model->AddItem(command, titles[i].UTF8String);
+      } else {
+        model->InsertItemAt(index + i, command, titles[i].UTF8String);
+      }
+    }
+  }
+
+  bool OnContextMenuCommand(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+                            CefRefPtr<CefContextMenuParams> params, int command_id,
+                            EventFlags event_flags) override {
+    if (command_id < MENU_ID_USER_FIRST || command_id > MENU_ID_USER_LAST) return false;
+    FLXBrowserView *owner = owner_;
+    NSWindow *window = owner.pageWindow;
+    if (!window || ![owner.delegate respondsToSelector:@selector(browserView:didChooseContextMenuItemAtIndex:selectedText:point:)]) {
+      return true;
+    }
+    // The menu's point is from the page's top left corner.
+    NSPoint point = NSMakePoint(NSMinX(window.frame) + menu_point_.x, NSMaxY(window.frame) - menu_point_.y);
+    [owner.delegate browserView:owner
+        didChooseContextMenuItemAtIndex:command_id - MENU_ID_USER_FIRST
+                           selectedText:@(menu_text_.c_str())
+                                  point:point];
+    return true;
+  }
 
   void OnLoadingStateChange(CefRefPtr<CefBrowser> browser, bool is_loading, bool can_go_back,
                             bool can_go_forward) override {
@@ -308,6 +361,8 @@ class BrowserClient : public CefClient,
   bool IsOwnPage(CefRefPtr<CefBrowser> browser) const { return browser->GetIdentifier() == page_id_; }
 
   __weak FLXBrowserView *owner_;
+  std::string menu_text_;
+  CefPoint menu_point_;
   // Kept for downloads that outlive their tab.
   FLXProfile *profile_;
   const bool opened_by_page_;

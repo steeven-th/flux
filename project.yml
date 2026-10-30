@@ -3,7 +3,7 @@ name: Flux
 options:
   bundleIdPrefix: com.flux-browser
   deploymentTarget:
-    macOS: "14.0"
+    macOS: "15.0"
   createIntermediateGroups: true
   developmentLanguage: en
 
@@ -14,7 +14,7 @@ packages:
 
 settings:
   base:
-    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
     ARCHS: arm64
     CODE_SIGN_IDENTITY: "-"
     CODE_SIGN_STYLE: Manual
