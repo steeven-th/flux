@@ -21,6 +21,9 @@ Flux is at an early stage and not usable yet.
     scripts/build.sh --run    # same, then opens the app
     scripts/build.sh release  # release build
 
+When an Apple Development certificate is installed, builds are signed with it, so macOS doesn't
+ask again for Flux's keychain items after each build.
+
 The first run downloads about 135 MB and builds CEF's C++ wrapper. Browsing data goes to
 `~/Library/Application Support/Flux`.
 

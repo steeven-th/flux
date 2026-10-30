@@ -20,8 +20,20 @@ DERIVED_DATA="$HOME/Library/Developer/Xcode/DerivedData/Flux"
 "$ROOT/scripts/fetch-cef.sh"
 cd "$ROOT"
 xcodegen generate --quiet
+# An ad hoc signature changes with every build, and macOS then asks again for the keychain items
+# Flux saved. A development certificate, when there is one, keeps the same signature.
+SIGNING=()
+IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null | awk '/"Apple Development/ { print $2; exit }')"
+if [ -n "$IDENTITY" ]; then
+    # Swift packages' resource bundles want the certificate's team too.
+    TEAM="$(security find-certificate -Z -a -p -c "Apple Development" 2>/dev/null \
+        | awk -v hash="$IDENTITY" '/^SHA-1 hash:/ { found = ($3 == hash) } found && /BEGIN CERTIFICATE/,/END CERTIFICATE/' \
+        | openssl x509 -noout -subject 2>/dev/null | sed -n 's/.*OU *= *\([A-Z0-9]*\).*/\1/p')"
+    SIGNING=(CODE_SIGN_IDENTITY="Apple Development" DEVELOPMENT_TEAM="$TEAM")
+fi
+
 xcodebuild -project Flux.xcodeproj -scheme Flux -configuration "$CONFIGURATION" \
-    -derivedDataPath "$DERIVED_DATA" -quiet build
+    -derivedDataPath "$DERIVED_DATA" -quiet build ${SIGNING[@]+"${SIGNING[@]}"}
 
 APP="$DERIVED_DATA/Build/Products/$CONFIGURATION/Flux.app"
 echo "Built $APP"
