@@ -1,0 +1,46 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "NSBluetoothAlwaysUsageDescription" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les sites que vous autorisez peuvent se connecter à des appareils Bluetooth."
+          }
+        }
+      }
+    },
+    "NSCameraUsageDescription" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les sites que vous autorisez peuvent utiliser votre caméra."
+          }
+        }
+      }
+    },
+    "NSLocationUsageDescription" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les sites que vous autorisez peuvent connaître votre position."
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les sites que vous autorisez peuvent utiliser votre micro."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
