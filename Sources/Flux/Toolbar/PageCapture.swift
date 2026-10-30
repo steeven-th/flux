@@ -50,6 +50,16 @@ enum PageCapture {
         }
     }
 
+    /// What the page shows, at the size and density of the device it is shown as.
+    static func captureVisibleArea(of tab: Tab, state: BrowserState) {
+        let page = tab.browserView
+        page.sendDevToolsMethod("Page.getLayoutMetrics", params: nil) { metrics in
+            let viewport = metrics?["cssVisualViewport"] as? [String: Double] ?? [:]
+            let clip = CGRect(x: viewport["pageX"] ?? 0, y: viewport["pageY"] ?? 0, width: viewport["clientWidth"] ?? 0, height: viewport["clientHeight"] ?? 0)
+            capture(page, clip: clip, scale: 1) { finished($0, state: state) }
+        }
+    }
+
     static func captureWholePage(of tab: Tab, state: BrowserState) {
         captureWholePage(tab.browserView) { finished($0, state: state) }
     }

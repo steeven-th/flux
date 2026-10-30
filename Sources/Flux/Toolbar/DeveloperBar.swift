@@ -19,7 +19,7 @@ struct DeveloperBar: View {
                         .truncationMode(.middle)
                         .textSelection(.enabled)
                     Spacer(minLength: 12)
-                    CopyLinkButton(url: tab.url)
+                    CopyLinkButton(url: tab.url).modifier(BarHighlight())
                     BarDivider()
                     ToolButton(symbol: "camera", help: "Capture an Area") { PageCapture.captureArea(of: tab, state: state) }
                     ToolButton(symbol: "text.viewfinder", help: "Capture the Whole Page") { PageCapture.captureWholePage(of: tab, state: state) }
@@ -27,22 +27,24 @@ struct DeveloperBar: View {
                     if !tools.isEmpty {
                         BarDivider()
                         ForEach(tools) { tool in
-                            Button { tab.show(tool) } label: {
-                                Image(systemName: tool.symbol)
-                                    .frame(width: 26, height: 26)
-                                    .contentShape(Rectangle())
+                            if tool == .responsive {
+                                ToolButton(symbol: tool.symbol, help: LocalizedStringKey(tool.name), isOn: tab.emulation != nil) {
+                                    tab.toggleResponsive()
+                                }
+                            } else {
+                                ToolButton(symbol: tool.symbol, help: LocalizedStringKey(tool.name)) { tab.show(tool) }
                             }
-                            .help(tool.name)
                         }
                     }
                     if !state.pinnedExtensionsInSelectedSpace.isEmpty {
                         BarDivider()
                         ForEach(state.pinnedExtensionsInSelectedSpace) { item in
                             ExtensionButton(item: item, profile: state.selectedProfile, currentPage: { tab.browserView }, size: 16)
+                                .modifier(BarHighlight())
                         }
                     }
                     BarDivider()
-                    ToolButton(symbol: "sidebar.right", help: tab.devTools == nil ? "Show DevTools" : "Hide DevTools") {
+                    ToolButton(symbol: "sidebar.right", help: tab.devTools == nil ? "Show DevTools" : "Hide DevTools", isOn: tab.devTools != nil) {
                         if tab.devTools == nil {
                             tab.browserView.showDevTools(onPanel: nil)
                         } else {
@@ -58,6 +60,8 @@ struct DeveloperBar: View {
         }
         .foregroundStyle(.white)
         .tint(.white)
+        // Some symbols, like the responsive mode's, would fill their screens in their own preferred mode.
+        .symbolRenderingMode(.monochrome)
         // Goes on under the page's rounded top corners, so they show the bar's color.
         .background(
             UnevenRoundedRectangle(topLeadingRadius: FLXPageCornerRadius, topTrailingRadius: FLXPageCornerRadius, style: .circular)
@@ -78,6 +82,7 @@ extension DeveloperBar {
 private struct ToolButton: View {
     let symbol: String
     let help: LocalizedStringKey
+    var isOn = false
     let action: () -> Void
 
     var body: some View {
@@ -87,6 +92,20 @@ private struct ToolButton: View {
                 .contentShape(Rectangle())
         }
         .help(help)
+        .modifier(BarHighlight(isOn: isOn))
+    }
+}
+
+/// Every button of the bar lights up under the pointer, and stays lit while what it turns on is on.
+private struct BarHighlight: ViewModifier {
+    var isOn = false
+
+    @State private var isHovered = false
+
+    func body(content: Content) -> some View {
+        content
+            .background(RoundedRectangle(cornerRadius: 5).fill(.white.opacity(isOn ? 0.25 : isHovered ? 0.12 : 0)))
+            .onHover { isHovered = $0 }
     }
 }
 

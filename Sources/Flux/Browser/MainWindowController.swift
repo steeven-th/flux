@@ -26,6 +26,15 @@ final class MainWindowController: NSWindowController {
         view.safeAreaRegions = []
         return view
     }()
+    private let responsiveLayout = ResponsiveLayout()
+    private lazy var responsiveView: NSView = {
+        let view = NSHostingView(rootView: ResponsiveView(state: state, layout: responsiveLayout))
+        view.safeAreaRegions = []
+        // Its content is empty while the responsive mode is off, and its size would then pull the
+        // window down to its smallest.
+        view.sizingOptions = []
+        return view
+    }()
     private var pageTop: NSLayoutConstraint!
     private let devToolsContainer = NSView()
     /// Fills the point between the page and its DevTools, which are two windows.
@@ -60,7 +69,7 @@ final class MainWindowController: NSWindowController {
         super.init(window: window)
 
         let background = NSHostingView(rootView: SpaceBackground(state: state))
-        for view in [background, pageShadow, devToolsContainer, developerBar, devToolsLine, pageContainer, resizeHandle, revealEdge] as [NSView] {
+        for view in [background, pageShadow, devToolsContainer, developerBar, devToolsLine, pageContainer, responsiveView, resizeHandle, revealEdge] as [NSView] {
             view.translatesAutoresizingMaskIntoConstraints = false
         }
         devToolsLine.boxType = .custom
@@ -76,6 +85,7 @@ final class MainWindowController: NSWindowController {
         content.addSubview(developerBar)
         content.addSubview(devToolsLine)
         content.addSubview(pageContainer)
+        content.addSubview(responsiveView)
         content.addSubview(resizeHandle)
         content.addSubview(revealEdge)
         window.contentView = content
@@ -108,6 +118,10 @@ final class MainWindowController: NSWindowController {
             developerBar.topAnchor.constraint(equalTo: content.topAnchor, constant: Self.pageMargin),
             developerBar.heightAnchor.constraint(equalToConstant: DeveloperBar.height + FLXPageCornerRadius),
             pageContainer.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -Self.pageMargin),
+            responsiveView.leadingAnchor.constraint(equalTo: pageContainer.leadingAnchor),
+            responsiveView.trailingAnchor.constraint(equalTo: pageContainer.trailingAnchor),
+            responsiveView.topAnchor.constraint(equalTo: pageContainer.topAnchor),
+            responsiveView.bottomAnchor.constraint(equalTo: pageContainer.bottomAnchor),
             pageShadow.leadingAnchor.constraint(equalTo: pageContainer.leadingAnchor, constant: -PageShadowView.outset),
             pageShadow.trailingAnchor.constraint(equalTo: devToolsContainer.trailingAnchor, constant: PageShadowView.outset),
             pageShadow.topAnchor.constraint(equalTo: developerBar.topAnchor, constant: -PageShadowView.outset),
@@ -155,6 +169,12 @@ final class MainWindowController: NSWindowController {
         observePeek()
         observeDeveloperMode()
         observeDevTools()
+        observeEmulation()
+        pageContainer.postsFrameChangedNotifications = true
+        NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: pageContainer, queue: .main) {
+            [weak self] _ in
+            MainActor.assumeIsolated { self?.layoutEmulation() }
+        }
     }
 
     @available(*, unavailable)
@@ -268,6 +288,49 @@ final class MainWindowController: NSWindowController {
         return window.convertToScreen(pageContainer.convert(pageContainer.bounds, to: nil))
     }
 
+    private func observeEmulation() {
+        withObservationTracking {
+            _ = state.selectedTab?.emulation
+            _ = state.responsiveOptions
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeEmulation() }
+        }
+        layoutEmulation()
+        roundCorners()
+    }
+
+    /// In responsive mode the page takes the size it is shown at, centered under the device
+    /// toolbar and shrunk to fit if needed, as in DevTools' device mode.
+    private func layoutEmulation() {
+        let tab = state.selectedTab
+        responsiveView.isHidden = tab?.emulation == nil
+        guard let tab, tab.isLoaded else { return }
+        let page = tab.browserView
+        guard page.superview === pageContainer else { return }
+        guard let emulation = tab.emulation else {
+            page.autoresizingMask = [.width, .height]
+            page.frame = pageContainer.bounds
+            return
+        }
+        let bounds = pageContainer.bounds
+        let ruler = state.responsiveOptions.contains(.rulers) ? ResponsiveView.rulerSize : 0
+        let side = 20 + ruler
+        let top = ResponsiveView.toolbarHeight + 12 + ruler
+        let bottom = 12 + ResponsiveView.handleSize
+        let room = NSRect(x: side, y: bottom, width: max(bounds.width - side * 2, 50), height: max(bounds.height - top - bottom, 50))
+        let fit = min(room.width / CGFloat(emulation.width), room.height / CGFloat(emulation.height))
+        // A page larger than the room would spill out of the window, so zooming in stops at the fit.
+        let scale = min(emulation.zoom.value.map { CGFloat($0) } ?? 1, fit)
+        let size = NSSize(width: (CGFloat(emulation.width) * scale).rounded(), height: (CGFloat(emulation.height) * scale).rounded())
+        let frame = NSRect(x: (room.midX - size.width / 2).rounded(), y: room.maxY - size.height, width: size.width, height: size.height)
+        page.autoresizingMask = []
+        page.frame = frame
+        responsiveLayout.pageFrame = CGRect(x: frame.minX, y: bounds.height - frame.maxY, width: frame.width, height: frame.height)
+        responsiveLayout.scale = Double(scale)
+        tab.applyEmulation(scale: Double(scale))
+        page.roundedCorners = []
+    }
+
     /// The selected tab's DevTools sit at the right of its page, which gets narrower.
     private func observeDevTools() {
         let devTools = withObservationTracking {
@@ -303,7 +366,17 @@ final class MainWindowController: NSWindowController {
         }
         let devTools = state.selectedTab?.devTools
         if devTools != nil { page.subtract([.layerMaxXMinYCorner, .layerMaxXMaxYCorner]) }
-        state.selectedTab?.browserView.roundedCorners = page
+        // In responsive mode the background around the page takes the page's corners.
+        for view in [pageContainer, responsiveView] {
+            view.wantsLayer = true
+            view.layer?.cornerRadius = FLXPageCornerRadius
+            // SwiftUI's view is flipped, so its top corners are the ones at min Y.
+            view.layer?.maskedCorners = view.isFlipped ? page.flipped : page
+            view.layer?.masksToBounds = true
+        }
+        if state.selectedTab?.emulation == nil {
+            state.selectedTab?.browserView.roundedCorners = page
+        }
         devTools?.roundedCorners = devToolsCorners
     }
 
@@ -369,6 +442,7 @@ final class MainWindowController: NSWindowController {
         defer {
             placeDevToolsHandle()
             roundCorners()
+            layoutEmulation()
         }
         guard let selected, selected.superview !== pageContainer else { return }
         selected.frame = pageContainer.bounds
@@ -386,6 +460,17 @@ final class MainWindowController: NSWindowController {
                 self?.observeSelectedTab()
             }
         }
+    }
+}
+
+private extension CACornerMask {
+    var flipped: CACornerMask {
+        var mask: CACornerMask = []
+        if contains(.layerMinXMinYCorner) { mask.insert(.layerMinXMaxYCorner) }
+        if contains(.layerMaxXMinYCorner) { mask.insert(.layerMaxXMaxYCorner) }
+        if contains(.layerMinXMaxYCorner) { mask.insert(.layerMinXMinYCorner) }
+        if contains(.layerMaxXMaxYCorner) { mask.insert(.layerMaxXMinYCorner) }
+        return mask
     }
 }
 

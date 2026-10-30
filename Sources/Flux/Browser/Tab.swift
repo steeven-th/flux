@@ -14,6 +14,8 @@ final class Tab: NSObject, Identifiable {
     private(set) var canGoForward = false
     /// The page's DevTools while open, shown next to it.
     private(set) var devTools: FLXBrowserView?
+    /// What the responsive mode shows the page as, while it is on.
+    private(set) var emulation: Emulation?
 
     /// The stored form of the tab, kept in step with the properties above.
     @ObservationIgnored private(set) var node: SidebarNode
@@ -27,6 +29,8 @@ final class Tab: NSObject, Identifiable {
     /// Where the page was scrolled before Flux quit or the tab was unloaded, until it has loaded.
     @ObservationIgnored private var scrollToRestore: Double?
     @ObservationIgnored private var pendingDevToolsScript: String?
+    @ObservationIgnored private var emulationScale: Double?
+    @ObservationIgnored private var appliedEmulation: Emulation?
 
     /// `page` is a page already created, opened by another tab.
     init(node: SidebarNode, profile: FLXProfile, favicons: FaviconCache, page: FLXBrowserView? = nil) {
@@ -109,6 +113,106 @@ final class Tab: NSObject, Identifiable {
                 }
             }
         }
+    }
+
+    /// Turns the responsive mode on, at a size of its own, or off.
+    func toggleResponsive() {
+        update(emulation == nil ? Emulation(device: nil, width: 400, height: 800) : nil)
+    }
+
+    func resetEmulation() {
+        guard emulation != nil else { return }
+        update(Emulation(device: nil, width: 400, height: 800))
+    }
+
+    func emulate(_ device: EmulatedDevice?) {
+        guard var emulation else { return }
+        emulation.device = device
+        if let device {
+            (emulation.width, emulation.height) = (device.width, device.height)
+            emulation.scale = device.scale
+            emulation.type = device.isMobile ? .mobile : .desktop
+        }
+        update(emulation)
+    }
+
+    /// A size typed or dragged is Responsive's.
+    func resize(width: Int, height: Int) {
+        guard var emulation else { return }
+        emulation.device = nil
+        emulation.width = min(max(width, 50), 4000)
+        emulation.height = min(max(height, 50), 4000)
+        update(emulation)
+    }
+
+    func rotate() {
+        guard var emulation else { return }
+        (emulation.width, emulation.height) = (emulation.height, emulation.width)
+        update(emulation)
+    }
+
+    func setPixelRatio(_ scale: Double) {
+        guard var emulation else { return }
+        emulation.device = nil
+        emulation.scale = scale
+        update(emulation)
+    }
+
+    func setDeviceType(_ type: EmulatedDeviceType) {
+        guard var emulation else { return }
+        emulation.device = nil
+        emulation.type = type
+        update(emulation)
+    }
+
+    func zoom(_ zoom: EmulationZoom) {
+        emulation?.zoom = zoom
+    }
+
+    func throttle(_ throttling: NetworkThrottling) {
+        guard var emulation else { return }
+        emulation.throttling = throttling
+        update(emulation)
+    }
+
+    /// Sends what changed. The window then sizes the page and applies the size at the scale that
+    /// fits, through applyEmulation(scale:).
+    private func update(_ new: Emulation?) {
+        let old = emulation
+        emulation = new
+        emulationScale = nil
+        let page = browserView
+        if new == nil {
+            page.sendDevToolsMethod("Emulation.clearDeviceMetricsOverride", params: nil) { _ in }
+        }
+        if old?.type.hasTouch != new?.type.hasTouch {
+            page.sendDevToolsMethod("Emulation.setTouchEmulationEnabled", params: ["enabled": new?.type.hasTouch == true, "maxTouchPoints": 5]) { _ in }
+        }
+        if old?.throttling != new?.throttling {
+            page.sendDevToolsMethod("Network.enable", params: nil) { _ in }
+            page.sendDevToolsMethod("Network.emulateNetworkConditions", params: (new?.throttling ?? .none).conditions) { _ in }
+        }
+        // Sites choose their mobile pages from this, read when the page loads.
+        if old?.userAgent != new?.userAgent {
+            page.sendDevToolsMethod("Emulation.setUserAgentOverride", params: ["userAgent": new?.userAgent ?? ""]) { _ in
+                page.reload()
+            }
+        }
+    }
+
+    /// `scale` shrinks or enlarges the page in the room it has.
+    func applyEmulation(scale: Double) {
+        guard let emulation, scale != emulationScale || emulation != appliedEmulation else { return }
+        emulationScale = scale
+        appliedEmulation = emulation
+        browserView.sendDevToolsMethod("Emulation.setDeviceMetricsOverride", params: [
+            "width": emulation.width, "height": emulation.height, "deviceScaleFactor": emulation.scale,
+            "mobile": emulation.type.isMobile, "scale": scale,
+            "screenWidth": emulation.width, "screenHeight": emulation.height,
+            "screenOrientation": [
+                "type": emulation.isLandscape ? "landscapePrimary" : "portraitPrimary", "angle": emulation.isLandscape ? 90 : 0,
+            ],
+        ]) { _ in }
     }
 
     /// Only this site's cookies, then the page loads again without them.

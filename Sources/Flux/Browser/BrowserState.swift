@@ -19,6 +19,8 @@ final class BrowserState {
     private static let devToolsWidthKey = "devToolsWidth"
     private static let devToolsOrderKey = "devToolsOrder"
     private static let devToolsShownKey = "devToolsShown"
+    private static let responsiveBackdropKey = "responsiveBackdrop"
+    private static let responsiveOptionsKey = "responsiveOptions"
     private static let archiveDelayKey = "archiveDelay"
     private static let linkTargetsOpenPeekKey = "linkTargetsOpenPeek"
     private static let shiftClickOpensPeekKey = "shiftClickOpensPeek"
@@ -537,6 +539,30 @@ final class BrowserState {
     var devToolsWidth: CGFloat {
         get { (try? appDatabase.setting(Self.devToolsWidthKey)).flatMap { Double($0) }.map { CGFloat($0) } ?? 480 }
         set { save { try appDatabase.setSetting(Self.devToolsWidthKey, to: String(Double(newValue))) } }
+    }
+
+    var responsiveBackdrop: ResponsiveBackdrop {
+        get {
+            _ = settingsRevision
+            return (try? appDatabase.setting(Self.responsiveBackdropKey)).flatMap(ResponsiveBackdrop.init) ?? .system
+        }
+        set {
+            save { try appDatabase.setSetting(Self.responsiveBackdropKey, to: newValue == .system ? nil : newValue.rawValue) }
+            settingsRevision += 1
+        }
+    }
+
+    /// What the responsive mode's toolbar shows beyond the size, from its options menu.
+    var responsiveOptions: Set<ResponsiveOption> {
+        get {
+            _ = settingsRevision
+            return (try? appDatabase.setting(Self.responsiveOptionsKey))
+                .flatMap { try? JSONDecoder().decode(Set<ResponsiveOption>.self, from: Data($0.utf8)) } ?? []
+        }
+        set {
+            save { try appDatabase.setSetting(Self.responsiveOptionsKey, to: String(data: try JSONEncoder().encode(newValue), encoding: .utf8)) }
+            settingsRevision += 1
+        }
     }
 
     var isDeveloperModeOnSelectedTab: Bool {

@@ -2,14 +2,14 @@ import Foundation
 
 /// A tool of Chromium's DevTools that the developer bar can open in one click.
 enum DevTool: String, CaseIterable, Identifiable, Codable {
-    case picker, elements, console, network, application, sources, performance, memory, security, lighthouse, recorder
+    case picker, responsive, elements, console, network, application, sources, performance, memory, security, lighthouse, recorder
 
     var id: Self { self }
 
     /// The panel's name in the DevTools frontend. The picker opens on Elements.
     var panel: String {
         switch self {
-        case .picker, .elements: "elements"
+        case .picker, .responsive, .elements: "elements"
         case .console: "console"
         case .network: "network"
         case .application: "resources"
@@ -25,6 +25,7 @@ enum DevTool: String, CaseIterable, Identifiable, Codable {
     var symbol: String {
         switch self {
         case .picker: "scope"
+        case .responsive: "ipad.and.iphone"
         case .elements: "chevron.left.forwardslash.chevron.right"
         case .console: "terminal"
         case .network: "network"
@@ -41,6 +42,7 @@ enum DevTool: String, CaseIterable, Identifiable, Codable {
     var name: String {
         switch self {
         case .picker: String(localized: "Select an Element")
+        case .responsive: String(localized: "Responsive")
         case .elements: String(localized: "Elements")
         case .console: String(localized: "Console")
         case .network: String(localized: "Network")
@@ -55,5 +57,5 @@ enum DevTool: String, CaseIterable, Identifiable, Codable {
     }
 
     /// Like Arc's developer mode.
-    static let standard: [DevTool] = [.picker, .console, .network]
+    static let standard: [DevTool] = [.picker, .responsive, .console, .network]
 }

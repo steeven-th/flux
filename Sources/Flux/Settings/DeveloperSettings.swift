@@ -43,9 +43,16 @@ struct DeveloperSettings: View {
                 state.devToolsOrder = DevTool.allCases
                 state.shownDevTools = Set(DevTool.standard)
             }
+            Divider()
+            Picker("Background in responsive mode:", selection: $state.responsiveBackdrop) {
+                ForEach(ResponsiveBackdrop.allCases, id: \.self) { backdrop in
+                    Text(backdrop.name).tag(backdrop)
+                }
+            }
+            .fixedSize()
         }
         .padding(20)
-        .frame(width: 560, height: 520)
+        .frame(width: 560, height: 570)
     }
 }
 
