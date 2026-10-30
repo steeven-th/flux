@@ -11,22 +11,22 @@
         }
       }
     },
+    "%@ runs a later Chromium than Flux: its history, passwords and sign-ins stay there for now." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ utilise un Chromium plus récent que Flux : son historique, ses mots de passe et ses connexions y restent pour l'instant."
+          }
+        }
+      }
+    },
     "%@ · %@ of %@" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ · %2$@ sur %3$@"
-          }
-        }
-      }
-    },
-    "%@'s spaces couldn't be read." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Les espaces de %@ n'ont pas pu être lus."
           }
         }
       }
@@ -1941,6 +1941,16 @@
         }
       }
     },
+    "Open System Settings" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir les Réglages Système"
+          }
+        }
+      }
+    },
     "Open Tab in Chrome Window" : {
       "localizations" : {
         "fr" : {
@@ -2927,6 +2937,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cette carte ne reviendra pas. Vos extensions sont dans Flux > Extensions."
+          }
+        }
+      }
+    },
+    "To import %@, allow Flux to read data from other apps in Privacy & Security, under Files & Folders." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pour importer %@, autorisez Flux à lire les données des autres apps dans Confidentialité et sécurité, rubrique Fichiers et dossiers."
           }
         }
       }

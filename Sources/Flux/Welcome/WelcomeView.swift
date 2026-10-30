@@ -98,6 +98,9 @@ private struct ImportStep: View {
             }
             .pickerStyle(.radioGroup)
             .labelsHidden()
+            if !model.waitingSources.isEmpty {
+                AppDataAccessHint(sources: model.waitingSources)
+            }
             if model.importSource?.hasToday == true {
                 Toggle("Also import Today's tabs", isOn: $model.importsToday)
                     .padding(.leading, 20)

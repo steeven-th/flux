@@ -100,8 +100,7 @@ private struct SpacesImportView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if failed {
-                Text("\(source.name)'s spaces couldn't be read.")
-                    .foregroundStyle(.red)
+                AppDataAccessHint(sources: [source])
             }
             List {
                 ForEach(spaces) { space in
@@ -136,6 +135,11 @@ private struct SpacesImportView: View {
                 }
             }
             .listStyle(.bordered(alternatesRowBackgrounds: false))
+            if !source.canTransferProfiles {
+                Text("\(source.name) runs a later Chromium than Flux: its history, passwords and sign-ins stay there for now.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             if source.hasToday {
                 Toggle("Also import Today's tabs", isOn: $includesToday)
             }
@@ -158,12 +162,19 @@ private struct SpacesImportView: View {
         }
         .padding(20)
         .frame(width: 520, height: 460)
-        .onAppear {
-            do {
-                spaces = try source.loadSpaces()
-                chosen = Set(spaces.map(\.id))
-            } catch {
-                failed = true
+        // macOS asks the user before Flux reads another app's data, and the first read fails:
+        // Flux reads again until it may.
+        .task {
+            while !Task.isCancelled {
+                do {
+                    spaces = try source.loadSpaces()
+                    chosen = Set(spaces.map(\.id))
+                    failed = false
+                    return
+                } catch {
+                    failed = true
+                    try? await Task.sleep(for: .seconds(1))
+                }
             }
         }
     }

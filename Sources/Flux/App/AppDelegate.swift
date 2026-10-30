@@ -98,9 +98,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let record = try BrowserState.createFirstSpace(
                     name: first.name, icon: first.icon, color: first.color ?? BrowserState.spaceColors[0], in: database
                 )
-                ProfileTransfer.transfer(
-                    from: first.profileFolder, to: AppPaths.profileFolder(named: record.profileFolder), keys: ProfileTransfer.keys(for: source)
-                )
+                if source.canTransferProfiles {
+                    ProfileTransfer.transfer(
+                        from: first.profileFolder, to: AppPaths.profileFolder(named: record.profileFolder), keys: ProfileTransfer.keys(for: source)
+                    )
+                }
             } else {
                 let name = choices.name.trimmingCharacters(in: .whitespacesAndNewlines)
                 _ = try BrowserState.createFirstSpace(

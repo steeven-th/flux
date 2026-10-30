@@ -1211,6 +1211,7 @@ final class BrowserState {
                 name: space.name, icon: space.icon, color: space.color ?? Self.spaceColors[0],
                 sharingProfileOf: spaceByProfile[space.profileFolder]
             ) { folder in
+                guard source.canTransferProfiles else { return }
                 ProfileTransfer.transfer(from: space.profileFolder, to: folder, keys: ProfileTransfer.keys(for: source))
             }
             if spaceByProfile[space.profileFolder] == nil {

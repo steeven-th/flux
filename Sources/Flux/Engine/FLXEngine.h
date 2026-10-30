@@ -14,6 +14,9 @@ NS_SWIFT_UI_ACTOR
 /// the keychain again every time. Builds without one use Chromium's fixed test key.
 @property (class, nonatomic, readonly) BOOL usesSystemKeychain;
 
+/// The major version of the Chromium Flux runs, which reads databases of that version or older.
+@property (class, nonatomic, readonly) NSInteger chromiumMajorVersion NS_SWIFT_NONISOLATED;
+
 /// Runs the AppKit event loop through Chromium. Returns once the engine has quit.
 + (void)runMessageLoop;
 

@@ -10,6 +10,7 @@
 
 #include "include/cef_app.h"
 #include "include/cef_client.h"
+#include "include/cef_version.h"
 #include "include/wrapper/cef_library_loader.h"
 
 namespace {
@@ -186,6 +187,10 @@ void FLXEngineBrowserClosed(CefRefPtr<CefBrowser> browser) {
 }
 
 @implementation FLXEngine
+
++ (NSInteger)chromiumMajorVersion {
+  return CHROME_VERSION_MAJOR;
+}
 
 + (BOOL)usesSystemKeychain {
   static BOOL uses = NO;

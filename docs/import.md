@@ -1,8 +1,12 @@
 # Importing from another browser
 
-Flux offers to import from Arc or Dia the first time it opens, when one of them is installed.
-Later imports go through File > Import from Another Browser. The other browser is only read,
-never changed.
+Flux offers to import from Arc, Dia, Chrome, Brave or Edge the first time it opens, when one of
+them is installed. Later imports go through File > Import from Another Browser. The other browser
+is only read, never changed.
+
+macOS asks before Flux reads another app's data, the first time. Once refused, it doesn't ask
+again: Flux then points to Privacy & Security, where the permission can be given back, and picks
+the browser up as soon as it is.
 
 ## What comes from Arc
 
@@ -28,11 +32,18 @@ tabs are Chromium bookmarks, which do.
   directly, and its name when the profile has Chromium's.
 - **Site icons**, as for Arc.
 
+## What comes from Chrome, Brave and Edge
+
+- **Profiles** become spaces, with their name and color.
+- **Bookmarks** become Flux's favorites, with their folders. Other bookmarks come as a folder.
+- Pinned and open tabs are in the sessions Chromium saves, which don't come.
+
 ## History, passwords and sign-ins
 
 For each new space, Flux also brings the profile's **history**, **saved passwords** and
-**cookies**, so you stay signed in to your sites. Arc, Dia and Flux run the same Chromium, so their
-databases are used as they are. Passwords and cookies are protected with a key the browser keeps
+**cookies**, so you stay signed in to your sites. These browsers run Chromium too, so their
+databases are used as they are, as long as their Chromium isn't more recent than Flux's: Flux
+couldn't open the databases of a later version, and then only brings bookmarks. Passwords and cookies are protected with a key the browser keeps
 in your keychain: macOS asks for your password once to let Flux read it, and Flux protects them
 again with its own key. This needs a build signed with a certificate (see
 [ADR 8](decisions/0008-system-keychain-when-signed.md)). Other builds only bring the history.
