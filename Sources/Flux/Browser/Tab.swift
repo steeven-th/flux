@@ -16,6 +16,11 @@ final class Tab: NSObject, Identifiable {
     private(set) var devTools: FLXBrowserView?
     /// What the responsive mode shows the page as, while it is on.
     private(set) var emulation: Emulation?
+    private(set) var translation: PageTranslation?
+    /// While translations are being put in the page.
+    private(set) var isTranslating = false
+    /// Detected when the page has loaded.
+    private(set) var pageLanguage: Locale.Language?
     /// The page's width breakpoints, read while the responsive mode shows them.
     private(set) var mediaQueries: [MediaQuery] = []
 
@@ -33,6 +38,11 @@ final class Tab: NSObject, Identifiable {
     @ObservationIgnored private var pendingDevToolsScript: String?
     @ObservationIgnored private var emulationScale: Double?
     @ObservationIgnored private var appliedEmulation: Emulation?
+    @ObservationIgnored private var menuItems: [PageMenuItem] = []
+
+    private enum PageMenuItem {
+        case translateSelection, translatePage, showOriginal
+    }
 
     /// `page` is a page already created, opened by another tab.
     init(node: SidebarNode, profile: FLXProfile, favicons: FaviconCache, page: FLXBrowserView? = nil) {
@@ -232,6 +242,71 @@ final class Tab: NSObject, Identifiable {
         ]) { _ in }
     }
 
+    /// The page's result, when it is a string. A page left while the script runs never answers,
+    /// so the wait ends after a few seconds.
+    func evaluate(_ script: String) async -> String? {
+        await withCheckedContinuation { continuation in
+            var isDone = false
+            let finish = { (value: String?) in
+                guard !isDone else { return }
+                isDone = true
+                continuation.resume(returning: value)
+            }
+            browserView.evaluateJavaScript(script) { value in finish(value as? String) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { finish(nil) }
+        }
+    }
+
+    var canTranslatePage: Bool {
+        PageTranslator.shared.isAvailable && translation == nil && !(pageLanguage.map { PageTranslator.sameLanguage($0, PageTranslator.targetLanguage) } ?? false)
+    }
+
+    func translatePage() {
+        let target = PageTranslator.targetLanguage
+        Task {
+            if pageLanguage == nil { await detectPageLanguage() }
+            guard let source = pageLanguage, !PageTranslator.sameLanguage(source, target) else { return }
+            translation = PageTranslation(source: source, target: target)
+            PageTranslator.shared.start(self)
+        }
+    }
+
+    func showOriginal() {
+        translation = nil
+        PageTranslator.shared.stop(self)
+        browserView.evaluateJavaScript(PageTranslationScript.restore) { _ in }
+    }
+
+    func setTranslating(_ isTranslating: Bool) {
+        self.isTranslating = isTranslating
+    }
+
+    func translationFailed(_ error: Error) {
+        translation = nil
+        isTranslating = false
+        guard let window = NSApp.windows.first(where: { $0 is MainWindow }) else { return }
+        Toast.show(error.localizedDescription, over: window)
+    }
+
+    private struct LanguageSample: Decodable {
+        let lang: String
+        let text: String
+    }
+
+    private func detectPageLanguage() async {
+        guard let json = await evaluate(PageTranslationScript.sample),
+              let sample = try? JSONDecoder().decode(LanguageSample.self, from: Data(json.utf8)) else { return }
+        pageLanguage = PageTranslator.language(ofText: sample.text, declared: sample.lang)
+        // Pages in the same language go on being translated, others are left as they are.
+        guard let translation else { return }
+        if let pageLanguage, !PageTranslator.sameLanguage(pageLanguage, translation.source) {
+            self.translation = nil
+            PageTranslator.shared.stop(self)
+        } else {
+            PageTranslator.shared.start(self)
+        }
+    }
+
     /// Only this site's cookies, then the page loads again without them.
     func clearCookiesAndReload() {
         guard let url = URL(string: url), let scheme = url.scheme, let host = url.host() else { return }
@@ -340,14 +415,33 @@ extension Tab: FLXBrowserViewDelegate {
     }
 
     func browserView(_ browserView: FLXBrowserView, contextMenuItemsForSelectedText selectedText: String) -> [String] {
-        selectedText.isEmpty ? [] : [String(localized: "Translate Selection")]
+        menuItems = selectedText.isEmpty ? [] : [.translateSelection]
+        if translation != nil {
+            menuItems.append(.showOriginal)
+        } else if canTranslatePage {
+            menuItems.append(.translatePage)
+        }
+        let language = Locale.current.localizedString(forLanguageCode: PageTranslator.targetLanguage.languageCode?.identifier ?? "") ?? ""
+        return menuItems.map { item in
+            switch item {
+            case .translateSelection: String(localized: "Translate Selection")
+            case .translatePage: String(localized: "Translate Page into \(language)")
+            case .showOriginal: String(localized: "Show Original")
+            }
+        }
     }
 
     func browserView(_ browserView: FLXBrowserView, didChooseContextMenuItemAt index: Int, selectedText: String, point: NSPoint) {
-        SelectionTranslation.show(selectedText, at: point)
+        guard menuItems.indices.contains(index) else { return }
+        switch menuItems[index] {
+        case .translateSelection: SelectionTranslation.show(selectedText, at: point)
+        case .translatePage: translatePage()
+        case .showOriginal: showOriginal()
+        }
     }
 
     func browserViewDidFinishLoading(_ browserView: FLXBrowserView) {
+        Task { await detectPageLanguage() }
         if emulation != nil { loadMediaQueries() }
         guard let y = scrollToRestore else { return }
         scrollToRestore = nil

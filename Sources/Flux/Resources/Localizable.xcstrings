@@ -241,6 +241,16 @@
         }
       }
     },
+    "API key" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clé d'API"
+          }
+        }
+      }
+    },
     "Application" : {
       "localizations" : {
         "fr" : {
@@ -1091,6 +1101,16 @@
         }
       }
     },
+    "Get a free key…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obtenir une clé gratuite…"
+          }
+        }
+      }
+    },
     "Get Started" : {
       "localizations" : {
         "fr" : {
@@ -1711,6 +1731,26 @@
         }
       }
     },
+    "Page Translation" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traduction des pages"
+          }
+        }
+      }
+    },
+    "Pages you translate are sent to %@. Selected text is translated by macOS." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les pages que vous traduisez sont envoyées à %@. Le texte sélectionné est traduit par macOS."
+          }
+        }
+      }
+    },
     "Password manager" : {
       "localizations" : {
         "fr" : {
@@ -2261,6 +2301,16 @@
         }
       }
     },
+    "Service" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Service"
+          }
+        }
+      }
+    },
     "Settings" : {
       "localizations" : {
         "fr" : {
@@ -2377,6 +2427,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Afficher ou masquer la barre latérale"
+          }
+        }
+      }
+    },
+    "Show Original" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher l'original"
           }
         }
       }
@@ -2551,6 +2611,16 @@
         }
       }
     },
+    "Test" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tester"
+          }
+        }
+      }
+    },
     "The capture failed" : {
       "localizations" : {
         "fr" : {
@@ -2591,6 +2661,26 @@
         }
       }
     },
+    "The translation key was refused" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La clé de traduction a été refusée"
+          }
+        }
+      }
+    },
+    "The translation quota for this month is reached" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le quota de traduction de ce mois est atteint"
+          }
+        }
+      }
+    },
     "Today" : {
       "localizations" : {
         "fr" : {
@@ -2621,12 +2711,52 @@
         }
       }
     },
+    "Translate Page into %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traduire la page en %@"
+          }
+        }
+      }
+    },
     "Translate Selection" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Traduire la sélection"
+          }
+        }
+      }
+    },
+    "Translated from %@ into %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traduction : %@ → %@"
+          }
+        }
+      }
+    },
+    "Translated Page" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Page traduite"
+          }
+        }
+      }
+    },
+    "Translation failed (error %lld)" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La traduction a échoué (erreur %lld)"
           }
         }
       }
@@ -2757,6 +2887,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Largeur :"
+          }
+        }
+      }
+    },
+    "Works. %@ of %@ characters used this month." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ça fonctionne. %@ caractères utilisés sur %@ ce mois-ci."
           }
         }
       }

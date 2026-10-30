@@ -24,6 +24,10 @@ struct AddressBar: View {
             .buttonStyle(.plain)
             .padding(.leading, 8)
 
+            if let tab = state.selectedTab {
+                TranslationButton(tab: tab)
+            }
+
             if let tab = state.selectedTab, isSidebarHovered || showsOptions {
                 ForEach(state.pinnedExtensionsInSelectedSpace) { item in
                     ExtensionButton(item: item, profile: state.selectedProfile, currentPage: { tab.browserView }, size: 16)

@@ -35,6 +35,7 @@ struct GeneralSettings: View {
                 Toggle("Warn before quitting", isOn: $warnsBeforeQuitting)
                 Toggle("Ask before closing a pinned tab or a favorite", isOn: $confirmsTabRemoval)
             }
+            TranslationSettings(state: state)
             Section {
                 LabeledContent("Each profile has its own search engine, passwords and browsing data.") {
                     Button("Profile Settings…", action: showProfiles)

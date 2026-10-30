@@ -21,6 +21,8 @@ final class BrowserState {
     private static let devToolsShownKey = "devToolsShown"
     private static let responsiveBackdropKey = "responsiveBackdrop"
     private static let responsiveOptionsKey = "responsiveOptions"
+    private static let translationProviderKey = "translationProvider"
+    private static let translatedCharactersKey = "translatedCharacters"
     private static let hiddenDevicesKey = "hiddenDevices"
     private static let customDevicesKey = "customDevices"
     private static let archiveDelayKey = "archiveDelay"
@@ -82,6 +84,8 @@ final class BrowserState {
         for record in records {
             try open(record)
         }
+        PageTranslator.shared.configure(translationProvider)
+        PageTranslator.shared.onCharactersSent = { [weak self] count in self?.recordTranslatedCharacters(count) }
     }
 
     static func createFirstSpace(name: String, icon: String?, color: String, in database: AppDatabase) throws -> SpaceRecord {
@@ -612,6 +616,35 @@ final class BrowserState {
     var emulatedDevices: [EmulatedDevice] {
         let hidden = hiddenDevices
         return EmulatedDevice.all.filter { !hidden.contains($0.id) } + customDevices
+    }
+
+    var translationProvider: TranslationProvider {
+        get {
+            _ = settingsRevision
+            return (try? appDatabase.setting(Self.translationProviderKey)).flatMap(TranslationProvider.init) ?? .deepL
+        }
+        set {
+            save { try appDatabase.setSetting(Self.translationProviderKey, to: newValue.rawValue) }
+            settingsRevision += 1
+            PageTranslator.shared.configure(newValue)
+        }
+    }
+
+    /// Characters sent for translation this month, for services that don't count them.
+    var translatedCharactersThisMonth: Int {
+        _ = settingsRevision
+        return (try? appDatabase.setting(Self.translatedCharactersKey(for: Date()))).flatMap { Int($0) } ?? 0
+    }
+
+    private func recordTranslatedCharacters(_ count: Int) {
+        let total = translatedCharactersThisMonth + count
+        save { try appDatabase.setSetting(Self.translatedCharactersKey(for: Date()), to: String(total)) }
+        settingsRevision += 1
+    }
+
+    private static func translatedCharactersKey(for date: Date) -> String {
+        let month = Calendar.current.dateComponents([.year, .month], from: date)
+        return "\(translatedCharactersKey) \(month.year ?? 0)-\(month.month ?? 0)"
     }
 
     var isDeveloperModeOnSelectedTab: Bool {

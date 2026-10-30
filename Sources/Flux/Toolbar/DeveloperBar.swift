@@ -61,6 +61,9 @@ struct DeveloperBar: View {
                 }
             }
             BarDivider()
+            if tab.translation != nil {
+                TranslationButton(tab: tab).modifier(BarHighlight())
+            }
             SplitMenuButton(state: state, tab: tab).modifier(BarHighlight())
             ToolButton(symbol: "sidebar.right", help: tab.devTools == nil ? "Show DevTools" : "Hide DevTools", isOn: tab.devTools != nil) {
                 if tab.devTools == nil {
@@ -104,6 +107,7 @@ struct PaneBar: View {
                 ForEach(state.pinnedExtensionsInSelectedSpace) { item in
                     ExtensionButton(item: item, profile: state.selectedProfile, currentPage: { tab.browserView }, size: 14)
                 }
+                TranslationButton(tab: tab)
                 SplitMenuButton(state: state, tab: tab)
                 PaneButton(symbol: "xmark", help: "Close") { state.closePane(tab) }
             }
