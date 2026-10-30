@@ -1,4 +1,5 @@
 #import <AppKit/AppKit.h>
+#import <QuartzCore/QuartzCore.h>
 
 @class FLXBrowserView;
 @class FLXProfile;
@@ -32,6 +33,10 @@ NS_SWIFT_UI_ACTOR
 - (void)browserView:(FLXBrowserView *)browserView
         didOpenPage:(FLXBrowserView *)page
         disposition:(FLXOpenDisposition)disposition;
+/// Sent when the page's DevTools open, in a view of their own that Flux shows next to the page.
+- (void)browserView:(FLXBrowserView *)browserView didOpenDevTools:(FLXBrowserView *)devTools;
+/// Sent when the page's DevTools have closed.
+- (void)browserViewDidCloseDevTools:(FLXBrowserView *)browserView;
 /// Sent when going back or forward becomes possible or not.
 - (void)browserViewDidChangeNavigationState:(FLXBrowserView *)browserView;
 /// Sent each time the page has finished loading.
@@ -56,6 +61,9 @@ NS_SWIFT_UI_ACTOR
 @property (nonatomic, weak, nullable) id<FLXBrowserViewDelegate> delegate;
 @property (nonatomic, readonly, strong) FLXProfile *profile;
 @property (nonatomic, readonly, copy) NSString *currentURL;
+/// The corners of the page that are rounded, all by default. Those against the developer bar or
+/// the DevTools stay square.
+@property (nonatomic) CACornerMask roundedCorners;
 /// Darkens the page, inside its own rounded corners, while something shows over it.
 @property (nonatomic, getter=isDimmed) BOOL dimmed;
 @property (nonatomic, readonly, copy) NSString *title;
@@ -68,6 +76,12 @@ NS_SWIFT_UI_ACTOR
 - (void)goForward;
 - (void)reload;
 - (void)reloadIgnoringCache;
+
+/// Opens Chromium's DevTools for the page, on the given panel ("console", "network"…) or the one
+/// they last showed.
+- (void)showDevToolsOnPanel:(nullable NSString *)panel;
+@property (nonatomic, readonly, weak, nullable) FLXBrowserView *devTools;
+- (void)closeDevTools;
 
 /// The page's certificate then the ones that issued it, DER encoded. Empty without https.
 @property (nonatomic, readonly) NSArray<NSData *> *certificateChain;

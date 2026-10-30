@@ -2,6 +2,9 @@
 #import "FLXEngine+Internal.h"
 #import "FLXProfile+Internal.h"
 
+#import <objc/message.h>
+#import <objc/runtime.h>
+
 #include "include/cef_parser.h"
 #include "include/cef_ssl_status.h"
 #include "include/cef_x509_certificate.h"
@@ -24,6 +27,8 @@
 - (void)detachBrowser;
 - (void)pageWindowCreated:(CefRefPtr<CefWindow>)window;
 - (void)pageWindowDestroyed;
+@property (nonatomic, weak) FLXBrowserView *inspectedPage;
+@property (nonatomic, readwrite, weak) FLXBrowserView *devTools;
 @end
 
 namespace {
@@ -86,6 +91,9 @@ class MethodResultObserver : public CefDevToolsMessageObserver {
   void (^completion_)(NSDictionary *);
   IMPLEMENT_REFCOUNTING(MethodResultObserver);
 };
+
+// DevTools asked for by a page, until Chromium creates their view like a popup's.
+FLXBrowserView *g_devtools_pending = nil;
 
 // Pages opened in a new tab, between the request and the creation of their view, by popup id.
 std::map<int, FLXBrowserView *> &PendingPages() {
@@ -358,6 +366,9 @@ class PageViewDelegate : public CefBrowserViewDelegate {
                                                                    const CefBrowserSettings &settings,
                                                                    CefRefPtr<CefClient> client,
                                                                    bool is_devtools) override {
+    if (is_devtools && g_devtools_pending && g_devtools_pending.cefClient.get() == client.get()) {
+      return new PageViewDelegate(g_devtools_pending);
+    }
     auto &pending = PendingPages();
     for (auto it = pending.begin(); it != pending.end(); ++it) {
       if (it->second.cefClient.get() != client.get()) continue;
@@ -376,6 +387,14 @@ class PageViewDelegate : public CefBrowserViewDelegate {
     FLXBrowserView *page = delegate ? delegate->opened_page_ : nil;
     if (!page) return false;
     CefWindow::CreateTopLevelWindow(new PageWindowDelegate(popup_browser_view, page));
+    if (is_devtools) {
+      g_devtools_pending = nil;
+      FLXBrowserView *inspected = page.inspectedPage;
+      inspected.devTools = page;
+      if ([inspected.delegate respondsToSelector:@selector(browserView:didOpenDevTools:)]) {
+        [inspected.delegate browserView:inspected didOpenDevTools:page];
+      }
+    }
     return true;
   }
 
@@ -384,14 +403,48 @@ class PageViewDelegate : public CefBrowserViewDelegate {
   IMPLEMENT_REFCOUNTING(PageViewDelegate);
 };
 
+// CEF gives its windows a frame of its own, rounded like a titled window's whatever their style.
+// Flux rounds pages itself, corner by corner, so a page meets the developer bar and its DevTools
+// with square corners. macOS decides that rounding through methods of the window and its frame
+// that aren't public, so their overrides are kept to this one place. Should they change, pages
+// keep macOS's corners.
+CACornerMask AllCorners() {
+  return kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner | kCALayerMinXMaxYCorner | kCALayerMaxXMaxYCorner;
+}
+
+void ReplaceMethod(Class cls, NSString *name, id block, const char *types) {
+  SEL selector = NSSelectorFromString(name);
+  if (![cls instancesRespondToSelector:selector]) return;
+  class_replaceMethod(cls, selector, imp_implementationWithBlock(block), types);
+}
+
+void RemoveSystemCorners(NSWindow *window) {
+  static NSMutableSet<Class> *done = [NSMutableSet set];
+  Class windowClass = window.class;
+  Class frameClass = window.contentView.superview.class;
+  if (![done containsObject:windowClass]) {
+    [done addObject:windowClass];
+    ReplaceMethod(windowClass, @"_cornerRadius", ^CGFloat(id) { return 0; }, "d@:");
+    ReplaceMethod(windowClass, @"_cornerMask", ^id(id) { return nil; }, "@@:");
+  }
+  if (frameClass && ![done containsObject:frameClass]) {
+    [done addObject:frameClass];
+    ReplaceMethod(frameClass, @"_cornerRadius", ^CGFloat(id) { return 0; }, "d@:");
+    ReplaceMethod(frameClass, @"_shouldRoundCornersForSurface", ^BOOL(id) { return NO; }, "B@:");
+    ReplaceMethod(frameClass, @"topCornerRounded", ^BOOL(id) { return NO; }, "B@:");
+    ReplaceMethod(frameClass, @"bottomCornerRounded", ^BOOL(id) { return NO; }, "B@:");
+  }
+  SEL changed = NSSelectorFromString(@"_cornerMaskChanged");
+  if ([window respondsToSelector:changed]) ((void (*)(id, SEL))objc_msgSend)(window, changed);
+}
+
 }  // namespace
 
-// macOS already rounds the page's window by about 17 points. A larger radius here is the only one
-// that shows, so the shadow drawn under the page can follow it exactly.
 const CGFloat FLXPageCornerRadius = 18;
 
 @implementation FLXBrowserView {
   NSView *_dimView;
+  CACornerMask _roundedCorners;
   CefRefPtr<BrowserClient> _client;
   CefRefPtr<CefBrowser> _browser;
   CefRefPtr<CefWindow> _pageWindow;
@@ -414,6 +467,7 @@ const CGFloat FLXPageCornerRadius = 18;
 - (instancetype)initOpenedByPageWithURL:(NSString *)url profile:(FLXProfile *)profile {
   self = [super initWithFrame:NSMakeRect(0, 0, 800, 600)];
   if (!self) return nil;
+  _roundedCorners = AllCorners();
   _profile = profile;
   _currentURL = [url copy];
   _title = @"";
@@ -424,6 +478,7 @@ const CGFloat FLXPageCornerRadius = 18;
 - (instancetype)initWithURL:(NSString *)url profile:(FLXProfile *)profile embedded:(BOOL)embedded {
   self = [super initWithFrame:NSMakeRect(0, 0, 800, 600)];
   if (!self) return nil;
+  _roundedCorners = AllCorners();
   _embedded = embedded;
   _profile = profile;
   _currentURL = [url copy];
@@ -515,14 +570,25 @@ const CGFloat FLXPageCornerRadius = 18;
   // page behind when Flux's window goes to another workspace. They leave alone windows that don't
   // present themselves as standard windows.
   _pageNSWindow.accessibilitySubrole = NSAccessibilityUnknownSubrole;
+  RemoveSystemCorners(_pageNSWindow);
   NSView *rootView = _pageNSWindow.contentView;
   rootView.wantsLayer = YES;
+  rootView.layer.maskedCorners = _roundedCorners;
   rootView.layer.cornerRadius = FLXPageCornerRadius;
   // Circular corners, which the shadow drawn under the page can follow exactly. Core Animation's
   // continuous corners don't match any path AppKit or SwiftUI draws.
   rootView.layer.cornerCurve = kCACornerCurveCircular;
   rootView.layer.masksToBounds = YES;
   [self updatePageWindow];
+}
+
+- (CACornerMask)roundedCorners {
+  return _roundedCorners;
+}
+
+- (void)setRoundedCorners:(CACornerMask)roundedCorners {
+  _roundedCorners = roundedCorners;
+  _pageNSWindow.contentView.layer.maskedCorners = roundedCorners;
 }
 
 - (void)setDimmed:(BOOL)dimmed {
@@ -549,6 +615,10 @@ const CGFloat FLXPageCornerRadius = 18;
   [_pageNSWindow.parentWindow removeChildWindow:_pageNSWindow];
   _pageWindow = nullptr;
   _pageNSWindow = nil;
+  FLXBrowserView *inspected = self.inspectedPage;
+  if ([inspected.delegate respondsToSelector:@selector(browserViewDidCloseDevTools:)]) {
+    [inspected.delegate browserViewDidCloseDevTools:inspected];
+  }
 }
 
 - (void)viewDidMoveToWindow {
@@ -684,6 +754,37 @@ const CGFloat FLXPageCornerRadius = 18;
   certificate->GetDEREncodedIssuerChain(issuers);
   for (auto &issuer : issuers) append(issuer);
   return chain;
+}
+
+- (void)showDevToolsOnPanel:(NSString *)panel {
+  if (!_browser || self.devTools) return;
+  // DevTools open on the panel they last showed, which Chrome keeps in the profile's preferences.
+  CefRefPtr<CefRequestContext> context = self.profile.requestContext;
+  if (context) {
+    CefRefPtr<CefValue> current = context->GetPreference("devtools.preferences");
+    CefRefPtr<CefDictionaryValue> preferences = current && current->GetType() == VTYPE_DICTIONARY
+        ? current->GetDictionary()->Copy(false)
+        : CefDictionaryValue::Create();
+    if (panel) {
+      preferences->SetString("panel-selected-tab", [NSString stringWithFormat:@"\"%@\"", panel].UTF8String);
+    }
+    // Chrome docks DevTools according to this, in ways that don't apply to Flux's own docking.
+    preferences->Remove("currentDockState");
+    CefRefPtr<CefValue> value = CefValue::Create();
+    value->SetDictionary(preferences);
+    CefString error;
+    context->SetPreference("devtools.preferences", value, error);
+  }
+  // With a client of their own, DevTools aren't taken for a window Chromium opened by itself, which
+  // Flux hides, and their view is found when Chromium creates it.
+  FLXBrowserView *devtools = [[FLXBrowserView alloc] initOpenedByPageWithURL:@"" profile:self.profile];
+  devtools.inspectedPage = self;
+  g_devtools_pending = devtools;
+  _browser->GetHost()->ShowDevTools(CefWindowInfo(), devtools.cefClient, CefBrowserSettings(), CefPoint());
+}
+
+- (void)closeDevTools {
+  if (_browser) _browser->GetHost()->CloseDevTools();
 }
 
 - (void)reloadIgnoringCache {

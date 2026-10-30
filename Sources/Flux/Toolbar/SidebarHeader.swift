@@ -21,6 +21,20 @@ struct SidebarHeader: View {
                 .disabled(tab?.canGoForward != true)
             HeaderButton(symbol: "arrow.clockwise", help: "Reload (⌘R)") { tab?.browserView.reload() }
                 .disabled(tab == nil)
+            if let tab, state.isDeveloperModeOnSelectedTab {
+                Menu {
+                    Button("Reload") { tab.browserView.reload() }
+                    Button("Reload Ignoring Cache") { tab.browserView.reloadIgnoringCache() }
+                    Divider()
+                    Button("Clear Cookies and Reload") { tab.clearCookiesAndReload() }
+                } label: {
+                    Image(systemName: "chevron.down")
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .frame(width: 18)
+                .help("More Ways to Reload")
+            }
         }
         .padding(.leading, Self.windowButtonsWidth)
         .frame(height: 30)

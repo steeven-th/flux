@@ -244,6 +244,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state?.selectedTab?.browserView.reload()
     }
 
+    @objc func reloadPageIgnoringCache(_ sender: Any?) {
+        state?.selectedTab?.browserView.reloadIgnoringCache()
+    }
+
     @objc func goBack(_ sender: Any?) {
         state?.selectedTab?.browserView.goBack()
     }

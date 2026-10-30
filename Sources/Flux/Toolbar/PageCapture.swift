@@ -41,6 +41,25 @@ enum PageCapture {
         }
     }
 
+    /// Lets the user pick an area of the tab's page, then captures it.
+    static func captureArea(of tab: Tab, state: BrowserState) {
+        let page = tab.browserView
+        AreaSelector.select(over: page) { area in
+            guard let area else { return }
+            capture(page, area: area) { finished($0, state: state) }
+        }
+    }
+
+    static func captureWholePage(of tab: Tab, state: BrowserState) {
+        captureWholePage(tab.browserView) { finished($0, state: state) }
+    }
+
+    private static func finished(_ url: URL?, state: BrowserState) {
+        guard let window = NSApp.windows.first(where: { $0 is MainWindow }) else { return }
+        Toast.show(url == nil ? String(localized: "The capture failed") : String(localized: "Capture copied and saved to Downloads"), over: window)
+        state.mediaLibrary.refresh()
+    }
+
     private static func save(_ data: Data) -> URL? {
         guard let folder = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first else { return nil }
         let date = Date().formatted(.verbatim(

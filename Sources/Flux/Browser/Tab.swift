@@ -12,6 +12,8 @@ final class Tab: NSObject, Identifiable {
     private(set) var isLoaded = false
     private(set) var canGoBack = false
     private(set) var canGoForward = false
+    /// The page's DevTools while open, shown next to it.
+    private(set) var devTools: FLXBrowserView?
 
     /// The stored form of the tab, kept in step with the properties above.
     @ObservationIgnored private(set) var node: SidebarNode
@@ -24,6 +26,7 @@ final class Tab: NSObject, Identifiable {
     @ObservationIgnored private var loadedView: FLXBrowserView?
     /// Where the page was scrolled before Flux quit or the tab was unloaded, until it has loaded.
     @ObservationIgnored private var scrollToRestore: Double?
+    @ObservationIgnored private var pendingDevToolsScript: String?
 
     /// `page` is a page already created, opened by another tab.
     init(node: SidebarNode, profile: FLXProfile, favicons: FaviconCache, page: FLXBrowserView? = nil) {
@@ -78,6 +81,44 @@ final class Tab: NSObject, Identifiable {
     func load(_ url: String) {
         browserView.loadURL(url)
         update(url: url)
+    }
+
+    /// Shows a tool of the page's DevTools, opening them on it if they are closed. DevTools are
+    /// driven through InspectorFrontendAPI, the interface Chrome itself uses to drive them.
+    func show(_ tool: DevTool) {
+        let script = tool == .picker
+            ? "InspectorFrontendAPI.showPanel('elements'); InspectorFrontendAPI.enterInspectElementMode(); true"
+            : "InspectorFrontendAPI.showPanel('\(tool.panel)'); true"
+        if let devTools {
+            devTools.evaluateJavaScript(script) { _ in }
+        } else {
+            pendingDevToolsScript = tool == .picker ? script : nil
+            browserView.showDevTools(onPanel: tool.panel)
+        }
+    }
+
+    /// The frontend takes a moment to load after DevTools open, so the script is tried until it runs.
+    private func runPendingDevToolsScript(on devTools: FLXBrowserView, attempts: Int = 20) {
+        guard let script = pendingDevToolsScript, attempts > 0 else { return }
+        devTools.evaluateJavaScript("typeof InspectorFrontendAPI === 'undefined' ? false : (\(script))") { [weak self] value in
+            if value as? Bool == true {
+                self?.pendingDevToolsScript = nil
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    self?.runPendingDevToolsScript(on: devTools, attempts: attempts - 1)
+                }
+            }
+        }
+    }
+
+    /// Only this site's cookies, then the page loads again without them.
+    func clearCookiesAndReload() {
+        guard let url = URL(string: url), let scheme = url.scheme, let host = url.host() else { return }
+        let origin = url.port.map { "\(scheme)://\(host):\($0)" } ?? "\(scheme)://\(host)"
+        let page = browserView
+        page.sendDevToolsMethod("Storage.clearDataForOrigin", params: ["origin": origin, "storageTypes": "cookies"]) { _ in
+            page.reload()
+        }
     }
 
     func goBackToOriginalURL() {
@@ -157,6 +198,15 @@ extension Tab: FLXBrowserViewDelegate {
 
     func browserView(_ browserView: FLXBrowserView, didOpenPage page: FLXBrowserView, disposition: FLXOpenDisposition) {
         onOpenPage?(self, page, disposition)
+    }
+
+    func browserView(_ browserView: FLXBrowserView, didOpenDevTools devTools: FLXBrowserView) {
+        self.devTools = devTools
+        runPendingDevToolsScript(on: devTools)
+    }
+
+    func browserViewDidCloseDevTools(_ browserView: FLXBrowserView) {
+        devTools = nil
     }
 
     func browserViewDidChangeNavigationState(_ browserView: FLXBrowserView) {

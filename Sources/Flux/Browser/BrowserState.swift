@@ -16,6 +16,9 @@ final class BrowserState {
     private static let asksWhereToSaveKey = "asksWhereToSaveDownloads"
     private static let unpinnedExtensionsKey = "unpinnedExtensions"
     private static let developerSitesKey = "developerSites"
+    private static let devToolsWidthKey = "devToolsWidth"
+    private static let devToolsOrderKey = "devToolsOrder"
+    private static let devToolsShownKey = "devToolsShown"
     private static let archiveDelayKey = "archiveDelay"
     private static let linkTargetsOpenPeekKey = "linkTargetsOpenPeek"
     private static let shiftClickOpensPeekKey = "shiftClickOpensPeek"
@@ -497,6 +500,47 @@ final class BrowserState {
         _ = settingsRevision
         guard let host = URL(string: url)?.host() else { return false }
         return loadSet(key: Self.developerSitesKey, profile: selectedSpace.profileFolder).contains(host)
+    }
+
+    /// Every tool, in the order the user chose. Tools added to Flux later come at the end.
+    var devToolsOrder: [DevTool] {
+        get {
+            _ = settingsRevision
+            let saved = (try? appDatabase.setting(Self.devToolsOrderKey))
+                .flatMap { try? JSONDecoder().decode([DevTool].self, from: Data($0.utf8)) } ?? DevTool.allCases
+            return saved + DevTool.allCases.filter { !saved.contains($0) }
+        }
+        set {
+            save { try appDatabase.setSetting(Self.devToolsOrderKey, to: String(data: try JSONEncoder().encode(newValue), encoding: .utf8)) }
+            settingsRevision += 1
+        }
+    }
+
+    var shownDevTools: Set<DevTool> {
+        get {
+            _ = settingsRevision
+            return (try? appDatabase.setting(Self.devToolsShownKey))
+                .flatMap { try? JSONDecoder().decode(Set<DevTool>.self, from: Data($0.utf8)) } ?? Set(DevTool.standard)
+        }
+        set {
+            save { try appDatabase.setSetting(Self.devToolsShownKey, to: String(data: try JSONEncoder().encode(newValue), encoding: .utf8)) }
+            settingsRevision += 1
+        }
+    }
+
+    /// The tools of the developer bar, in order.
+    var devToolsInBar: [DevTool] {
+        let shown = shownDevTools
+        return devToolsOrder.filter { shown.contains($0) }
+    }
+
+    var devToolsWidth: CGFloat {
+        get { (try? appDatabase.setting(Self.devToolsWidthKey)).flatMap { Double($0) }.map { CGFloat($0) } ?? 480 }
+        set { save { try appDatabase.setSetting(Self.devToolsWidthKey, to: String(Double(newValue))) } }
+    }
+
+    var isDeveloperModeOnSelectedTab: Bool {
+        selectedTab.map { isDeveloperMode(for: $0.url) } ?? false
     }
 
     func setDeveloperMode(_ isOn: Bool, for url: String) {

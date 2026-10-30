@@ -111,22 +111,12 @@ struct PageOptions: View {
 
     private func captureArea() {
         dismiss()
-        let page = tab.browserView
-        AreaSelector.select(over: page) { area in
-            guard let area else { return }
-            PageCapture.capture(page, area: area, completion: captured)
-        }
+        PageCapture.captureArea(of: tab, state: state)
     }
 
     private func captureWholePage() {
         dismiss()
-        PageCapture.captureWholePage(tab.browserView, completion: captured)
-    }
-
-    private func captured(_ url: URL?) {
-        guard let window = NSApp.windows.first(where: { $0 is MainWindow }) else { return }
-        Toast.show(url == nil ? String(localized: "The capture failed") : String(localized: "Capture copied and saved to Downloads"), over: window)
-        state.mediaLibrary.refresh()
+        PageCapture.captureWholePage(of: tab, state: state)
     }
 }
 

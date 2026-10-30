@@ -181,6 +181,16 @@
         }
       }
     },
+    "Application" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Application"
+          }
+        }
+      }
+    },
     "Archive" : {
       "localizations" : {
         "fr" : {
@@ -291,6 +301,16 @@
         }
       }
     },
+    "Choose the tools of the developer bar, shown on sites in developer mode. Drag them to change their order." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez les outils de la barre de développement, affichée sur les sites en mode développeur. Faites-les glisser pour changer leur ordre."
+          }
+        }
+      }
+    },
     "Choose your language" : {
       "localizations" : {
         "fr" : {
@@ -361,6 +381,16 @@
         }
       }
     },
+    "Clear Cookies and Reload" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacer les cookies et recharger"
+          }
+        }
+      }
+    },
     "Clear the archive of this space?" : {
       "localizations" : {
         "fr" : {
@@ -417,6 +447,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fermer « %@ » ?"
+          }
+        }
+      }
+    },
+    "Console" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Console"
           }
         }
       }
@@ -551,6 +591,16 @@
         }
       }
     },
+    "Developer" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Développeur"
+          }
+        }
+      }
+    },
     "Developer Mode" : {
       "localizations" : {
         "fr" : {
@@ -627,6 +677,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Modifier l'espace…"
+          }
+        }
+      }
+    },
+    "Elements" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Éléments"
           }
         }
       }
@@ -791,6 +851,16 @@
         }
       }
     },
+    "Hide DevTools" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masquer les DevTools"
+          }
+        }
+      }
+    },
     "Hide from Flux" : {
       "localizations" : {
         "fr" : {
@@ -921,6 +991,26 @@
         }
       }
     },
+    "Memory" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mémoire"
+          }
+        }
+      }
+    },
+    "More Ways to Reload" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autres façons de recharger"
+          }
+        }
+      }
+    },
     "Move this page to the space's Today" : {
       "localizations" : {
         "fr" : {
@@ -967,6 +1057,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nom"
+          }
+        }
+      }
+    },
+    "Network" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réseau"
           }
         }
       }
@@ -1067,6 +1167,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aucune capture d'écran ni image dans Téléchargements"
+          }
+        }
+      }
+    },
+    "No tools" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun outil"
           }
         }
       }
@@ -1271,6 +1381,16 @@
         }
       }
     },
+    "Performance" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Performances"
+          }
+        }
+      }
+    },
     "Personal" : {
       "localizations" : {
         "fr" : {
@@ -1391,6 +1511,16 @@
         }
       }
     },
+    "Recorder" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistreur"
+          }
+        }
+      }
+    },
     "Redo" : {
       "localizations" : {
         "fr" : {
@@ -1421,12 +1551,32 @@
         }
       }
     },
+    "Reload" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recharger"
+          }
+        }
+      }
+    },
     "Reload (⌘R)" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Recharger (⌘R)"
+          }
+        }
+      }
+    },
+    "Reload Ignoring Cache" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recharger sans le cache"
           }
         }
       }
@@ -1467,6 +1617,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Renommer le dossier"
+          }
+        }
+      }
+    },
+    "Restore Defaults" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rétablir les valeurs par défaut"
           }
         }
       }
@@ -1611,12 +1771,32 @@
         }
       }
     },
+    "Security" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sécurité"
+          }
+        }
+      }
+    },
     "Select All" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tout sélectionner"
+          }
+        }
+      }
+    },
+    "Select an Element" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sélectionner un élément"
           }
         }
       }
@@ -1681,6 +1861,16 @@
         }
       }
     },
+    "Show DevTools" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les DevTools"
+          }
+        }
+      }
+    },
     "Show Downloads" : {
       "localizations" : {
         "fr" : {
@@ -1737,6 +1927,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Réglages du site"
+          }
+        }
+      }
+    },
+    "Sources" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sources"
           }
         }
       }
@@ -1827,6 +2027,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La capture a échoué"
+          }
+        }
+      }
+    },
+    "The developer bar" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La barre de développement"
           }
         }
       }

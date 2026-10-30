@@ -21,6 +21,18 @@ final class MainWindowController: NSWindowController {
     }()
     private let pageContainer = NSView()
     private let pageShadow = PageShadowView()
+    private lazy var developerBar: NSView = {
+        let view = NSHostingView(rootView: DeveloperBar(state: state))
+        view.safeAreaRegions = []
+        return view
+    }()
+    private var pageTop: NSLayoutConstraint!
+    private let devToolsContainer = NSView()
+    /// Fills the point between the page and its DevTools, which are two windows.
+    private let devToolsLine = NSBox()
+    private var devToolsWidth: NSLayoutConstraint!
+    private var devToolsGap: NSLayoutConstraint!
+    private lazy var devToolsHandle = DevToolsResizeHandle { [weak self] delta in self?.resizeDevTools(by: delta) }
     private let resizeHandle = SidebarResizeHandle()
     private let revealEdge = SidebarRevealEdge()
     private var overlay: SidebarOverlayWindow?
@@ -48,17 +60,30 @@ final class MainWindowController: NSWindowController {
         super.init(window: window)
 
         let background = NSHostingView(rootView: SpaceBackground(state: state))
-        for view in [background, pageShadow, pageContainer, resizeHandle, revealEdge] as [NSView] {
+        for view in [background, pageShadow, devToolsContainer, developerBar, devToolsLine, pageContainer, resizeHandle, revealEdge] as [NSView] {
             view.translatesAutoresizingMaskIntoConstraints = false
+        }
+        devToolsLine.boxType = .custom
+        devToolsLine.borderWidth = 0
+        devToolsLine.fillColor = NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(white: 0.25, alpha: 1)
+                : NSColor(white: 0.82, alpha: 1)
         }
         content.addSubview(background)
         content.addSubview(pageShadow)
+        content.addSubview(devToolsContainer)
+        content.addSubview(developerBar)
+        content.addSubview(devToolsLine)
         content.addSubview(pageContainer)
         content.addSubview(resizeHandle)
         content.addSubview(revealEdge)
         window.contentView = content
 
         pageLeading = pageContainer.leadingAnchor.constraint(equalTo: content.leadingAnchor)
+        pageTop = pageContainer.topAnchor.constraint(equalTo: content.topAnchor, constant: Self.pageMargin)
+        devToolsWidth = devToolsContainer.widthAnchor.constraint(equalToConstant: 0)
+        devToolsGap = devToolsContainer.leadingAnchor.constraint(equalTo: pageContainer.trailingAnchor)
         handleLeading = resizeHandle.leadingAnchor.constraint(equalTo: content.leadingAnchor)
         NSLayoutConstraint.activate([
             background.leadingAnchor.constraint(equalTo: content.leadingAnchor),
@@ -67,12 +92,25 @@ final class MainWindowController: NSWindowController {
             background.bottomAnchor.constraint(equalTo: content.bottomAnchor),
             // The page sits in its own window above this one, so the title bar doesn't cover it.
             pageLeading,
-            pageContainer.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -Self.pageMargin),
-            pageContainer.topAnchor.constraint(equalTo: content.topAnchor, constant: Self.pageMargin),
+            // The page and its DevTools make one card, under the developer bar when it shows.
+            devToolsGap,
+            devToolsWidth,
+            devToolsLine.leadingAnchor.constraint(equalTo: pageContainer.trailingAnchor),
+            devToolsLine.trailingAnchor.constraint(equalTo: devToolsContainer.leadingAnchor),
+            devToolsLine.topAnchor.constraint(equalTo: pageContainer.topAnchor),
+            devToolsLine.bottomAnchor.constraint(equalTo: pageContainer.bottomAnchor),
+            devToolsContainer.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -Self.pageMargin),
+            devToolsContainer.topAnchor.constraint(equalTo: pageContainer.topAnchor),
+            devToolsContainer.bottomAnchor.constraint(equalTo: pageContainer.bottomAnchor),
+            pageTop,
+            developerBar.leadingAnchor.constraint(equalTo: pageContainer.leadingAnchor),
+            developerBar.trailingAnchor.constraint(equalTo: devToolsContainer.trailingAnchor),
+            developerBar.topAnchor.constraint(equalTo: content.topAnchor, constant: Self.pageMargin),
+            developerBar.heightAnchor.constraint(equalToConstant: DeveloperBar.height + FLXPageCornerRadius),
             pageContainer.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -Self.pageMargin),
             pageShadow.leadingAnchor.constraint(equalTo: pageContainer.leadingAnchor, constant: -PageShadowView.outset),
-            pageShadow.trailingAnchor.constraint(equalTo: pageContainer.trailingAnchor, constant: PageShadowView.outset),
-            pageShadow.topAnchor.constraint(equalTo: pageContainer.topAnchor, constant: -PageShadowView.outset),
+            pageShadow.trailingAnchor.constraint(equalTo: devToolsContainer.trailingAnchor, constant: PageShadowView.outset),
+            pageShadow.topAnchor.constraint(equalTo: developerBar.topAnchor, constant: -PageShadowView.outset),
             pageShadow.bottomAnchor.constraint(equalTo: pageContainer.bottomAnchor, constant: PageShadowView.outset),
             handleLeading,
             resizeHandle.widthAnchor.constraint(equalToConstant: Self.resizeHandleWidth),
@@ -96,6 +134,7 @@ final class MainWindowController: NSWindowController {
                 guard let self else { return }
                 self.overlay?.updateFrame(self.overlayFrame)
                 self.peekPresenter?.updateFrame(self.pageArea)
+                self.placeDevToolsHandle()
             }
         }
         peekPresenter = PeekPresenter(host: window, state: state)
@@ -114,6 +153,8 @@ final class MainWindowController: NSWindowController {
         showSelectedTab()
         observeSelectedTab()
         observePeek()
+        observeDeveloperMode()
+        observeDevTools()
     }
 
     @available(*, unavailable)
@@ -227,6 +268,77 @@ final class MainWindowController: NSWindowController {
         return window.convertToScreen(pageContainer.convert(pageContainer.bounds, to: nil))
     }
 
+    /// The selected tab's DevTools sit at the right of its page, which gets narrower.
+    private func observeDevTools() {
+        let devTools = withObservationTracking {
+            state.selectedTab?.devTools
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeDevTools() }
+        }
+        devToolsContainer.subviews.filter { $0 !== devTools }.forEach { $0.removeFromSuperview() }
+        devToolsContainer.isHidden = devTools == nil
+        devToolsLine.isHidden = devTools == nil
+        devToolsWidth.constant = devTools == nil ? 0 : state.devToolsWidth
+        devToolsGap.constant = devTools == nil ? 0 : 1
+        content.layoutSubtreeIfNeeded()
+        if let devTools, devTools.superview !== devToolsContainer {
+            devTools.frame = devToolsContainer.bounds
+            devTools.autoresizingMask = [.width, .height]
+            devToolsContainer.addSubview(devTools)
+        }
+        placeDevToolsHandle()
+        roundCorners()
+    }
+
+    /// Only the outer corners of the card are rounded: the page and its DevTools meet the developer
+    /// bar and each other with square ones.
+    private func roundCorners() {
+        let top: CACornerMask = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
+        let all: CACornerMask = [.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMinXMaxYCorner, .layerMaxXMaxYCorner]
+        var page = all
+        var devToolsCorners: CACornerMask = [.layerMaxXMinYCorner, .layerMaxXMaxYCorner]
+        if !developerBar.isHidden {
+            page.subtract(top)
+            devToolsCorners.subtract(top)
+        }
+        let devTools = state.selectedTab?.devTools
+        if devTools != nil { page.subtract([.layerMaxXMinYCorner, .layerMaxXMaxYCorner]) }
+        state.selectedTab?.browserView.roundedCorners = page
+        devTools?.roundedCorners = devToolsCorners
+    }
+
+    /// The handle is a window of its own, over the line between the page and its DevTools, since
+    /// both are windows too.
+    private func placeDevToolsHandle() {
+        guard let window, !devToolsContainer.isHidden else { return devToolsHandle.hide() }
+        let line = devToolsContainer.convert(devToolsContainer.bounds, to: nil)
+        let frame = window.convertToScreen(NSRect(x: line.minX - 4, y: line.minY, width: 8, height: line.height))
+        devToolsHandle.show(frame: frame, over: window)
+    }
+
+    private func resizeDevTools(by delta: CGFloat) {
+        let available = pageContainer.frame.width + devToolsContainer.frame.width
+        let width = min(max(devToolsWidth.constant - delta, 280), available - 320)
+        devToolsWidth.constant = width
+        state.devToolsWidth = width
+        content.layoutSubtreeIfNeeded()
+        placeDevToolsHandle()
+    }
+
+    /// The page makes room for the developer bar while its site is in developer mode.
+    private func observeDeveloperMode() {
+        let isOn = withObservationTracking {
+            state.isDeveloperModeOnSelectedTab
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeDeveloperMode() }
+        }
+        developerBar.isHidden = !isOn
+        pageTop.constant = Self.pageMargin + (isOn ? DeveloperBar.height : 0)
+        content.layoutSubtreeIfNeeded()
+        placeDevToolsHandle()
+        roundCorners()
+    }
+
     private func observePeek() {
         withObservationTracking {
             _ = state.peek
@@ -252,6 +364,11 @@ final class MainWindowController: NSWindowController {
         pageShadow.isHidden = selected == nil
         for view in pageContainer.subviews where view !== selected {
             view.removeFromSuperview()
+        }
+        // Page windows added since go above the handle.
+        defer {
+            placeDevToolsHandle()
+            roundCorners()
         }
         guard let selected, selected.superview !== pageContainer else { return }
         selected.frame = pageContainer.bounds
