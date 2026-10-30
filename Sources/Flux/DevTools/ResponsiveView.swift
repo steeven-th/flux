@@ -84,15 +84,21 @@ private struct DeviceToolbar: View {
         HStack(spacing: 10) {
             Menu {
                 Toggle("Responsive", isOn: Binding(get: { emulation.device == nil }, set: { _ in tab.emulate(nil) }))
+                let devices = state.emulatedDevices
                 ForEach(EmulatedDevice.Category.allCases, id: \.self) { category in
-                    Section(category.name) {
-                        ForEach(EmulatedDevice.all.filter { $0.category == category }) { device in
-                            Toggle(isOn: Binding(get: { emulation.device?.id == device.id }, set: { _ in tab.emulate(device) })) {
-                                Text(verbatim: device.name)
+                    let inCategory = devices.filter { $0.category == category }
+                    if !inCategory.isEmpty {
+                        Section(category.name) {
+                            ForEach(inCategory) { device in
+                                Toggle(isOn: Binding(get: { emulation.device?.id == device.id }, set: { _ in tab.emulate(device) })) {
+                                    Text(verbatim: device.name)
+                                }
                             }
                         }
                     }
                 }
+                Divider()
+                Button("Edit…") { SettingsWindowController.showDevices(state: state) }
             } label: {
                 Text(verbatim: emulation.device?.name ?? String(localized: "Responsive"))
             }

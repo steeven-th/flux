@@ -141,6 +141,16 @@
         }
       }
     },
+    "Add a Device…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter un appareil…"
+          }
+        }
+      }
+    },
     "Add Extensions from the Chrome Web Store" : {
       "localizations" : {
         "fr" : {
@@ -327,6 +337,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Capturer toute la page"
+          }
+        }
+      }
+    },
+    "Choose the devices listed in responsive mode, or add your own." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisissez les appareils proposés en mode responsive, ou ajoutez les vôtres."
           }
         }
       }
@@ -551,6 +571,16 @@
         }
       }
     },
+    "Custom" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personnalisés"
+          }
+        }
+      }
+    },
     "Custom…" : {
       "localizations" : {
         "fr" : {
@@ -587,6 +617,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Débogage"
+          }
+        }
+      }
+    },
+    "Default" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par défaut"
           }
         }
       }
@@ -681,6 +721,26 @@
         }
       }
     },
+    "Device pixel ratio:" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Densité de pixels :"
+          }
+        }
+      }
+    },
+    "Devices" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appareils"
+          }
+        }
+      }
+    },
     "Don't ask again" : {
       "localizations" : {
         "fr" : {
@@ -757,6 +817,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Modifier l'espace…"
+          }
+        }
+      }
+    },
+    "Edit…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifier…"
           }
         }
       }
@@ -961,6 +1031,16 @@
         }
       }
     },
+    "Height:" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hauteur :"
+          }
+        }
+      }
+    },
     "Hide DevTools" : {
       "localizations" : {
         "fr" : {
@@ -1141,6 +1221,16 @@
         }
       }
     },
+    "Mobile, with touch" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mobile, tactile"
+          }
+        }
+      }
+    },
     "More Ways to Reload" : {
       "localizations" : {
         "fr" : {
@@ -1197,6 +1287,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nom"
+          }
+        }
+      }
+    },
+    "Name:" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom :"
           }
         }
       }
@@ -1747,6 +1847,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Recharger la page"
+          }
+        }
+      }
+    },
+    "Remove" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer"
           }
         }
       }
@@ -2331,6 +2441,16 @@
         }
       }
     },
+    "Tools" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outils"
+          }
+        }
+      }
+    },
     "Turn Off Chromium's" : {
       "localizations" : {
         "fr" : {
@@ -2401,6 +2521,16 @@
         }
       }
     },
+    "User agent:" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "User agent :"
+          }
+        }
+      }
+    },
     "View" : {
       "localizations" : {
         "fr" : {
@@ -2437,6 +2567,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Quel gestionnaire de mots de passe utilisez-vous ? Si ce n'est pas celui de Chromium, sa page sur le Chrome Web Store s'ouvrira à la fin pour que vous puissiez l'ajouter."
+          }
+        }
+      }
+    },
+    "Width:" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Largeur :"
           }
         }
       }

@@ -7,12 +7,23 @@ final class SettingsWindowController: NSWindowController {
     private static var shared: SettingsWindowController?
 
     private let tabs = NSTabViewController()
+    private let developerSection = DeveloperSettings.Model()
 
     static func show(state: BrowserState) {
         let controller = shared ?? SettingsWindowController(state: state)
         shared = controller
         controller.showWindow(nil)
         NSApp.activate()
+    }
+
+    /// The developer pane, on the devices the responsive mode offers.
+    static func showDevices(state: BrowserState) {
+        show(state: state)
+        guard let controller = shared else { return }
+        controller.developerSection.section = .devices
+        controller.tabs.selectedTabViewItemIndex = controller.tabs.tabViewItems.count - 1
+        // Selecting a pane in code doesn't retitle the window the way a click does.
+        controller.window?.title = controller.tabs.tabViewItems.last?.label ?? ""
     }
 
     private init(state: BrowserState) {
@@ -28,7 +39,7 @@ final class SettingsWindowController: NSWindowController {
         }))
         tabs.addTabViewItem(Self.item("Profiles", symbol: "person.crop.circle", ProfileSettings(state: state)))
         tabs.addTabViewItem(Self.item("Links", symbol: "rectangle.on.rectangle", LinkSettings(state: state)))
-        tabs.addTabViewItem(Self.item("Developer", symbol: "hammer", DeveloperSettings(state: state)))
+        tabs.addTabViewItem(Self.item("Developer", symbol: "hammer", DeveloperSettings(state: state, model: developerSection)))
         window.center()
     }
 

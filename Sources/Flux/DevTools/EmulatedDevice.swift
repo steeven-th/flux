@@ -2,9 +2,9 @@ import Foundation
 
 /// A device the responsive mode can show a page as: its screen, its pixel density, and what it
 /// says it is to websites.
-struct EmulatedDevice: Identifiable, Hashable {
-    enum Category: CaseIterable {
-        case mobile, foldable, tablet, display
+struct EmulatedDevice: Identifiable, Hashable, Codable {
+    enum Category: String, CaseIterable, Codable {
+        case mobile, foldable, tablet, display, custom
 
         var name: String {
             switch self {
@@ -12,18 +12,24 @@ struct EmulatedDevice: Identifiable, Hashable {
             case .foldable: String(localized: "Foldables")
             case .tablet: String(localized: "Tablets and Computers")
             case .display: String(localized: "Smart Displays")
+            case .custom: String(localized: "Custom")
             }
         }
     }
 
-    let id: String
-    let name: String
-    let category: Category
-    let width: Int
-    let height: Int
-    let scale: Double
-    let isMobile: Bool
-    let userAgent: String?
+    var id: String
+    var name: String
+    var category: Category
+    var width: Int
+    var height: Int
+    var scale: Double
+    var isMobile: Bool
+    /// Nil for the browser's own, or a generic mobile one when the device is mobile.
+    var userAgent: String?
+
+    static func custom() -> EmulatedDevice {
+        EmulatedDevice(id: UUID().uuidString, name: "", category: .custom, width: 400, height: 800, scale: 2, isMobile: true, userAgent: nil)
+    }
 
     private static let iOS = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
     private static let iPadOS = "Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
@@ -133,7 +139,7 @@ struct Emulation: Equatable {
 
     /// A device's own user agent, or a generic one for Responsive set to mobile.
     var userAgent: String? {
-        if let device { return device.userAgent }
+        if let device { return device.userAgent ?? (device.isMobile ? EmulatedDevice.genericMobileUserAgent : nil) }
         return type.isMobile ? EmulatedDevice.genericMobileUserAgent : nil
     }
 

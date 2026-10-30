@@ -21,6 +21,8 @@ final class BrowserState {
     private static let devToolsShownKey = "devToolsShown"
     private static let responsiveBackdropKey = "responsiveBackdrop"
     private static let responsiveOptionsKey = "responsiveOptions"
+    private static let hiddenDevicesKey = "hiddenDevices"
+    private static let customDevicesKey = "customDevices"
     private static let archiveDelayKey = "archiveDelay"
     private static let linkTargetsOpenPeekKey = "linkTargetsOpenPeek"
     private static let shiftClickOpensPeekKey = "shiftClickOpensPeek"
@@ -563,6 +565,37 @@ final class BrowserState {
             save { try appDatabase.setSetting(Self.responsiveOptionsKey, to: String(data: try JSONEncoder().encode(newValue), encoding: .utf8)) }
             settingsRevision += 1
         }
+    }
+
+    /// Built-in devices the user unchecked, by id.
+    var hiddenDevices: Set<String> {
+        get {
+            _ = settingsRevision
+            return (try? appDatabase.setting(Self.hiddenDevicesKey))
+                .flatMap { try? JSONDecoder().decode(Set<String>.self, from: Data($0.utf8)) } ?? []
+        }
+        set {
+            save { try appDatabase.setSetting(Self.hiddenDevicesKey, to: newValue.isEmpty ? nil : String(data: try JSONEncoder().encode(newValue), encoding: .utf8)) }
+            settingsRevision += 1
+        }
+    }
+
+    var customDevices: [EmulatedDevice] {
+        get {
+            _ = settingsRevision
+            return (try? appDatabase.setting(Self.customDevicesKey))
+                .flatMap { try? JSONDecoder().decode([EmulatedDevice].self, from: Data($0.utf8)) } ?? []
+        }
+        set {
+            save { try appDatabase.setSetting(Self.customDevicesKey, to: newValue.isEmpty ? nil : String(data: try JSONEncoder().encode(newValue), encoding: .utf8)) }
+            settingsRevision += 1
+        }
+    }
+
+    /// The devices the responsive mode offers.
+    var emulatedDevices: [EmulatedDevice] {
+        let hidden = hiddenDevices
+        return EmulatedDevice.all.filter { !hidden.contains($0.id) } + customDevices
     }
 
     var isDeveloperModeOnSelectedTab: Bool {
