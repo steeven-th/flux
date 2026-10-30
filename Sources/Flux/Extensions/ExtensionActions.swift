@@ -32,6 +32,10 @@ final class ExtensionActions {
         FLXDevTools.isAvailable
     }
 
+    /// Called with the page an extension's side panel shows for a page, once its action asked for
+    /// one. Chrome shows side panels in its own window, which Flux hides.
+    var onSidePanel: ((FLXBrowserView, String) -> Void)?
+
     /// Returns false when the action couldn't run.
     @discardableResult
     func run(_ extensionID: String, on page: FLXBrowserView, below anchor: NSView) async -> Bool {
@@ -41,11 +45,44 @@ final class ExtensionActions {
             let before = visibleWindows()
             _ = try await call("Extensions.triggerAction", ["id": extensionID, "targetId": tab])
             ExtensionPopupPlacement.place(appearingAfter: before, below: anchor)
+            // The action sets its panel up as it runs.
+            try? await Task.sleep(for: .milliseconds(400))
+            if let path = await sidePanelPath(extensionID, for: page.currentURL) {
+                onSidePanel?(page, "chrome-extension://\(extensionID)/\(path)")
+            }
             return true
         } catch {
             tabTargets[ObjectIdentifier(page)] = nil
             return false
         }
+    }
+
+    /// Asks the extension's service worker which page its side panel shows for the tab showing
+    /// `url`: extensions choose it as their action runs, with chrome.sidePanel.setOptions.
+    private func sidePanelPath(_ extensionID: String, for url: String) async -> String? {
+        guard let targets = try? await call("Target.getTargets")["targetInfos"] as? [[String: Any]],
+              let worker = targets.first(where: {
+                  $0["type"] as? String == "service_worker" && ($0["url"] as? String)?.hasPrefix("chrome-extension://\(extensionID)/") == true
+              })?["targetId"] as? String,
+              let session = try? await call("Target.attachToTarget", ["targetId": worker, "flatten": true])["sessionId"] as? String
+        else { return nil }
+        defer { Task { _ = try? await call("Target.detachFromTarget", ["sessionId": session]) } }
+        let urlJSON = String(decoding: (try? JSONSerialization.data(withJSONObject: [url])) ?? Data("[\"\"]".utf8), as: UTF8.self)
+        let script = """
+            (async () => {
+              if (!chrome.sidePanel) return null;
+              const url = \(urlJSON)[0];
+              for (const tab of await chrome.tabs.query({})) {
+                if (tab.url !== url) continue;
+                const options = await chrome.sidePanel.getOptions({ tabId: tab.id });
+                if (options.enabled !== false && options.path) return options.path;
+              }
+              const fallback = await chrome.sidePanel.getOptions({});
+              return fallback.enabled !== false && fallback.path ? fallback.path : null;
+            })()
+            """
+        let result = try? await call("Runtime.evaluate", ["expression": script, "awaitPromise": true, "returnByValue": true], session: session)
+        return (result?["result"] as? [String: Any])?["value"] as? String
     }
 
     private func visibleWindows() -> Set<ObjectIdentifier> {

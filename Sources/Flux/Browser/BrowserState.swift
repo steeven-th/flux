@@ -90,6 +90,9 @@ final class BrowserState {
         for record in records {
             try open(record)
         }
+        ExtensionActions.shared.onSidePanel = { [weak self] page, url in
+            self?.tabs.first { $0.isLoaded && $0.browserView === page }?.showSidePanel(url)
+        }
         PageTranslator.shared.configure(translationProvider)
         PageTranslator.shared.onCharactersSent = { [weak self] count in self?.recordTranslatedCharacters(count) }
     }
@@ -237,7 +240,11 @@ final class BrowserState {
     }
 
     var extensionsInSelectedSpace: [InstalledExtension] {
-        extensionLists[selectedSpaceID]?.extensions ?? []
+        extensions(inSpace: selectedSpaceID)
+    }
+
+    func extensions(inSpace id: UUID) -> [InstalledExtension] {
+        extensionLists[id]?.extensions ?? []
     }
 
     var tabsInSelectedSpace: [Tab] {
@@ -1393,8 +1400,9 @@ final class BrowserState {
     /// Opens a page Chromium wanted to show in a window of its own, as a tab of a space using that
     /// profile, the selected one if it does.
     func openExternalPage(_ url: String, profilePath: String) {
-        let folder = URL(filePath: profilePath).standardizedFileURL
-        let candidates = spaces.filter { $0.profileFolder.standardizedFileURL == folder }
+        // Chromium gives the path without the final slash a folder's URL has.
+        let components = URL(filePath: profilePath).standardizedFileURL.pathComponents
+        let candidates = spaces.filter { $0.profileFolder.standardizedFileURL.pathComponents == components }
         guard let space = candidates.first(where: { $0.id == selectedSpaceID }) ?? candidates.first else { return }
         selectedSpaceID = space.id
         newTab(url: url, in: space.id)

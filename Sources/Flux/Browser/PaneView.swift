@@ -31,6 +31,15 @@ final class PaneView: NSView {
     private let devToolsContainer = NSView()
     /// Fills the point between the page and its DevTools, which are two windows.
     private let devToolsLine = NSBox()
+    private let sidePanelContainer = NSView()
+    private lazy var sidePanelHeader: NSView = {
+        let view = NSHostingView(rootView: SidePanelHeader(state: state, tab: tab))
+        view.safeAreaRegions = []
+        view.sizingOptions = []
+        return view
+    }()
+    private let sidePanelLine = NSBox()
+    private static let sidePanelWidth: CGFloat = 360
     private lazy var devToolsHandle = DevToolsResizeHandle { [weak self] delta in self?.resizeDevTools(by: delta) }
     private var hasHeader = false
 
@@ -38,14 +47,16 @@ final class PaneView: NSView {
         self.tab = tab
         self.state = state
         super.init(frame: .zero)
-        devToolsLine.boxType = .custom
-        devToolsLine.borderWidth = 0
-        devToolsLine.fillColor = NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                ? NSColor(white: 0.25, alpha: 1)
-                : NSColor(white: 0.82, alpha: 1)
+        for line in [devToolsLine, sidePanelLine] {
+            line.boxType = .custom
+            line.borderWidth = 0
+            line.fillColor = NSColor(name: nil) { appearance in
+                appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                    ? NSColor(white: 0.25, alpha: 1)
+                    : NSColor(white: 0.82, alpha: 1)
+            }
         }
-        for view in [pageArea, responsiveView, devToolsContainer, devToolsLine, header] {
+        for view in [pageArea, responsiveView, sidePanelHeader, sidePanelContainer, sidePanelLine, devToolsContainer, devToolsLine, header] {
             addSubview(view)
         }
         pageArea.addSubview(tab.browserView)
@@ -62,6 +73,7 @@ final class PaneView: NSView {
         withObservationTracking {
             _ = state.isDeveloperMode(for: tab.url)
             _ = tab.devTools
+            _ = tab.sidePanel
             _ = tab.emulation
             _ = state.responsiveOptions
         } onChange: { [weak self] in
@@ -81,6 +93,12 @@ final class PaneView: NSView {
             devTools.autoresizingMask = [.width, .height]
             devToolsContainer.addSubview(devTools)
         }
+        let sidePanel = tab.sidePanel
+        sidePanelContainer.subviews.filter { $0 !== sidePanel }.forEach { $0.removeFromSuperview() }
+        if let sidePanel, sidePanel.superview !== sidePanelContainer {
+            sidePanel.autoresizingMask = [.width, .height]
+            sidePanelContainer.addSubview(sidePanel)
+        }
         layoutContents()
     }
 
@@ -99,8 +117,19 @@ final class PaneView: NSView {
         // The page keeps some room when the pane is narrow.
         let devToolsWidth = tab.devTools == nil ? 0 : max(min(state.devToolsWidth, body.width - 200), min(280, body.width / 2))
         let line: CGFloat = devToolsWidth > 0 ? 1 : 0
-        pageArea.frame = NSRect(x: 0, y: 0, width: body.width - devToolsWidth - line, height: body.height)
-        devToolsLine.frame = NSRect(x: pageArea.frame.maxX, y: 0, width: line, height: body.height)
+        // The page keeps some room for itself too.
+        let panelWidth = tab.sidePanel == nil ? 0 : min(Self.sidePanelWidth, max(body.width - devToolsWidth - line - 300, 200))
+        let panelLine: CGFloat = panelWidth > 0 ? 1 : 0
+        pageArea.frame = NSRect(x: 0, y: 0, width: body.width - devToolsWidth - line - panelWidth - panelLine, height: body.height)
+        sidePanelLine.frame = NSRect(x: pageArea.frame.maxX, y: 0, width: panelLine, height: body.height)
+        let panelHeaderHeight = min(SidePanelHeader.height, body.height)
+        sidePanelHeader.frame = NSRect(x: sidePanelLine.frame.maxX, y: body.height - panelHeaderHeight, width: panelWidth, height: panelHeaderHeight)
+        sidePanelContainer.frame = NSRect(x: sidePanelLine.frame.maxX, y: 0, width: panelWidth, height: body.height - panelHeaderHeight)
+        for view in [sidePanelHeader, sidePanelContainer, sidePanelLine] {
+            view.isHidden = panelWidth == 0
+        }
+        tab.sidePanel?.frame = sidePanelContainer.bounds
+        devToolsLine.frame = NSRect(x: sidePanelContainer.frame.maxX, y: 0, width: line, height: body.height)
         devToolsContainer.frame = NSRect(x: body.width - devToolsWidth, y: 0, width: devToolsWidth, height: body.height)
         devToolsContainer.isHidden = devToolsWidth == 0
         devToolsLine.isHidden = devToolsWidth == 0
@@ -154,7 +183,7 @@ final class PaneView: NSView {
             page.subtract(top)
             devToolsCorners.subtract(top)
         }
-        if tab.devTools != nil { page.subtract(right) }
+        if tab.devTools != nil || tab.sidePanel != nil { page.subtract(right) }
         // In responsive mode the background around the page takes the page's corners.
         for view in [pageArea, responsiveView] {
             view.wantsLayer = true
@@ -165,6 +194,13 @@ final class PaneView: NSView {
         }
         tab.browserView.roundedCorners = responsiveView.isHidden ? page : []
         tab.devTools?.roundedCorners = devToolsCorners
+        // Against the DevTools when they are open, at the card's edge otherwise. Its header takes
+        // the top corner.
+        let panelCorners = tab.devTools == nil ? devToolsCorners : []
+        sidePanelHeader.wantsLayer = true
+        sidePanelHeader.layer?.cornerRadius = FLXPageCornerRadius
+        sidePanelHeader.layer?.maskedCorners = panelCorners.intersection(top).flipped
+        tab.sidePanel?.roundedCorners = panelCorners.subtracting(top)
     }
 
     /// The handle is a window of its own, over the line between the page and its DevTools, since

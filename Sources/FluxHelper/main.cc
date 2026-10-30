@@ -6,9 +6,10 @@
 
 namespace {
 
-// Flux shows extension popups in a page of its own rather than in Chrome's popup, so Chromium
-// treats them as tabs. Some extensions check for that, Bitwarden for one only fixes its width when
-// chrome.tabs.getCurrent() finds no tab. In a real popup it returns undefined, so it does here too.
+// Flux shows extension popups and side panels in a page of its own rather than in Chrome's, so
+// Chromium treats them as tabs. Some extensions check for that: Bitwarden only fixes its width
+// when chrome.tabs.getCurrent() finds no tab, and some side panels refuse to run in a tab. In a
+// real popup or side panel it returns undefined, so it does here too.
 //
 // Chromium adds the extension APIs after this script runs, to the existing `chrome` object if
 // there is one. So the script provides that object, and patches it the first time the page reads

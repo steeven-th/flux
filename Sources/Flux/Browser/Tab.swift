@@ -14,6 +14,8 @@ final class Tab: NSObject, Identifiable {
     private(set) var canGoForward = false
     /// The page's DevTools while open, shown next to it.
     private(set) var devTools: FLXBrowserView?
+    /// An extension's side panel, between the page and its DevTools.
+    private(set) var sidePanel: FLXBrowserView?
     /// What the responsive mode shows the page as, while it is on.
     private(set) var emulation: Emulation?
     private(set) var translation: PageTranslation?
@@ -305,6 +307,26 @@ final class Tab: NSObject, Identifiable {
         } else {
             PageTranslator.shared.start(self)
         }
+    }
+
+    /// The same extension's panel closes, as its button toggles it in Chrome. Another one's
+    /// takes its place.
+    func showSidePanel(_ url: String) {
+        if let current = sidePanel {
+            current.close()
+            sidePanel = nil
+            if URL(string: current.currentURL)?.host() == URL(string: url)?.host() { return }
+        }
+        sidePanel = FLXBrowserView(embeddedWithURL: url, profile: profile)
+    }
+
+    var sidePanelExtensionID: String? {
+        sidePanel.flatMap { URL(string: $0.currentURL)?.host() }
+    }
+
+    func closeSidePanel() {
+        sidePanel?.close()
+        sidePanel = nil
     }
 
     /// Only this site's cookies, then the page loads again without them.
