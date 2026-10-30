@@ -161,6 +161,16 @@ class PreferenceObserver : public CefPreferenceObserver {
   std::vector<CefRefPtr<CefRegistration>> _preferenceRegistrations;
 }
 
+static NSString *_Nullable (^g_languages_provider)(NSString *) = nil;
+
++ (NSString *_Nullable (^)(NSString *))languagesProvider {
+  return g_languages_provider;
+}
+
++ (void)setLanguagesProvider:(NSString *_Nullable (^)(NSString *))provider {
+  g_languages_provider = [provider copy];
+}
+
 + (instancetype)profileAtPath:(NSString *)path {
   if (!g_profiles) g_profiles = [NSMutableDictionary dictionary];
   FLXProfile *profile = g_profiles[path];
@@ -184,6 +194,8 @@ class PreferenceObserver : public CefPreferenceObserver {
     CefRequestContextSettings settings;
     CefString(&settings.cache_path) = profile.path.UTF8String;
     settings.persist_session_cookies = true;
+    NSString *languages = g_languages_provider ? g_languages_provider(profile.path) : nil;
+    if (languages.length > 0) CefString(&settings.accept_language_list) = languages.UTF8String;
     profile->_requestContext = CefRequestContext::CreateContext(settings, new ProfileHandler(profile));
   }];
   return self;
@@ -222,17 +234,32 @@ class PreferenceObserver : public CefPreferenceObserver {
 }
 
 - (void)setPreference:(NSString *)name boolValue:(BOOL)value {
+  CefRefPtr<CefValue> preference = CefValue::Create();
+  preference->SetBool(value);
+  [self setPreference:name value:preference];
+}
+
+- (void)setPreference:(NSString *)name stringValue:(NSString *)value {
+  CefRefPtr<CefValue> preference = CefValue::Create();
+  preference->SetString(value.UTF8String);
+  [self setPreference:name value:preference];
+}
+
+- (void)setPreference:(NSString *)name value:(CefRefPtr<CefValue>)preference {
   __weak FLXProfile *weakSelf = self;
   [self whenReady:^{
     FLXProfile *profile = weakSelf;
     if (!profile || !profile->_requestContext) return;
-    CefRefPtr<CefValue> preference = CefValue::Create();
-    preference->SetBool(value);
     CefString error;
     if (!profile->_requestContext->SetPreference(name.UTF8String, preference, error)) {
       NSLog(@"Couldn't set %@: %s", name, error.ToString().c_str());
     }
   }];
+}
+
+- (NSString *)stringPreference:(NSString *)name {
+  id value = [self preferenceValue:name];
+  return [value isKindOfClass:NSString.class] ? value : nil;
 }
 
 - (id)preferenceValue:(NSString *)name {

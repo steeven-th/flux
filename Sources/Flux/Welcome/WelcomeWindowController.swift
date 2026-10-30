@@ -19,11 +19,7 @@ final class WelcomeWindowController: NSWindowController {
         super.init(window: window)
         window.contentView = NSHostingView(rootView: WelcomeView(
             model: model,
-            relaunch: { (NSApp.delegate as? AppDelegate)?.relaunch() },
-            finish: {
-                model.finish()
-                onFinish(model)
-            }
+            finish: { onFinish(model) }
         ))
         window.center()
     }

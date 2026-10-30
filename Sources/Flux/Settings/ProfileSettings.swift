@@ -100,6 +100,9 @@ private struct ProfileDetail: View {
                 ChromePageRow(title: "Payment Methods", symbol: "creditcard.fill", color: .yellow) {
                     show("chrome://settings/payments")
                 }
+                ChromePageRow(title: "Languages", symbol: "character.bubble.fill", color: .purple) {
+                    show("chrome://settings/languages")
+                }
                 ChromePageRow(title: "Notifications", symbol: "bell.fill", color: .orange) {
                     show("chrome://settings/content/notifications")
                 }

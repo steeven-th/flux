@@ -11,6 +11,14 @@ enum TranslationKeychain {
          kSecAttrAccount as String: provider.rawValue]
     }
 
+    /// Reading a key's attributes, unlike the key, doesn't make macOS ask for the keychain.
+    static func hasKey(for provider: TranslationProvider) -> Bool {
+        var query = query(for: provider)
+        query[kSecReturnAttributes as String] = true
+        var result: AnyObject?
+        return SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess
+    }
+
     static func key(for provider: TranslationProvider) -> String? {
         var query = query(for: provider)
         query[kSecReturnData as String] = true

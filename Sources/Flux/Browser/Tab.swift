@@ -258,11 +258,11 @@ final class Tab: NSObject, Identifiable {
     }
 
     var canTranslatePage: Bool {
-        PageTranslator.shared.isAvailable && translation == nil && !(pageLanguage.map { PageTranslator.sameLanguage($0, PageTranslator.targetLanguage) } ?? false)
+        PageTranslator.shared.isAvailable && translation == nil && !(pageLanguage.map { PageTranslator.sameLanguage($0, PageTranslator.targetLanguage(for: profile)) } ?? false)
     }
 
     func translatePage() {
-        let target = PageTranslator.targetLanguage
+        let target = PageTranslator.targetLanguage(for: profile)
         Task {
             if pageLanguage == nil { await detectPageLanguage() }
             guard let source = pageLanguage, !PageTranslator.sameLanguage(source, target) else { return }
@@ -421,7 +421,7 @@ extension Tab: FLXBrowserViewDelegate {
         } else if canTranslatePage {
             menuItems.append(.translatePage)
         }
-        let language = Locale.current.localizedString(forLanguageCode: PageTranslator.targetLanguage.languageCode?.identifier ?? "") ?? ""
+        let language = Locale.current.localizedString(forLanguageCode: PageTranslator.targetLanguage(for: profile).languageCode?.identifier ?? "") ?? ""
         return menuItems.map { item in
             switch item {
             case .translateSelection: String(localized: "Translate Selection")

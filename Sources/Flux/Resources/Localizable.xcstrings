@@ -421,16 +421,6 @@
         }
       }
     },
-    "Choose your language" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choisissez votre langue"
-          }
-        }
-      }
-    },
     "Chromium Password Manager" : {
       "localizations" : {
         "fr" : {
@@ -1217,6 +1207,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Langue"
+          }
+        }
+      }
+    },
+    "Languages" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Langues"
           }
         }
       }
@@ -2907,16 +2907,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hier"
-          }
-        }
-      }
-    },
-    "You can change it later in Settings." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vous pourrez la changer plus tard dans les Réglages."
           }
         }
       }

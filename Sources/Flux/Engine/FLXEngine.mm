@@ -210,12 +210,10 @@ void FLXEngineBrowserClosed(CefRefPtr<CefBrowser> browser) {
   settings.log_severity = LOGSEVERITY_WARNING;
   settings.persist_session_cookies = true;
   // Chromium's own pages and menus show in Flux's language, read once at launch like Flux's.
+  // The languages sites are asked for are left to each profile's settings: set here, they would
+  // replace the user's choice at every launch.
   NSString *language = NSBundle.mainBundle.preferredLocalizations.firstObject ?: @"en";
   CefString(&settings.locale) = language.UTF8String;
-  NSString *acceptLanguages = [language isEqualToString:@"en"]
-      ? @"en-US,en"
-      : [NSString stringWithFormat:@"%@,en-US,en", language];
-  CefString(&settings.accept_language_list) = acceptLanguages.UTF8String;
 
   CefRefPtr<App> app(new App());
   if (!CefInitialize(main_args, settings, app.get(), nullptr)) {

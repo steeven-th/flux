@@ -2,14 +2,12 @@ import SwiftUI
 
 struct WelcomeView: View {
     @Bindable var model: WelcomeModel
-    let relaunch: () -> Void
     let finish: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Group {
                 switch model.step {
-                case .language: LanguageStep(model: model)
                 case .welcome: IntroStep()
                 case .space: SpaceStep(model: model)
                 case .searchEngine: SearchEngineStep(model: model)
@@ -20,7 +18,7 @@ struct WelcomeView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
             HStack {
-                if model.step.rawValue > WelcomeModel.Step.language.rawValue {
+                if model.step != .welcome {
                     Button("Back", action: model.goBack)
                 }
                 Spacer()
@@ -55,8 +53,8 @@ struct WelcomeView: View {
     private func next() {
         if model.step == .done {
             finish()
-        } else if model.goForward() {
-            relaunch()
+        } else {
+            model.goForward()
         }
     }
 }
@@ -75,23 +73,6 @@ private struct StepHeader: View {
             }
         }
         .padding(.bottom, 24)
-    }
-}
-
-private struct LanguageStep: View {
-    @Bindable var model: WelcomeModel
-
-    var body: some View {
-        VStack(alignment: .leading) {
-            StepHeader(title: "Choose your language", message: "You can change it later in Settings.")
-            Picker("Language", selection: $model.language) {
-                ForEach([AppLanguage.english, .french]) { language in
-                    Text(language.name).tag(language)
-                }
-            }
-            .pickerStyle(.radioGroup)
-            .labelsHidden()
-        }
     }
 }
 

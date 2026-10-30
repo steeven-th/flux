@@ -15,21 +15,41 @@ struct PageTranslation: Equatable {
 final class PageTranslator {
     static let shared = PageTranslator()
 
-    private var service: TranslationService?
+    private var provider = TranslationProvider.deepL
+    private var hasKey = false
+    /// Made with the key on first use, so that macOS asks for the keychain when a page is
+    /// translated rather than when Flux opens.
+    private var loadedService: TranslationService?
     /// Told how many characters each request sent, for services that don't count them.
     var onCharactersSent: ((Int) -> Void)?
     private var tasks: [ObjectIdentifier: Task<Void, Never>] = [:]
 
-    var isAvailable: Bool { service != nil }
+    var isAvailable: Bool { hasKey }
 
     func configure(_ provider: TranslationProvider) {
-        service = TranslationKeychain.key(for: provider).map(provider.service(key:))
+        self.provider = provider
+        hasKey = TranslationKeychain.hasKey(for: provider)
+        loadedService = nil
     }
 
-    /// The language pages are translated into: the system's, whatever language Flux is shown in.
-    static var targetLanguage: Locale.Language {
+    private var service: TranslationService? {
+        if loadedService == nil, hasKey {
+            loadedService = TranslationKeychain.key(for: provider).map(provider.service(key:))
+        }
+        return loadedService
+    }
+
+    /// The Mac's language, whatever language Flux is shown in.
+    static var systemLanguage: Locale.Language {
         let preferred = UserDefaults(suiteName: ".GlobalPreferences")?.stringArray(forKey: "AppleLanguages")?.first
         return Locale.Language(identifier: preferred ?? Locale.preferredLanguages.first ?? "en")
+    }
+
+    /// The first of the profile's languages in chrome://settings/languages, which Chromium too
+    /// says is the one pages are translated into.
+    static func targetLanguage(for profile: FLXProfile) -> Locale.Language {
+        guard let first = profile.stringPreference("intl.accept_languages")?.split(separator: ",").first else { return systemLanguage }
+        return Locale.Language(identifier: String(first))
     }
 
     static func sameLanguage(_ a: Locale.Language, _ b: Locale.Language) -> Bool {

@@ -33,6 +33,10 @@ NS_SWIFT_UI_ACTOR
 /// child of the engine's root cache path.
 + (instancetype)profileAtPath:(NSString *)path;
 
+/// The languages sites are asked for by default, as Chromium lists them ("fr-FR,fr,en"), for the
+/// profile at a path. The user's own choice in chrome://settings/languages comes first.
+@property (class, nonatomic, copy, nullable) NSString *_Nullable (^languagesProvider)(NSString *path);
+
 @property (nonatomic, readonly, copy) NSString *path;
 
 /// Whether downloads open a save panel instead of going straight to the Downloads folder.
@@ -48,6 +52,10 @@ NS_SWIFT_UI_ACTOR
 
 /// Sets a Chromium preference of this profile, once the profile has loaded.
 - (void)setPreference:(NSString *)name boolValue:(BOOL)value;
+- (void)setPreference:(NSString *)name stringValue:(NSString *)value;
+
+/// Nil until the profile has loaded, or when the preference isn't a string.
+- (nullable NSString *)stringPreference:(NSString *)name;
 
 /// Opens Chromium's extension manager for this profile in a window of its own.
 - (void)showExtensionsWindowWithTitle:(NSString *)title;

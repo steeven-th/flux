@@ -78,6 +78,7 @@ final class BrowserState {
             // The welcome window creates the first space, so this only happens if it was skipped.
             records = [try Self.createFirstSpace(name: String(localized: "Personal"), icon: nil, color: Self.spaceColors[0], in: appDatabase)]
         }
+        FLXProfile.languagesProvider = { _ in Self.systemLanguageList }
         let savedSelection = try appDatabase.setting(Self.selectedSpaceKey).flatMap(UUID.init(uuidString:))
         selectedSpaceID = records.first { $0.id == savedSelection }?.id ?? records[0].id
 
@@ -115,6 +116,9 @@ final class BrowserState {
             downloadLists[profile.path] = DownloadList(profile: profile, database: database)
         }
         profile.asksWhereToSaveDownloads = asksWhereToSaveDownloads(forProfile: space.profileFolder)
+        // Chromium's translation needs Google keys Flux doesn't have, so its offers would lead
+        // nowhere.
+        profile.setPreference("translate.enabled", boolValue: false)
 
         let nodes = try database.nodes(in: space.id)
         for node in nodes {
@@ -616,6 +620,20 @@ final class BrowserState {
     var emulatedDevices: [EmulatedDevice] {
         let hidden = hiddenDevices
         return EmulatedDevice.all.filter { !hidden.contains($0.id) } + customDevices
+    }
+
+    /// The Mac's languages as Chromium lists them, each followed by its language without region.
+    /// Profiles start with them, until the user chooses others in chrome://settings/languages.
+    private static var systemLanguageList: String {
+        let languages = UserDefaults(suiteName: ".GlobalPreferences")?.stringArray(forKey: "AppleLanguages") ?? ["en-US"]
+        var list: [String] = []
+        for language in languages {
+            let code = Locale.Language(identifier: language)
+            for item in [language, code.languageCode?.identifier].compactMap({ $0 }) where !list.contains(item) {
+                list.append(item)
+            }
+        }
+        return list.joined(separator: ",")
     }
 
     var translationProvider: TranslationProvider {

@@ -53,7 +53,7 @@ struct TranslationSettings: View {
         Task {
             defer { isTesting = false }
             do {
-                _ = try await service.translate(["Hello"], into: PageTranslator.targetLanguage)
+                _ = try await service.translate(["Hello"], into: PageTranslator.systemLanguage)
                 let usage = try await service.usage()
                 let used = usage?.used ?? state.translatedCharactersThisMonth
                 let limit = usage?.limit ?? provider.freeCharacters ?? 0
