@@ -17,6 +17,9 @@ final class MainWindowController: NSWindowController {
         })
         // The sidebar's top row sits in the title bar, next to the window buttons.
         view.safeAreaRegions = []
+        // Its content can be taller than the screen, with many favorites and the import's cards:
+        // the window decides its size, and the outline scrolls.
+        view.sizingOptions = []
         return view
     }()
     private let pageContainer = NSView()
