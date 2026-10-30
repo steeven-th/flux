@@ -4,7 +4,7 @@ import GRDB
 /// Favicons from the Favicons database Chromium keeps in each profile of another browser, so
 /// imported tabs show their icon before their page is loaded. The browser may be running and
 /// holding a lock on the file, so a copy is read, journal included.
-struct ChromiumFavicons {
+struct ChromiumFavicons: SiteIcons {
     private let database: DatabaseQueue?
     private let copyFolder: URL
 
@@ -40,4 +40,10 @@ struct ChromiumFavicons {
     func close() {
         try? FileManager.default.removeItem(at: copyFolder)
     }
+}
+
+/// The site icons another browser kept, by page.
+protocol SiteIcons {
+    func image(for url: String) -> NSImage?
+    func close()
 }

@@ -4,11 +4,11 @@ import AppKit
 @MainActor
 struct SidebarImporter {
     let spaceID: UUID
-    let favicons: ChromiumFavicons
+    let favicons: any SiteIcons
     let cache: FaviconCache?
     private(set) var nodes: [SidebarNode] = []
 
-    init(spaceID: UUID, favicons: ChromiumFavicons, cache: FaviconCache?) {
+    init(spaceID: UUID, favicons: any SiteIcons, cache: FaviconCache?) {
         self.spaceID = spaceID
         self.favicons = favicons
         self.cache = cache

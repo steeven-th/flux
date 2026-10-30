@@ -135,7 +135,7 @@ private struct SpacesImportView: View {
                 }
             }
             .listStyle(.bordered(alternatesRowBackgrounds: false))
-            if !source.canTransferProfiles {
+            if source.isChromium, !source.canTransferProfiles {
                 Text("\(source.name) runs a later Chromium than Flux: its history, passwords and sign-ins stay there for now.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

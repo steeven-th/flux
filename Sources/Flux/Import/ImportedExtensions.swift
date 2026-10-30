@@ -137,3 +137,39 @@ struct ImportedExtensionsCard: View {
         }
     }
 }
+
+/// In a space imported from a browser that protects its passwords its own way, how to bring them:
+/// the user exports them to a file, which Chromium's password manager imports.
+struct PasswordExportCard: View {
+    let state: BrowserState
+
+    var body: some View {
+        let spaceID = state.selectedSpaceID
+        if let browser = state.passwordExport(in: spaceID) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Passwords from \(browser)").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                    Spacer()
+                    Button { state.hidePasswordExport(in: spaceID) } label: {
+                        Image(systemName: "xmark").font(.system(size: 9, weight: .semibold)).frame(width: 16, height: 16).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Hide")
+                }
+                Text("Export them from \(browser), in Settings > Passwords > ⋯ > Export Passwords, then import the file here.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Import Passwords…") {
+                    state.newTab(url: "chrome://password-manager/settings", in: spaceID)
+                }
+                .controlSize(.small)
+            }
+            .padding(10)
+            .background {
+                let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+                shape.fill(.primary.opacity(0.06)).overlay(shape.strokeBorder(.primary.opacity(0.08)))
+            }
+        }
+    }
+}

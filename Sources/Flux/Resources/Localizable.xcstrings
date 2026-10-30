@@ -401,6 +401,16 @@
         }
       }
     },
+    "Bookmarks Menu" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menu des marque-pages"
+          }
+        }
+      }
+    },
     "Bring your tabs, history, passwords and sign-ins from another browser." : {
       "localizations" : {
         "fr" : {
@@ -1031,6 +1041,16 @@
         }
       }
     },
+    "Export them from %@, in Settings > Passwords > ⋯ > Export Passwords, then import the file here." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exportez-les depuis %@, dans Paramètres > Mots de passe > ⋯ > Exporter les mots de passe, puis importez le fichier ici."
+          }
+        }
+      }
+    },
     "Extensions" : {
       "localizations" : {
         "fr" : {
@@ -1357,6 +1377,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Importer mes %lld espaces %@ (%lld onglets)"
+          }
+        }
+      }
+    },
+    "Import Passwords…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importer les mots de passe…"
           }
         }
       }
@@ -1971,6 +2001,16 @@
         }
       }
     },
+    "Other Bookmarks" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autres marque-pages"
+          }
+        }
+      }
+    },
     "Page Translation" : {
       "localizations" : {
         "fr" : {
@@ -2007,6 +2047,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mots de passe"
+          }
+        }
+      }
+    },
+    "Passwords from %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mots de passe de %@"
           }
         }
       }

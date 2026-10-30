@@ -25,6 +25,7 @@ final class BrowserState {
     private static let translatedCharactersKey = "translatedCharacters"
     private static let importedExtensionsKey = "importedExtensions"
     private static let importedExtensionsCardHiddenKey = "importedExtensionsCardHidden"
+    private static let passwordExportKey = "passwordExport"
     private static let hiddenDevicesKey = "hiddenDevices"
     private static let customDevicesKey = "customDevices"
     private static let archiveDelayKey = "archiveDelay"
@@ -1201,7 +1202,7 @@ final class BrowserState {
     /// extensions it had, to install them again.
     func importSpaces(_ imported: [ImportedSpace], from source: ImportSource, destinations: [String: UUID], includesToday: Bool) {
         var spaceByProfile: [URL: UUID] = [:]
-        var favicons: [URL: ChromiumFavicons] = [:]
+        var favicons: [URL: any SiteIcons] = [:]
         defer { favicons.values.forEach { $0.close() } }
         var shownSpace: UUID?
         let lastSpace = source.lastSpaceID
@@ -1211,15 +1212,17 @@ final class BrowserState {
                 name: space.name, icon: space.icon, color: space.color ?? Self.spaceColors[0],
                 sharingProfileOf: spaceByProfile[space.profileFolder]
             ) { folder in
-                guard source.canTransferProfiles else { return }
-                ProfileTransfer.transfer(from: space.profileFolder, to: folder, keys: ProfileTransfer.keys(for: source))
+                source.prepare(folder, from: space.profileFolder)
             }
             if spaceByProfile[space.profileFolder] == nil {
                 spaceByProfile[space.profileFolder] = spaceID
             }
             if shownSpace == nil || space.id == lastSpace { shownSpace = spaceID }
-            addImportedExtensions(ImportedExtension.installed(inProfile: space.profileFolder), to: spaceID)
-            let icons = favicons[space.profileFolder] ?? ChromiumFavicons(profileFolder: space.profileFolder)
+            if source.isChromium {
+                addImportedExtensions(ImportedExtension.installed(inProfile: space.profileFolder), to: spaceID)
+            }
+            if source.exportsPasswords { setPasswordExport(from: source, in: spaceID) }
+            let icons = favicons[space.profileFolder] ?? source.siteIcons(in: space.profileFolder)
             favicons[space.profileFolder] = icons
 
             var importer = SidebarImporter(spaceID: spaceID, favicons: icons, cache: faviconCaches[spaceID])
@@ -1257,6 +1260,22 @@ final class BrowserState {
         let all = current + extensions.filter { item in !current.contains { $0.id == item.id } }
         guard all.count > current.count, let data = try? JSONEncoder().encode(all) else { return }
         save { try appDatabase.setSetting("\(Self.importedExtensionsKey) \(spaceID)", to: String(decoding: data, as: UTF8.self)) }
+        settingsRevision += 1
+    }
+
+    /// The browser whose passwords the space is waiting for, as a file the user exports.
+    func passwordExport(in spaceID: UUID) -> String? {
+        _ = settingsRevision
+        return try? appDatabase.setting("\(Self.passwordExportKey) \(spaceID)")
+    }
+
+    private func setPasswordExport(from source: ImportSource, in spaceID: UUID) {
+        save { try appDatabase.setSetting("\(Self.passwordExportKey) \(spaceID)", to: source.name) }
+        settingsRevision += 1
+    }
+
+    func hidePasswordExport(in spaceID: UUID) {
+        save { try appDatabase.setSetting("\(Self.passwordExportKey) \(spaceID)", to: nil) }
         settingsRevision += 1
     }
 

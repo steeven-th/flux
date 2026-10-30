@@ -1,10 +1,10 @@
 import AppKit
 import SwiftUI
 
-/// The browsers Flux imports from. All are Chromium underneath, so history, passwords, sign-ins
-/// and extensions come the same way: only their sidebars differ.
+/// The browsers Flux imports from. Those built on Chromium bring history, passwords, sign-ins and
+/// extensions the same way: only their sidebars differ. Firefox brings its bookmarks and history.
 enum ImportSource: CaseIterable, Identifiable {
-    case arc, dia, chrome, brave, edge
+    case arc, dia, chrome, brave, edge, firefox
 
     var id: Self { self }
 
@@ -15,7 +15,12 @@ enum ImportSource: CaseIterable, Identifiable {
         case .chrome: "Google Chrome"
         case .brave: "Brave"
         case .edge: "Microsoft Edge"
+        case .firefox: "Firefox"
         }
+    }
+
+    var isChromium: Bool {
+        self != .firefox
     }
 
     private var bundleIdentifier: String {
@@ -25,6 +30,7 @@ enum ImportSource: CaseIterable, Identifiable {
         case .chrome: "com.google.Chrome"
         case .brave: "com.brave.Browser"
         case .edge: "com.microsoft.edgemac"
+        case .firefox: "org.mozilla.firefox"
         }
     }
 
@@ -32,7 +38,7 @@ enum ImportSource: CaseIterable, Identifiable {
     private var chromiumProfiles: ChromiumProfiles? {
         let support = FileManager.default.homeDirectoryForCurrentUser.appending(path: "Library/Application Support", directoryHint: .isDirectory)
         return switch self {
-        case .arc, .dia: nil
+        case .arc, .dia, .firefox: nil
         case .chrome: ChromiumProfiles(root: support.appending(path: "Google/Chrome", directoryHint: .isDirectory))
         case .brave: ChromiumProfiles(root: support.appending(path: "BraveSoftware/Brave-Browser", directoryHint: .isDirectory))
         case .edge: ChromiumProfiles(root: support.appending(path: "Microsoft Edge", directoryHint: .isDirectory))
@@ -56,6 +62,7 @@ enum ImportSource: CaseIterable, Identifiable {
         switch self {
         case .arc: try ArcLibrary.loadSpaces()
         case .dia: try DiaLibrary.loadSpaces()
+        case .firefox: try FirefoxLibrary.loadSpaces()
         default: try ChromiumBrowserLibrary.loadSpaces(from: chromiumProfiles!)
         }
     }
@@ -65,13 +72,15 @@ enum ImportSource: CaseIterable, Identifiable {
         switch self {
         case .arc: ArcLibrary.lastSpaceID
         case .dia: DiaLibrary.lastSpaceID
+        case .firefox: FirefoxLibrary.lastSpaceID
         default: chromiumProfiles?.lastUsed
         }
     }
 
     /// Where Chromium keeps the key of this browser's passwords and cookies.
-    var keychainItem: (service: String, account: String) {
+    var keychainItem: (service: String, account: String)? {
         switch self {
+        case .firefox: nil
         case .arc: ("Arc Safe Storage", "Arc")
         case .dia: ("Dia Safe Storage", "Dia")
         case .chrome: ("Chrome Safe Storage", "Chrome")
@@ -84,6 +93,7 @@ enum ImportSource: CaseIterable, Identifiable {
     /// only opens when they aren't from a later version.
     var canTransferProfiles: Bool {
         let version = switch self {
+        case .firefox: Int?.some(.max)
         case .arc: ChromiumProfiles(root: ArcLibrary.folder.appending(path: "User Data", directoryHint: .isDirectory)).chromiumVersion
         case .dia: DiaLibrary.chromiumVersion
         default: chromiumProfiles?.chromiumVersion
@@ -92,9 +102,29 @@ enum ImportSource: CaseIterable, Identifiable {
     }
 
     /// Dia keeps its open tabs in a database of its own that is encrypted, and the others in
-    /// Chromium's sessions.
+    /// sessions Flux doesn't read.
     var hasToday: Bool {
         self == .arc
+    }
+
+    /// Firefox protects its passwords with its own library: they come as a file the user exports.
+    var exportsPasswords: Bool {
+        self == .firefox
+    }
+
+    func siteIcons(in profileFolder: URL) -> any SiteIcons {
+        isChromium ? ChromiumFavicons(profileFolder: profileFolder) : FirefoxFavicons(profileFolder: profileFolder)
+    }
+
+    /// Fills a Flux profile Chromium hasn't opened yet with what the browser's profile can give.
+    @MainActor
+    func prepare(_ folder: URL, from profileFolder: URL) {
+        if isChromium {
+            guard canTransferProfiles else { return }
+            ProfileTransfer.transfer(from: profileFolder, to: folder, keys: ProfileTransfer.keys(for: self))
+        } else {
+            PendingHistory.stageFirefoxHistory(from: profileFolder, for: folder)
+        }
     }
 
     /// The sources installed on this Mac whose spaces could be read.

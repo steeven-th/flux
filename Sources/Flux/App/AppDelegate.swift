@@ -36,6 +36,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// `prepare` runs before the window shows, once the spaces are open.
     private func startBrowsing(database: AppDatabase, prepare: (BrowserState) -> Void = { _ in }) {
+        // Before Chromium opens the profiles.
+        PendingHistory.applyAll()
         let state: BrowserState
         do {
             state = try BrowserState(appDatabase: database)
@@ -98,11 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let record = try BrowserState.createFirstSpace(
                     name: first.name, icon: first.icon, color: first.color ?? BrowserState.spaceColors[0], in: database
                 )
-                if source.canTransferProfiles {
-                    ProfileTransfer.transfer(
-                        from: first.profileFolder, to: AppPaths.profileFolder(named: record.profileFolder), keys: ProfileTransfer.keys(for: source)
-                    )
-                }
+                source.prepare(AppPaths.profileFolder(named: record.profileFolder), from: first.profileFolder)
             } else {
                 let name = choices.name.trimmingCharacters(in: .whitespacesAndNewlines)
                 _ = try BrowserState.createFirstSpace(

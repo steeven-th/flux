@@ -1,7 +1,7 @@
 # Importing from another browser
 
-Flux offers to import from Arc, Dia, Chrome, Brave or Edge the first time it opens, when one of
-them is installed. Later imports go through File > Import from Another Browser. The other browser
+Flux offers to import from Arc, Dia, Chrome, Brave, Edge or Firefox the first time it opens, when
+one of them is installed. Later imports go through File > Import from Another Browser. The other browser
 is only read, never changed.
 
 macOS asks before Flux reads another app's data, the first time. Once refused, it doesn't ask
@@ -38,9 +38,23 @@ tabs are Chromium bookmarks, which do.
 - **Bookmarks** become Flux's favorites, with their folders. Other bookmarks come as a folder.
 - Pinned and open tabs are in the sessions Chromium saves, which don't come.
 
-## History, passwords and sign-ins
+## What comes from Firefox
 
-For each new space, Flux also brings the profile's **history**, **saved passwords** and
+- **Profiles** with bookmarks become spaces. The profile Firefox opens is named Firefox, and shows
+  once the import is done.
+- The **bookmarks toolbar** becomes Flux's favorites, with its folders. The bookmarks menu and the
+  other bookmarks come as folders.
+- **Site icons**, from the profile's favicons.sqlite.
+- **History**: the latest 100,000 visits go into the new profile's history at the next launch,
+  once Chromium has made its database.
+- **Passwords**: Firefox protects them with its own library. A card in the space explains how to
+  export them from Firefox and opens the page where Flux imports the file.
+- Sign-ins and extensions don't come.
+
+## History, passwords and sign-ins from Chromium browsers
+
+For each new space imported from a browser built on Chromium, Flux also brings the profile's
+**history**, **saved passwords** and
 **cookies**, so you stay signed in to your sites. These browsers run Chromium too, so their
 databases are used as they are, as long as their Chromium isn't more recent than Flux's: Flux
 couldn't open the databases of a later version, and then only brings bookmarks. Passwords and cookies are protected with a key the browser keeps

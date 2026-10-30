@@ -19,8 +19,8 @@ enum ProfileTransfer {
     static func keys(for source: ImportSource) -> Keys? {
         if let loaded = loadedKeys[source] { return loaded }
         var keys: Keys?
-        let item = source.keychainItem
-        if FLXEngine.usesSystemKeychain, let key = ChromiumSafeStorage.of(service: item.service, account: item.account),
+        if FLXEngine.usesSystemKeychain, let item = source.keychainItem,
+           let key = ChromiumSafeStorage.of(service: item.service, account: item.account),
            let flux = ChromiumSafeStorage.flux() {
             keys = Keys(source: key, flux: flux)
         }
