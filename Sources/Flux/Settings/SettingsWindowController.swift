@@ -55,6 +55,8 @@ final class SettingsWindowController: NSWindowController {
         let controller = NSHostingController(rootView: view)
         // The window takes each pane's size when it is selected.
         controller.sizingOptions = .preferredContentSize
+        // The tab view controller titles the window after the selected pane.
+        controller.title = String(localized: label)
         let item = NSTabViewItem(viewController: controller)
         item.label = String(localized: label)
         item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: item.label)
