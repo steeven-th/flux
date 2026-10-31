@@ -212,6 +212,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             state?.closePeek()
             return
         }
+        // Settings and other windows of their own close like any window. Pages, the command bar
+        // and overlays are child windows of the main window.
+        if let window = NSApp.keyWindow, !sequence(first: window, next: \.parent).contains(where: { $0 is MainWindow }) {
+            window.performClose(nil)
+            return
+        }
         guard let state, let tab = state.selectedTab else { return }
         state.close(tab)
     }
