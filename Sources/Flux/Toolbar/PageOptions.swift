@@ -34,6 +34,13 @@ struct PageOptions: View {
                             .frame(maxWidth: .infinity, minHeight: 40)
                             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.primary.opacity(0.07)))
                             .overlay(alignment: .bottomTrailing) { PinBadge(state: state, item: item) }
+                            .contextMenu {
+                                Button("Install in Other Spaces…") {
+                                    dismiss()
+                                    ExtensionInstaller.shared.ask(toInstall: item, state: state, justInstalled: false)
+                                }
+                                .disabled(state.spacesWithout(extensionID: item.id).isEmpty)
+                            }
                     }
                     Button {
                         dismiss()

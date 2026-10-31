@@ -1081,6 +1081,16 @@
         }
       }
     },
+    "Each space has its own extensions. The Chrome Web Store opens in each space you choose, where you confirm the installation." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaque espace a ses propres extensions. Le Chrome Web Store s'ouvre dans chaque espace choisi, où vous confirmez l'installation."
+          }
+        }
+      }
+    },
     "Each space has its own sign-ins, passwords, history and extensions. Add more later with + at the bottom of the sidebar." : {
       "localizations" : {
         "fr" : {
@@ -1537,6 +1547,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Installer"
+          }
+        }
+      }
+    },
+    "Install in Other Spaces…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installer dans d'autres espaces…"
+          }
+        }
+      }
+    },
+    "Install “%@” in other spaces too?" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installer « %@ » aussi dans d'autres espaces ?"
+          }
+        }
+      }
+    },
+    "Install “%@” in other spaces?" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installer « %@ » dans d'autres espaces ?"
           }
         }
       }
@@ -2027,6 +2067,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Non installé"
+          }
+        }
+      }
+    },
+    "Not Now" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus tard"
           }
         }
       }

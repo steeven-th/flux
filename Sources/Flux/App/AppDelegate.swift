@@ -51,6 +51,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             state?.openExternalPage(url, profilePath: profilePath)
         }
         prepare(state)
+        state.onExtensionInstall = { [weak state] item, spaceID in
+            guard let state, !ExtensionInstaller.shared.didInstall(item.id, inSpace: spaceID) else { return }
+            ExtensionInstaller.shared.ask(toInstall: item, state: state, justInstalled: true)
+        }
         state.startArchiving()
         state.startSavingScrollPositions()
         state.startSleepingTabs()

@@ -10,6 +10,10 @@ final class ExtensionList {
     /// Enabled or not.
     private(set) var installedIDs: Set<String> = []
 
+    /// Called with an extension just installed, not with those found when the profile loads.
+    @ObservationIgnored var onInstall: ((InstalledExtension) -> Void)?
+    /// False until Chromium has given the profile's extensions.
+    @ObservationIgnored private(set) var isLoaded = false
     @ObservationIgnored private let extensionsFolder: URL
 
     init(profile: FLXProfile, profileFolder: URL) {
@@ -18,8 +22,13 @@ final class ExtensionList {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 let settings = value as? [String: Any] ?? [:]
+                let previousIDs = self.installedIDs
                 self.extensions = Self.enabledExtensions(in: settings, folder: self.extensionsFolder)
                 self.installedIDs = Set(settings.filter { ($0.value as? [String: Any])?["location"] as? Int == 1 }.keys)
+                if self.isLoaded {
+                    self.extensions.filter { !previousIDs.contains($0.id) }.forEach { self.onInstall?($0) }
+                }
+                self.isLoaded = true
             }
         }
     }

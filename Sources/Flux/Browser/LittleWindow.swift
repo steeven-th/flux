@@ -17,6 +17,7 @@ final class LittleWindowModel: NSObject {
     @ObservationIgnored var onPageChange: (() -> Void)?
     /// Called when the page closes itself.
     @ObservationIgnored var onClose: (() -> Void)?
+    @ObservationIgnored var onFinishLoading: ((FLXBrowserView) -> Void)?
 
     init?(url: String, spaceID: UUID, state: BrowserState) {
         guard let profile = state.profile(ofSpace: spaceID) else { return nil }
@@ -68,6 +69,10 @@ extension LittleWindowModel: FLXBrowserViewDelegate {
     func browserViewDidClose(_ browserView: FLXBrowserView) {
         onClose?()
     }
+
+    func browserViewDidFinishLoading(_ browserView: FLXBrowserView) {
+        onFinishLoading?(browserView)
+    }
 }
 
 @MainActor
@@ -79,17 +84,21 @@ final class LittleWindowController: NSWindowController, NSWindowDelegate {
 
     private static var controllers: [LittleWindowController] = []
 
-    private let model: LittleWindowModel
+    let model: LittleWindowModel
+    /// Called when the window closes, the page moved to a space or not.
+    var onWindowClose: (() -> Void)?
     private let pageContainer = NSView()
     private var pageMoved = false
 
-    static func show(url: String, inSpace spaceID: UUID, state: BrowserState) {
-        guard let model = LittleWindowModel(url: url, spaceID: spaceID, state: state) else { return }
+    @discardableResult
+    static func show(url: String, inSpace spaceID: UUID, state: BrowserState) -> LittleWindowController? {
+        guard let model = LittleWindowModel(url: url, spaceID: spaceID, state: state) else { return nil }
         let controller = LittleWindowController(model: model)
         controllers.append(controller)
         controller.showWindow(nil)
         model.page.focus()
         NSApp.activate()
+        return controller
     }
 
     /// The little window that has the keyboard, its page window included.
@@ -180,6 +189,7 @@ final class LittleWindowController: NSWindowController, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         if !pageMoved { model.page.close() }
         Self.controllers.removeAll { $0 === self }
+        onWindowClose?()
     }
 }
 

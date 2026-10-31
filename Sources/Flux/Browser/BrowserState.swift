@@ -123,7 +123,13 @@ final class BrowserState {
         selectedTabIDs[space.id] = record.selectedTabID
         profiles[space.id] = profile
         profileDatabases[space.id] = database
-        extensionLists[space.id] = ExtensionList(profile: profile, profileFolder: space.profileFolder)
+        let extensionList = ExtensionList(profile: profile, profileFolder: space.profileFolder)
+        extensionList.onInstall = { [weak self] item in
+            // Once for the profile, though each of its spaces has a list.
+            guard let self, firstSpace(usingProfile: space.profileFolder)?.id == space.id else { return }
+            onExtensionInstall?(item, space.id)
+        }
+        extensionLists[space.id] = extensionList
         faviconCaches[space.id] = FaviconCache(profileFolder: space.profileFolder)
         histories[space.id] = ChromiumHistory(profileFolder: space.profileFolder)
         passwordManagers[space.id] = ChromiumPasswordManager(profile: profile)
@@ -335,6 +341,11 @@ final class BrowserState {
 
     func passwordManager(forProfile folder: URL) -> ChromiumPasswordManager? {
         firstSpace(usingProfile: folder).flatMap { passwordManagers[$0.id] }
+    }
+
+    func spaces(sharingProfileOf spaceID: UUID) -> [Space] {
+        guard let folder = spaces.first(where: { $0.id == spaceID })?.profileFolder.standardizedFileURL else { return [] }
+        return spaces.filter { $0.profileFolder.standardizedFileURL == folder }
     }
 
     private func firstSpace(usingProfile folder: URL) -> Space? {
@@ -1379,6 +1390,23 @@ final class BrowserState {
     func hideImportedExtensionsCard(in spaceID: UUID) {
         save { try appDatabase.setSetting("\(Self.importedExtensionsCardHiddenKey) \(spaceID)", to: "true") }
         settingsRevision += 1
+    }
+
+    /// Called with an extension just installed and the space it was installed in.
+    @ObservationIgnored var onExtensionInstall: ((InstalledExtension, UUID) -> Void)?
+
+    /// The spaces whose profile doesn't have the extension, one per profile. A profile not loaded
+    /// yet is read from its files.
+    func spacesWithout(extensionID: String) -> [Space] {
+        var folders: Set<URL> = []
+        return spaces.filter { space in
+            let folder = space.profileFolder.standardizedFileURL
+            guard folders.insert(folder).inserted else { return false }
+            if let list = extensionLists[space.id], list.isLoaded {
+                return !list.installedIDs.contains(extensionID)
+            }
+            return !ImportedExtension.installed(inProfile: space.profileFolder).contains { $0.id == extensionID }
+        }
     }
 
     /// Extensions keep their Chrome Web Store id once installed.

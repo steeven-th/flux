@@ -3,6 +3,17 @@
 Each space has its own extensions, installed from the Chrome Web Store as in Chrome. Their icons
 show next to the address, and Flux > Extensions lists them for the current space.
 
+## Installing in several spaces
+
+After an extension is installed, Flux offers to install it in the spaces that don't have it yet.
+Right-clicking an extension in the page options does the same later. Spaces that share a profile
+count as one.
+
+Chromium only installs extensions from the Chrome Web Store, after asking to confirm with the
+permissions they want. So for each space chosen, Flux opens the extension's store page in a little
+window of that space and presses its add button. You confirm, and the window closes once the
+extension is installed. If the store page changed and the button isn't found, press it yourself.
+
 ## Popups and side panels
 
 Clicking an extension's icon runs it on the current page. Flux shows the extension's popup under
