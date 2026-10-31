@@ -41,6 +41,18 @@ final class Tab: NSObject, Identifiable {
     @ObservationIgnored private var emulationScale: Double?
     @ObservationIgnored private var appliedEmulation: Emulation?
     @ObservationIgnored private var menuItems: [PageMenuItem] = []
+    /// The pages before and after those Chromium knows, from before Flux restarted or the tab
+    /// was unloaded, or left behind when the tab went to one of them.
+    @ObservationIgnored private var outsideHistory: NavigationHistory
+    /// Chromium's last page when its history was last read. A new one means a page was opened
+    /// after the current one, which drops the pages that were after it.
+    @ObservationIgnored private var lastChromiumEntryID: Int?
+    /// Set while a page Chromium doesn't know loads, until its history is cleared.
+    @ObservationIgnored private var isLeavingChromiumHistory = false
+    /// CEF only updates the page's own canGoBack and canGoForward when a load ends, so they are
+    /// wrong once its history is cleared.
+    @ObservationIgnored private var chromiumCanGoBack = false
+    @ObservationIgnored private var chromiumCanGoForward = false
 
     private enum PageMenuItem {
         case translateSelection, translatePage, showOriginal
@@ -56,6 +68,9 @@ final class Tab: NSObject, Identifiable {
         self.profile = profile
         self.favicons = favicons
         favicon = favicons.image(for: node.url ?? "")
+        outsideHistory = node.history ?? NavigationHistory()
+        canGoBack = !outsideHistory.back.isEmpty
+        canGoForward = !outsideHistory.forward.isEmpty
         super.init()
         if let page {
             page.delegate = self
@@ -72,6 +87,10 @@ final class Tab: NSObject, Identifiable {
         let view = FLXBrowserView(url: url, profile: profile)
         view.delegate = self
         scrollToRestore = node.scrollY
+        outsideHistory = node.history ?? NavigationHistory()
+        lastChromiumEntryID = nil
+        isLeavingChromiumHistory = false
+        (chromiumCanGoBack, chromiumCanGoForward) = (false, false)
         loadedView = view
         isLoaded = true
         return view
@@ -99,6 +118,78 @@ final class Tab: NSObject, Identifiable {
     func load(_ url: String) {
         browserView.loadURL(url)
         update(url: url)
+    }
+
+    func goBack() {
+        let page = browserView
+        if chromiumCanGoBack {
+            page.goBack()
+            return
+        }
+        guard !outsideHistory.back.isEmpty else { return }
+        readChromiumHistory(of: page) { [weak self] chromium in
+            guard let self, let chromium, let entry = outsideHistory.back.popLast() else { return }
+            outsideHistory.back += chromium.back
+            outsideHistory.forward = chromium.fromCurrent + outsideHistory.forward
+            leaveChromiumHistory(for: entry)
+        }
+    }
+
+    func goForward() {
+        let page = browserView
+        if chromiumCanGoForward {
+            page.goForward()
+            return
+        }
+        guard !outsideHistory.forward.isEmpty else { return }
+        readChromiumHistory(of: page) { [weak self] chromium in
+            guard let self, let chromium, !outsideHistory.forward.isEmpty else { return }
+            let entry = outsideHistory.forward.removeFirst()
+            outsideHistory.back += chromium.upToCurrent
+            outsideHistory.forward = chromium.forward + outsideHistory.forward
+            leaveChromiumHistory(for: entry)
+        }
+    }
+
+    /// Chromium would put the page after the one shown, so its history is cleared once the page
+    /// has loaded, and Flux keeps every other page.
+    private func leaveChromiumHistory(for entry: NavigationHistory.Entry) {
+        outsideHistory = outsideHistory.limited()
+        lastChromiumEntryID = nil
+        isLeavingChromiumHistory = true
+        load(entry.url)
+        updateNavigationState()
+    }
+
+    private func readChromiumHistory(of page: FLXBrowserView, completion: @escaping (PageNavigationEntries?) -> Void) {
+        page.sendDevToolsMethod("Page.getNavigationHistory", params: nil) { result in
+            completion(PageNavigationEntries(result))
+        }
+    }
+
+    /// Saves the whole history with the tab.
+    private func recordHistory() {
+        guard let page = loadedView, !isLeavingChromiumHistory else { return }
+        readChromiumHistory(of: page) { [weak self] chromium in
+            guard let self, page === loadedView, !isLeavingChromiumHistory,
+                  let chromium, let last = chromium.entries.last else { return }
+            if let lastChromiumEntryID, lastChromiumEntryID != last.id {
+                outsideHistory.forward = []
+            }
+            lastChromiumEntryID = last.id
+            chromiumCanGoBack = chromium.currentIndex > 0
+            chromiumCanGoForward = chromium.currentIndex < chromium.entries.count - 1
+            let history = NavigationHistory(back: outsideHistory.back + chromium.back, forward: chromium.forward + outsideHistory.forward).limited()
+            updateNavigationState()
+            guard history != node.history ?? NavigationHistory() else { return }
+            node.history = history.isEmpty ? nil : history
+            onChange?(self)
+        }
+    }
+
+    private func updateNavigationState() {
+        canGoBack = chromiumCanGoBack || !outsideHistory.back.isEmpty
+        canGoForward = chromiumCanGoForward || !outsideHistory.forward.isEmpty
     }
 
     /// Shows a tool of the page's DevTools, opening them on it if they are closed. DevTools are
@@ -371,6 +462,9 @@ final class Tab: NSObject, Identifiable {
         guard let view = loadedView else { return }
         loadedView = nil
         isLoaded = false
+        outsideHistory = node.history ?? NavigationHistory()
+        (chromiumCanGoBack, chromiumCanGoForward) = (false, false)
+        updateNavigationState()
         saveScrollPosition(of: view) { view.close() }
     }
 
@@ -412,10 +506,12 @@ final class Tab: NSObject, Identifiable {
 extension Tab: FLXBrowserViewDelegate {
     func browserView(_ browserView: FLXBrowserView, didChangeURL url: String) {
         update(url: url)
+        recordHistory()
     }
 
     func browserView(_ browserView: FLXBrowserView, didChangeTitle title: String) {
         update(title: title)
+        recordHistory()
     }
 
     func browserView(_ browserView: FLXBrowserView, didOpenPage page: FLXBrowserView, disposition: FLXOpenDisposition) {
@@ -432,8 +528,9 @@ extension Tab: FLXBrowserViewDelegate {
     }
 
     func browserViewDidChangeNavigationState(_ browserView: FLXBrowserView) {
-        canGoBack = browserView.canGoBack
-        canGoForward = browserView.canGoForward
+        chromiumCanGoBack = browserView.canGoBack
+        chromiumCanGoForward = browserView.canGoForward
+        updateNavigationState()
     }
 
     func browserView(_ browserView: FLXBrowserView, contextMenuItemsForSelectedText selectedText: String) -> [String] {
@@ -463,6 +560,12 @@ extension Tab: FLXBrowserViewDelegate {
     }
 
     func browserViewDidFinishLoading(_ browserView: FLXBrowserView) {
+        if isLeavingChromiumHistory {
+            browserView.sendDevToolsMethod("Page.resetNavigationHistory", params: nil) { [weak self] _ in
+                self?.isLeavingChromiumHistory = false
+                self?.recordHistory()
+            }
+        }
         Task { await detectPageLanguage() }
         if emulation != nil { loadMediaQueries() }
         guard let y = scrollToRestore else { return }

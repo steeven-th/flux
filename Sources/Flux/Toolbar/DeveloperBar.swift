@@ -98,9 +98,9 @@ struct PaneBar: View {
     var body: some View {
         ZStack {
             HStack(spacing: 2) {
-                PaneButton(symbol: "chevron.left", help: "Back") { tab.browserView.goBack() }
+                PaneButton(symbol: "chevron.left", help: "Back") { tab.goBack() }
                     .disabled(!tab.canGoBack)
-                PaneButton(symbol: "chevron.right", help: "Forward") { tab.browserView.goForward() }
+                PaneButton(symbol: "chevron.right", help: "Forward") { tab.goForward() }
                     .disabled(!tab.canGoForward)
                 PaneButton(symbol: "arrow.clockwise", help: "Reload Page") { tab.browserView.reload() }
                 Spacer()

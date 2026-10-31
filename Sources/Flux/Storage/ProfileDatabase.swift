@@ -38,6 +38,8 @@ struct SidebarNode: Codable, Identifiable, FetchableRecord, PersistableRecord {
     var isVertical = false
     /// For tabs in a split, their part of its width or height. Nil until the user resizes them.
     var share: Double?
+    /// For tabs, the pages before and after `url`.
+    var history: NavigationHistory?
 }
 
 /// A tab of Today that was closed or left unseen for too long.
@@ -136,6 +138,11 @@ final class ProfileDatabase: Sendable {
             try db.alter(table: "node") { t in
                 t.add(column: "isVertical", .boolean).notNull().defaults(to: false)
                 t.add(column: "share", .double)
+            }
+        }
+        migrator.registerMigration("v8 navigation history") { db in
+            try db.alter(table: "node") { t in
+                t.add(column: "history", .jsonText)
             }
         }
         return migrator

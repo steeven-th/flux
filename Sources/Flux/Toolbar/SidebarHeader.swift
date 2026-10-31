@@ -15,9 +15,9 @@ struct SidebarHeader: View {
                 NSApp.sendAction(#selector(AppDelegate.showOrHideSidebar(_:)), to: nil, from: nil)
             }
             Spacer()
-            HeaderButton(symbol: "arrow.left", help: "Back") { tab?.browserView.goBack() }
+            HeaderButton(symbol: "arrow.left", help: "Back") { tab?.goBack() }
                 .disabled(tab?.canGoBack != true)
-            HeaderButton(symbol: "arrow.right", help: "Forward") { tab?.browserView.goForward() }
+            HeaderButton(symbol: "arrow.right", help: "Forward") { tab?.goForward() }
                 .disabled(tab?.canGoForward != true)
             HeaderButton(symbol: "arrow.clockwise", help: "Reload (⌘R)") { tab?.browserView.reload() }
                 .disabled(tab == nil)

@@ -311,11 +311,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func goBack(_ sender: Any?) {
-        state?.selectedTab?.browserView.goBack()
+        state?.selectedTab?.goBack()
     }
 
     @objc func goForward(_ sender: Any?) {
-        state?.selectedTab?.browserView.goForward()
+        state?.selectedTab?.goForward()
     }
 }
 
@@ -340,6 +340,12 @@ extension AppDelegate: NSMenuDelegate, NSMenuItemValidation {
         }
         if menuItem.action == #selector(closeSplitPane(_:)) {
             return state?.selectedSplit != nil
+        }
+        if menuItem.action == #selector(goBack(_:)) {
+            return state?.selectedTab?.canGoBack ?? false
+        }
+        if menuItem.action == #selector(goForward(_:)) {
+            return state?.selectedTab?.canGoForward ?? false
         }
         if menuItem.action == #selector(togglePin(_:)) {
             guard let state, let tab = state.selectedTab else { return false }
