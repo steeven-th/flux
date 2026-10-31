@@ -28,6 +28,9 @@
     [self terminate:self];
     return;
   }
+  if (event.type == NSEventTypeKeyDown && self.keyDownHandler && self.keyDownHandler(event)) {
+    return;
+  }
   // ⌘O is Chromium's "Open File" too. Flux's menu gets it first, and only uses it when an item
   // for it is enabled.
   if (event.type == NSEventTypeKeyDown &&

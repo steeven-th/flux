@@ -16,7 +16,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.mainMenu = MainMenu.make(spacesMenuDelegate: self)
+        let menu = MainMenu.make(spacesMenuDelegate: self)
+        NSApp.mainMenu = menu
+        Shortcuts.install(in: menu, database: try? database.get())
         dialogFixer = ChromiumDialogFixer()
 
         let database: AppDatabase
@@ -57,7 +59,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if state.isWindowFullScreen { windowController.window?.toggleFullScreen(nil) }
         self.state = state
         self.windowController = windowController
-        watchSplitShortcuts()
         let links = pendingLinks
         pendingLinks = []
         links.forEach { openFromOtherApp($0.url, from: $0.app) }
@@ -231,24 +232,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func closeSplitPane(_ sender: Any?) {
         guard let state, state.selectedSplit != nil, let tab = state.selectedTab else { return }
         state.closePane(tab)
-    }
-
-    /// ⌃⇧= and ⌃⇧−, read from the key itself: what Shift makes of it depends on the keyboard,
-    /// "+" or "_" on some, "+" or "6" on a French one, so the menu can't match it.
-    private func watchSplitShortcuts() {
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.control, .shift],
-                  let key = event.characters(byApplyingModifiers: []) else { return event }
-            switch key {
-            case "=":
-                if self?.state?.canAddSplitPane == true { self?.addSplitPane(nil) }
-            case "-":
-                self?.closeSplitPane(nil)
-            default:
-                return event
-            }
-            return nil
-        }
     }
 
     @objc func togglePin(_ sender: Any?) {

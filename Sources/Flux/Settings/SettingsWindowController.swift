@@ -39,6 +39,9 @@ final class SettingsWindowController: NSWindowController {
         }))
         tabs.addTabViewItem(Self.item("Profiles", symbol: "person.crop.circle", ProfileSettings(state: state)))
         tabs.addTabViewItem(Self.item("Links", symbol: "rectangle.on.rectangle", LinkSettings(state: state)))
+        if let shortcuts = Shortcuts.shared {
+            tabs.addTabViewItem(Self.item("Shortcuts", symbol: "command", ShortcutSettings(shortcuts: shortcuts)))
+        }
         tabs.addTabViewItem(Self.item("Developer", symbol: "hammer", DeveloperSettings(state: state, model: developerSection)))
         window.center()
     }

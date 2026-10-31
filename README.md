@@ -34,3 +34,4 @@ Architecture decisions are recorded in [docs/decisions](docs/decisions).
 [docs/import.md](docs/import.md) tells what comes over from each browser.
 [docs/extensions.md](docs/extensions.md) covers popups, side panels and their limits.
 [docs/links.md](docs/links.md) explains where links from other apps open.
+[docs/shortcuts.md](docs/shortcuts.md) lists the keyboard shortcuts and how to change them.

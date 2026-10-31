@@ -681,6 +681,16 @@
         }
       }
     },
+    "Click a shortcut, then type the new one. Delete removes it, Escape cancels." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cliquez sur un raccourci, puis tapez le nouveau. Effacement le retire, Échap annule."
+          }
+        }
+      }
+    },
     "Close" : {
       "localizations" : {
         "fr" : {
@@ -1551,6 +1561,16 @@
         }
       }
     },
+    "It will be removed from “%@”." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il sera retiré de « %@ »."
+          }
+        }
+      }
+    },
     "Its tabs will be deleted. Sign-ins and extensions stay with the other spaces using the same profile." : {
       "localizations" : {
         "fr" : {
@@ -1987,6 +2007,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aucun outil"
+          }
+        }
+      }
+    },
+    "None" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun"
           }
         }
       }
@@ -2581,6 +2611,26 @@
         }
       }
     },
+    "Replace" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remplacer"
+          }
+        }
+      }
+    },
+    "Reset to Default" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rétablir la valeur par défaut"
+          }
+        }
+      }
+    },
     "Reset to Defaults" : {
       "localizations" : {
         "fr" : {
@@ -2657,6 +2707,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enregistre les mots de passe sur ce Mac, dans ce profil. Aucun compte nécessaire."
+          }
+        }
+      }
+    },
+    "Search" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher"
           }
         }
       }
@@ -2871,6 +2931,16 @@
         }
       }
     },
+    "Shortcuts" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raccourcis"
+          }
+        }
+      }
+    },
     "Show All History" : {
       "localizations" : {
         "fr" : {
@@ -3037,6 +3107,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sources"
+          }
+        }
+      }
+    },
+    "Space" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espace"
           }
         }
       }
@@ -3361,6 +3441,16 @@
         }
       }
     },
+    "Type Shortcut" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tapez le raccourci"
+          }
+        }
+      }
+    },
     "Undo" : {
       "localizations" : {
         "fr" : {
@@ -3567,6 +3657,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vos onglets vivent dans une barre latérale. Les espaces séparent vos connexions, mots de passe et extensions, et les extensions Chrome que vous utilisez fonctionnent aussi ici."
+          }
+        }
+      }
+    },
+    "“%@” is already used by “%@”." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "« %1$@ » est déjà utilisé par « %2$@ »."
+          }
+        }
+      }
+    },
+    "“%@” is used by “%@”, which keeps its shortcut." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "« %1$@ » est utilisé par « %2$@ », qui garde son raccourci."
           }
         }
       }
