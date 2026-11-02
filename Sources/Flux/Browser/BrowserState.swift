@@ -16,6 +16,7 @@ final class BrowserState {
     private static let fullScreenKey = "windowFullScreen"
     private static let asksWhereToSaveKey = "asksWhereToSaveDownloads"
     private static let unpinnedExtensionsKey = "unpinnedExtensions"
+    private static let collapsedSectionsKey = "collapsedSections"
     private static let developerSitesKey = "developerSites"
     private static let devToolsWidthKey = "devToolsWidth"
     private static let devToolsOrderKey = "devToolsOrder"
@@ -1324,6 +1325,24 @@ final class BrowserState {
         guard folder.node.isExpanded != isExpanded else { return }
         folder.setExpanded(isExpanded)
         save { try profileDatabases[folder.spaceID]?.save(folder.node) }
+    }
+
+    func isCollapsed(_ section: SidebarNode.Section) -> Bool {
+        collapsedSections(in: selectedSpaceID).contains(section.rawValue)
+    }
+
+    func setCollapsed(_ section: SidebarNode.Section, _ isCollapsed: Bool) {
+        var sections = collapsedSections(in: selectedSpaceID)
+        guard sections.contains(section.rawValue) != isCollapsed else { return }
+        if isCollapsed { sections.insert(section.rawValue) } else { sections.remove(section.rawValue) }
+        let json = sections.isEmpty ? nil : (try? JSONEncoder().encode(sections.sorted())).flatMap { String(data: $0, encoding: .utf8) }
+        save { try appDatabase.setSetting("\(Self.collapsedSectionsKey) \(selectedSpaceID)", to: json) }
+    }
+
+    private func collapsedSections(in spaceID: UUID) -> Set<String> {
+        guard let json = try? appDatabase.setting("\(Self.collapsedSectionsKey) \(spaceID)"),
+              let values = try? JSONDecoder().decode([String].self, from: Data(json.utf8)) else { return [] }
+        return Set(values)
     }
 
     /// The folder's content moves up to where the folder was, nothing is lost.

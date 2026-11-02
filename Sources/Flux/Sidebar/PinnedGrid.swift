@@ -41,12 +41,8 @@ struct PinnedGrid: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> NSCollectionView {
-        let layout = PinnedGridLayout()
-        layout.minimumInteritemSpacing = Self.spacing
-        layout.minimumLineSpacing = Self.spacing
-
         let collection = PinnedCollectionView()
-        collection.collectionViewLayout = layout
+        collection.collectionViewLayout = PinnedGridLayout()
         collection.backgroundColors = [.clear]
         collection.isSelectable = true
         collection.dataSource = context.coordinator
@@ -73,21 +69,14 @@ struct PinnedGrid: NSViewRepresentable {
         _ = state.sidebarRevision
         _ = state.selectedSpaceID
         _ = state.selectedTab
-        if context.coordinator.width != width {
-            context.coordinator.width = width
-            collection.collectionViewLayout?.invalidateLayout()
-        }
+        (collection.collectionViewLayout as? PinnedGridLayout)?.width = width
         context.coordinator.reload()
-        (collection.collectionViewLayout as? PinnedGridLayout)?.columns = PinnedGrid.columns(
-            for: state.pinnedTabs.count, width: width
-        )
     }
 
     @MainActor
-    final class Coordinator: NSObject, NSCollectionViewDataSource, NSCollectionViewDelegateFlowLayout {
+    final class Coordinator: NSObject, NSCollectionViewDataSource, NSCollectionViewDelegate {
         let state: BrowserState
         weak var collection: NSCollectionView?
-        var width: CGFloat = 0
         /// What the grid shows. While something is dragged over it, tiles are already moved to where
         /// they would end up, and a nil slot stands for an item dragged in from the outline.
         private var tiles: [Tab?] = []
@@ -119,7 +108,7 @@ struct PinnedGrid: NSViewRepresentable {
         private func configure(_ item: NSCollectionViewItem, at index: Int) {
             guard let item = item as? PinnedItem, tiles.indices.contains(index) else { return }
             if let tab = tiles[index], tab.id != draggedTabID {
-                item.show(AnyView(PinnedTile(tab: tab, isSelected: state.selectedTab === tab)))
+                item.show(AnyView(PinnedTile(tab: tab, isSelected: state.selectedTab === tab, hover: item.hover)))
             } else {
                 item.show(AnyView(DropSlot()))
             }
@@ -152,16 +141,6 @@ struct PinnedGrid: NSViewRepresentable {
             at indexPath: IndexPath
         ) -> NSView {
             collectionView.makeSupplementaryView(ofKind: kind, withIdentifier: NoGapIndicator.identifier, for: indexPath)
-        }
-
-        func collectionView(
-            _ collectionView: NSCollectionView, layout collectionViewLayout: NSCollectionViewLayout,
-            sizeForItemAt indexPath: IndexPath
-        ) -> NSSize {
-            let columns = PinnedGrid.columns(for: tiles.count, width: width)
-            (collectionViewLayout as? PinnedGridLayout)?.columns = columns
-            let tileWidth = (width - PinnedGrid.spacing * CGFloat(columns - 1)) / CGFloat(columns)
-            return NSSize(width: max(floor(tileWidth), 1), height: PinnedGrid.tileHeight)
         }
 
         func collectionView(_ collectionView: NSCollectionView, didSelectItemsAt indexPaths: Set<IndexPath>) {
@@ -312,25 +291,62 @@ struct PinnedGrid: NSViewRepresentable {
     }
 }
 
-/// A flow layout that starts every row at the left edge. The flow layout spreads the tiles of a row
-/// that isn't full across the width.
-private final class PinnedGridLayout: NSCollectionViewFlowLayout {
-    var columns = 1
+/// Places tile n at row n / columns, column n % columns. A flow layout wraps rows by itself, and at
+/// some widths it put fewer tiles on a row than the grid has columns, which left holes.
+private final class PinnedGridLayout: NSCollectionViewLayout {
+    var width: CGFloat = 0 {
+        didSet { if width != oldValue { invalidateLayout() } }
+    }
+    private var count = 0
+    private var columns = 1
+    private var tileWidth: CGFloat = 1
+
+    override func prepare() {
+        super.prepare()
+        count = collectionView?.numberOfItems(inSection: 0) ?? 0
+        columns = PinnedGrid.columns(for: count, width: width)
+        tileWidth = max(floor((width - PinnedGrid.spacing * CGFloat(columns - 1)) / CGFloat(columns)), 1)
+    }
+
+    private func frame(at index: Int) -> NSRect {
+        NSRect(
+            x: CGFloat(index % columns) * (tileWidth + PinnedGrid.spacing),
+            y: CGFloat(index / columns) * (PinnedGrid.tileHeight + PinnedGrid.spacing),
+            width: tileWidth, height: PinnedGrid.tileHeight
+        )
+    }
+
+    override var collectionViewContentSize: NSSize {
+        NSSize(width: width, height: count == 0 ? 0 : frame(at: count - 1).maxY)
+    }
 
     override func layoutAttributesForElements(in rect: NSRect) -> [NSCollectionViewLayoutAttributes] {
-        super.layoutAttributesForElements(in: rect).map(aligned)
+        (0..<count).filter { frame(at: $0).intersects(rect) }.compactMap {
+            layoutAttributesForItem(at: IndexPath(item: $0, section: 0))
+        }
     }
 
     override func layoutAttributesForItem(at indexPath: IndexPath) -> NSCollectionViewLayoutAttributes? {
-        super.layoutAttributesForItem(at: indexPath).map(aligned)
+        guard indexPath.item < count else { return nil }
+        let attributes = NSCollectionViewLayoutAttributes(forItemWith: indexPath)
+        attributes.frame = frame(at: indexPath.item)
+        return attributes
     }
 
-    private func aligned(_ attributes: NSCollectionViewLayoutAttributes) -> NSCollectionViewLayoutAttributes {
-        guard attributes.representedElementCategory == .item, let indexPath = attributes.indexPath,
-              let copy = attributes.copy() as? NSCollectionViewLayoutAttributes else { return attributes }
-        let column = CGFloat(indexPath.item % columns)
-        copy.frame.origin.x = column * (copy.frame.width + minimumInteritemSpacing)
-        return copy
+    /// Drops land before the tile under the pointer, or after it past its middle.
+    override func layoutAttributesForDropTarget(at point: NSPoint) -> NSCollectionViewLayoutAttributes? {
+        let column = min(max(Int(point.x / (tileWidth + PinnedGrid.spacing)), 0), columns - 1)
+        let row = max(Int(point.y / (PinnedGrid.tileHeight + PinnedGrid.spacing)), 0)
+        var index = row * columns + column
+        if point.x > frame(at: index).midX { index += 1 }
+        return layoutAttributesForInterItemGap(before: IndexPath(item: min(index, count), section: 0))
+    }
+
+    override func layoutAttributesForInterItemGap(before indexPath: IndexPath) -> NSCollectionViewLayoutAttributes? {
+        let attributes = NSCollectionViewLayoutAttributes(forInterItemGapBefore: indexPath)
+        let tile = frame(at: indexPath.item)
+        attributes.frame = NSRect(x: tile.minX - PinnedGrid.spacing, y: tile.minY, width: PinnedGrid.spacing, height: tile.height)
+        return attributes
     }
 }
 
@@ -374,10 +390,13 @@ private final class PinnedCollectionView: NSCollectionView {
 
 private final class PinnedItem: NSCollectionViewItem {
     static let identifier = NSUserInterfaceItemIdentifier("PinnedItem")
+    let hover = TileHover()
     private let host = NSHostingView(rootView: AnyView(EmptyView()))
 
     override func loadView() {
-        view = ClickThroughView()
+        let view = ClickThroughView()
+        view.hover = hover
+        self.view = view
         host.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(host)
         NSLayoutConstraint.activate([
@@ -393,10 +412,36 @@ private final class PinnedItem: NSCollectionViewItem {
     }
 }
 
+@MainActor
+@Observable
+final class TileHover {
+    var isHovered = false
+}
+
 /// Keeps clicks away from the SwiftUI tile, so the collection view handles selection and dragging.
+/// It also follows the mouse for the tile, whichever window is key, as the outline's rows do.
 private final class ClickThroughView: NSView {
+    var hover: TileHover?
+    private var trackingArea: NSTrackingArea?
+
     override func hitTest(_ point: NSPoint) -> NSView? {
         frame.contains(point) ? self : nil
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea { removeTrackingArea(trackingArea) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self)
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        hover?.isHovered = true
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        hover?.isHovered = false
     }
 }
 
@@ -421,6 +466,11 @@ private extension Array {
 struct PinnedTile: View {
     let tab: Tab
     let isSelected: Bool
+    let hover: TileHover
+
+    private var fillOpacity: Double {
+        isSelected ? 0.14 : hover.isHovered ? 0.1 : 0.06
+    }
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -434,7 +484,7 @@ struct PinnedTile: View {
         .frame(width: 20, height: 20)
         .opacity(tab.isLoaded ? 1 : 0.6)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(shape.fill(Color.primary.opacity(isSelected ? 0.14 : 0.06)))
+        .background(shape.fill(Color.primary.opacity(fillOpacity)))
         .overlay(shape.strokeBorder(Color.primary.opacity(isSelected ? 0.25 : 0.12), lineWidth: 1))
         .overlay(alignment: .topTrailing) { AudioButton(tab: tab) }
         .help(tab.displayTitle)

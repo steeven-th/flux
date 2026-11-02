@@ -9,6 +9,7 @@ final class Folder: NSObject, Identifiable {
     let spaceID: UUID
     private(set) var title: String
     var isEditingTitle = false
+    private(set) var isExpanded: Bool
 
     @ObservationIgnored private(set) var node: SidebarNode
 
@@ -16,6 +17,7 @@ final class Folder: NSObject, Identifiable {
         id = node.id
         spaceID = node.spaceID
         title = node.title
+        isExpanded = node.isExpanded
         self.node = node
     }
 
@@ -25,6 +27,7 @@ final class Folder: NSObject, Identifiable {
     }
 
     func setExpanded(_ isExpanded: Bool) {
+        self.isExpanded = isExpanded
         node.isExpanded = isExpanded
     }
 

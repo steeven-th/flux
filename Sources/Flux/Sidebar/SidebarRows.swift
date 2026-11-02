@@ -11,6 +11,29 @@ struct SectionHeaderRow: View {
     }
 }
 
+struct SidebarDivider: View {
+    var body: some View {
+        Rectangle()
+            .fill(.primary.opacity(0.1))
+            .frame(height: 1)
+    }
+}
+
+struct NewTabRow: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "plus")
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 16, height: 16)
+            Text("New Tab")
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(.secondary)
+        .frame(maxHeight: .infinity)
+        .contentShape(Rectangle())
+    }
+}
+
 /// A loaded tab shows a button that unloads it. Once unloaded, the button closes it.
 struct TabRow: View {
     let tab: Tab
@@ -69,9 +92,10 @@ struct FolderRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "folder")
-                .foregroundStyle(.secondary)
+            FolderIcon(openness: folder.isExpanded ? 1 : 0)
+                .stroke(.secondary, style: StrokeStyle(lineWidth: 1.2, lineJoin: .round))
                 .frame(width: 16, height: 16)
+                .animation(.easeInOut(duration: 0.2), value: folder.isExpanded)
             if folder.isEditingTitle {
                 TextField("Folder name", text: $draft)
                     .textFieldStyle(.plain)
@@ -97,6 +121,34 @@ struct FolderRow: View {
         }
         .frame(maxHeight: .infinity)
         .contentShape(Rectangle())
+    }
+}
+
+/// SF Symbols has no open folder. When open, the front flap tilts forward, away from the back.
+struct FolderIcon: Shape {
+    var openness: CGFloat
+
+    var animatableData: CGFloat {
+        get { openness }
+        set { openness = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: rect.minX + x * rect.width, y: rect.minY + y * rect.height)
+        }
+        let flapTop = 0.4 + 0.14 * openness
+        var path = Path()
+        path.addLines([
+            point(0.06, 0.86), point(0.06, 0.18), point(0.38, 0.18), point(0.46, 0.28),
+            point(0.94, 0.28), point(0.94, flapTop),
+        ])
+        path.addLines([
+            point(0.06 + 0.16 * openness, flapTop), point(0.94 + 0.06 * openness, flapTop),
+            point(0.94, 0.86), point(0.06, 0.86),
+        ])
+        path.closeSubpath()
+        return path
     }
 }
 

@@ -42,31 +42,12 @@ struct SidebarView: View {
             PinnedGrid(state: state, width: width)
                 .frame(height: PinnedGrid.height(for: pinnedCount, width: width))
 
+            SidebarDivider()
+
             VStack(alignment: .leading, spacing: 12) {
-                SidebarOutline(state: state)
+                SidebarOutline(state: state) { showCommandBar(.newTab) }
                 PasswordExportCard(state: state)
                 ImportedExtensionsCard(state: state)
-
-                HStack {
-                    Button {
-                        showCommandBar(.newTab)
-                    } label: {
-                        Label("New Tab", systemImage: "plus")
-                    }
-                    Spacer()
-                    Button {
-                        state.isArchiveShown.toggle()
-                    } label: {
-                        Image(systemName: "archivebox")
-                            .frame(width: 22, height: 22)
-                            .contentShape(Rectangle())
-                    }
-                    .help("Archive")
-                    .popover(isPresented: $state.isArchiveShown, arrowEdge: .top) {
-                        ArchiveView(state: state)
-                    }
-                }
-                .buttonStyle(.borderless)
             }
             // The latest files rise over the bottom of the tabs, above the space bar.
             .overlay(alignment: .bottom) {

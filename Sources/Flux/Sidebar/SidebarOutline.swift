@@ -5,9 +5,10 @@ import SwiftUI
 /// dragging items between levels far better than SwiftUI lists.
 struct SidebarOutline: NSViewRepresentable {
     let state: BrowserState
+    let onNewTab: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(state: state)
+        Coordinator(state: state, onNewTab: onNewTab)
     }
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -59,16 +60,24 @@ struct SidebarOutline: NSViewRepresentable {
             init(_ section: SidebarNode.Section) { self.section = section }
         }
 
+        /// The line between favorites and today, and the first row of today.
+        final class SeparatorItem: NSObject {}
+        final class NewTabItem: NSObject {}
+
         let state: BrowserState
+        let onNewTab: () -> Void
         weak var outline: NSOutlineView?
         let contextMenu = NSMenu()
         private let sections = [SectionItem(.favorites), SectionItem(.today)]
+        private let separator = SeparatorItem()
+        private let newTab = NewTabItem()
         private var shownRevision = -1
         private var shownSpaceID: UUID?
         private var isSyncingSelection = false
 
-        init(state: BrowserState) {
+        init(state: BrowserState, onNewTab: @escaping () -> Void) {
             self.state = state
+            self.onNewTab = onNewTab
             super.init()
             contextMenu.delegate = self
             contextMenu.autoenablesItems = false
@@ -87,7 +96,7 @@ struct SidebarOutline: NSViewRepresentable {
             shownRevision = state.sidebarRevision
             shownSpaceID = state.selectedSpaceID
             outline.reloadData()
-            for section in sections {
+            for section in sections where !state.isCollapsed(section.section) {
                 outline.expandItem(section)
             }
             expandFolders(in: nil)
@@ -132,9 +141,10 @@ struct SidebarOutline: NSViewRepresentable {
         private func children(of item: Any?) -> [NSObject] {
             switch item {
             case nil:
-                return sections
+                return [sections[0], separator, sections[1]]
             case let section as SectionItem:
-                return state.entries(in: section.section, parentID: nil).map(\.object)
+                let entries = state.entries(in: section.section, parentID: nil).map(\.object)
+                return section.section == .today ? [newTab] + entries : entries
             case let folder as Folder:
                 return state.entries(in: .favorites, parentID: folder.id).map(\.object)
             default:
@@ -148,7 +158,15 @@ struct SidebarOutline: NSViewRepresentable {
         }
 
         func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? {
-            item is SectionItem ? nil : HoverRowView()
+            switch item {
+            case is SectionItem: nil
+            case is SeparatorItem: SeparatorRowView()
+            default: HoverRowView()
+            }
+        }
+
+        func outlineView(_ outlineView: NSOutlineView, heightOfRowByItem item: Any) -> CGFloat {
+            item is SeparatorItem ? 17 : outlineView.rowHeight
         }
 
         func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
@@ -156,6 +174,8 @@ struct SidebarOutline: NSViewRepresentable {
             switch item {
             case let section as SectionItem:
                 row = AnyView(SectionHeaderRow(section: section.section))
+            case is NewTabItem:
+                row = AnyView(NewTabRow())
             case let tab as Tab:
                 row = AnyView(TabRow(tab: tab) { [weak self] in
                     self?.state.unload(tab)
@@ -188,12 +208,16 @@ struct SidebarOutline: NSViewRepresentable {
         }
 
         func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
-            if let folder = item as? Folder {
-                if outlineView.isItemExpanded(folder) {
-                    outlineView.collapseItem(folder)
+            if item is Folder || item is SectionItem {
+                if outlineView.isItemExpanded(item) {
+                    outlineView.animator().collapseItem(item)
                 } else {
-                    outlineView.expandItem(folder)
+                    outlineView.animator().expandItem(item)
                 }
+                return false
+            }
+            if item is NewTabItem {
+                onNewTab()
                 return false
             }
             return item is Tab || item is Split
@@ -236,19 +260,22 @@ struct SidebarOutline: NSViewRepresentable {
             return panes[min(max(index, 0), panes.count - 1)]
         }
 
-        func outlineView(_ outlineView: NSOutlineView, shouldCollapseItem item: Any) -> Bool {
-            !(item is SectionItem)
-        }
-
         func outlineViewItemDidExpand(_ notification: Notification) {
-            if let folder = notification.userInfo?["NSObject"] as? Folder {
-                state.setExpanded(folder, true)
-            }
+            setExpanded(notification.userInfo?["NSObject"], true)
         }
 
         func outlineViewItemDidCollapse(_ notification: Notification) {
-            if let folder = notification.userInfo?["NSObject"] as? Folder {
-                state.setExpanded(folder, false)
+            setExpanded(notification.userInfo?["NSObject"], false)
+        }
+
+        private func setExpanded(_ item: Any?, _ isExpanded: Bool) {
+            switch item {
+            case let folder as Folder:
+                state.setExpanded(folder, isExpanded)
+            case let section as SectionItem:
+                state.setCollapsed(section.section, !isExpanded)
+            default:
+                break
             }
         }
 
@@ -295,7 +322,9 @@ struct SidebarOutline: NSViewRepresentable {
             let childIndex = index == NSOutlineViewDropOnItemIndex ? nil : index
             switch item {
             case let section as SectionItem:
-                return (section.section, nil, childIndex)
+                // Today starts with the new tab row, which isn't one of its entries.
+                let offset = section.section == .today ? 1 : 0
+                return (section.section, nil, childIndex.map { max($0 - offset, 0) })
             case let folder as Folder:
                 return (.favorites, folder.id, childIndex)
             default:
@@ -393,6 +422,15 @@ private final class SidebarOutlineView: NSOutlineView {
         guard event.buttonNumber == 2 else { return super.otherMouseUp(with: event) }
         let row = row(at: convert(event.locationInWindow, from: nil))
         if row >= 0, let item = item(atRow: row) { middleClickHandler?(item) }
+    }
+}
+
+/// Drawn by the row rather than a cell, so the line spans the sidebar like the one under the pinned
+/// tabs instead of starting at the outline's indentation.
+private final class SeparatorRowView: NSTableRowView {
+    override func drawBackground(in dirtyRect: NSRect) {
+        NSColor.labelColor.withAlphaComponent(0.1).setFill()
+        NSRect(x: bounds.minX, y: bounds.midY.rounded(.down), width: bounds.width, height: 1).fill()
     }
 }
 

@@ -8,6 +8,9 @@ struct SpaceBar: View {
     @State private var editedSpaceID: UUID?
     @State private var isCreating = false
     @State private var spaceToDelete: Space?
+    @State private var rowWidth: CGFloat = 0
+
+    private static let sideWidth: CGFloat = 48
 
     private var spaceIcons: some View {
         ForEach(Array(state.spaces.enumerated()), id: \.element.id) { index, space in
@@ -33,8 +36,11 @@ struct SpaceBar: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            LibraryButton(state: state, recentFiles: recentFiles)
-                .padding(.trailing, 4)
+            HStack(spacing: 4) {
+                LibraryButton(state: state, recentFiles: recentFiles)
+                ArchiveButton(state: state)
+            }
+            .frame(width: Self.sideWidth, alignment: .leading)
             // Private windows have one space, which can't be changed.
             if state.isPrivate {
                 Label("Private Browsing", systemImage: "eyeglasses")
@@ -43,6 +49,9 @@ struct SpaceBar: View {
                 Spacer()
             } else {
                 spaceRow
+                // As wide as the buttons on the left, so the spaces sit in the sidebar's middle.
+                newSpaceButton
+                    .frame(width: Self.sideWidth, alignment: .trailing)
             }
         }
         .alert(deleteTitle, isPresented: deletingBinding, presenting: spaceToDelete) { space in
@@ -55,16 +64,21 @@ struct SpaceBar: View {
         }
     }
 
-    @ViewBuilder private var spaceRow: some View {
+    private var spaceRow: some View {
         // Arc users often have many spaces: past the sidebar's width, the icons scroll.
         ScrollViewReader { scroller in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     spaceIcons
                 }
+                .frame(minWidth: rowWidth)
             }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { rowWidth = $0 }
             .onChange(of: state.selectedSpaceID) { scroller.scrollTo(state.selectedSpaceID) }
         }
+    }
+
+    private var newSpaceButton: some View {
         Button {
             isCreating = true
         } label: {
@@ -131,5 +145,24 @@ struct SpaceIcon: View {
             Circle().strokeBorder(.white.opacity(isSelected ? 0.8 : 0), lineWidth: 1.5)
         }
         .contentShape(Circle())
+    }
+}
+
+struct ArchiveButton: View {
+    @Bindable var state: BrowserState
+
+    var body: some View {
+        Button {
+            state.isArchiveShown.toggle()
+        } label: {
+            Image(systemName: "archivebox")
+                .frame(width: 22, height: 22)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .help("Archive")
+        .popover(isPresented: $state.isArchiveShown, arrowEdge: .top) {
+            ArchiveView(state: state)
+        }
     }
 }
