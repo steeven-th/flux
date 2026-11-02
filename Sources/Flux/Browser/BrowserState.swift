@@ -74,8 +74,8 @@ final class BrowserState {
         get { store.draggedTab }
         set { store.draggedTab = newValue }
     }
-    /// Set while a tab dropped from another window moves here, so selecting it doesn't send it
-    /// back to that window.
+    /// Set while this window takes a tab, dropped on it or handed over by another window, so
+    /// selecting it doesn't send it back.
     private var isTakingTab = false
     /// Downloads and media, shown in place of the sidebar.
     var isLibraryShown = false
@@ -425,14 +425,14 @@ final class BrowserState {
     }
 
     /// A page shows in one window at a time. Windows opened earlier keep a tab both selected, and
-    /// a window without a selection shows the last tab no other window chose.
+    /// a window without a selection shows the last tab no other window chose or shows before it.
     var selectedTab: Tab? {
         if let id = selectedTabIDs[selectedSpaceID], let tab = tabs.first(where: { $0.id == id }),
            !windowsBefore.contains(where: { $0.chosenTabs.contains { $0 === tab } }) {
             return tab
         }
         guard !showsChosenTabsOnly else { return nil }
-        let elsewhere = otherWindows.flatMap(\.chosenTabs)
+        let elsewhere = otherWindows.flatMap(\.chosenTabs) + windowsBefore.flatMap(\.shownTabs)
         return tabsInSelectedSpace.last { tab in !elsewhere.contains { $0 === tab } }
     }
 
@@ -552,7 +552,9 @@ final class BrowserState {
     /// A tab another window shows brings that window to the front instead, as in Arc.
     func select(_ tab: Tab) {
         if !isTakingTab, let other = otherWindows.first(where: { $0.shownTabs.contains { $0 === tab } }) {
+            other.isTakingTab = true
             other.select(tab)
+            other.isTakingTab = false
             other.onShowWindow?()
             return
         }
