@@ -8,9 +8,26 @@ struct MiniPlayer: View {
 
     @State private var isHovered = false
 
+    private static let controlsHeight: CGFloat = 24
+    private static let verticalPadding: CGFloat = 6
+    /// The title and the slider fade in once the card has almost grown to make room for them.
+    private static let reveal = AnyTransition.asymmetric(
+        insertion: .opacity.animation(.easeOut(duration: 0.12).delay(0.12)),
+        removal: .opacity.animation(.easeOut(duration: 0.06))
+    )
+
+    /// The sidebar keeps room for the compact card only. Hovered, it grows over the tabs above
+    /// rather than pushing them up.
     var body: some View {
+        Color.clear
+            .frame(height: Self.controlsHeight + 2 * Self.verticalPadding)
+            .overlay(alignment: .bottom) { card }
+    }
+
+    private var card: some View {
         let media = tab.media
-        VStack(spacing: 8) {
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        return VStack(spacing: 8) {
             if isHovered {
                 HStack(spacing: 6) {
                     Text(title)
@@ -29,7 +46,7 @@ struct MiniPlayer: View {
                     }
                     .help("Stop and Close")
                 }
-                .transition(.opacity)
+                .transition(Self.reveal)
             }
 
             HStack(spacing: 0) {
@@ -42,7 +59,7 @@ struct MiniPlayer: View {
                         }
                     }
                     .frame(width: 16, height: 16)
-                    .frame(maxWidth: .infinity, minHeight: 24)
+                    .frame(maxWidth: .infinity, minHeight: Self.controlsHeight, maxHeight: Self.controlsHeight)
                     .contentShape(Rectangle())
                 }
                 .help("Show Tab")
@@ -61,16 +78,18 @@ struct MiniPlayer: View {
             if isHovered {
                 Slider(value: volume, in: 0...1)
                     .controlSize(.mini)
-                    .transition(.opacity)
+                    .transition(Self.reveal)
             }
         }
         .buttonStyle(.borderless)
         .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.background.opacity(0.7)))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(.primary.opacity(0.08)))
+        .padding(.vertical, Self.verticalPadding)
+        // Opaque enough to hide the tabs it covers once grown.
+        .background(shape.fill(.background.opacity(0.95)))
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(.primary.opacity(0.08)))
         .onHover { isHovered = $0 }
-        .animation(.easeOut(duration: 0.15), value: isHovered)
+        .animation(.easeOut(duration: 0.18), value: isHovered)
     }
 
     /// The site's title for what plays, else the page's.
@@ -87,7 +106,7 @@ struct MiniPlayer: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 12))
-                .frame(maxWidth: .infinity, minHeight: 24)
+                .frame(maxWidth: .infinity, minHeight: Self.controlsHeight, maxHeight: Self.controlsHeight)
                 .contentShape(Rectangle())
         }
         .help(help)
