@@ -600,10 +600,11 @@ final class BrowserState {
         if !selecting, selectedTabIDs[spaceID].flatMap({ id in tabs.first { $0.id == id } }) == nil {
             selectedTabIDs[spaceID] = tabs.last { $0.spaceID == spaceID }?.id
         }
-        let last = entries(in: .today, parentID: nil, spaceID: spaceID).last?.node.position
+        // New tabs go to the top of Today, as in Arc.
+        let first = entries(in: .today, parentID: nil, spaceID: spaceID).first?.node.position
         let node = SidebarNode(
             id: UUID(), spaceID: spaceID, parentID: nil, kind: .tab, section: .today,
-            position: FractionalIndex.between(last, nil), title: "", url: url, originalURL: nil,
+            position: FractionalIndex.between(nil, first), title: "", url: url, originalURL: nil,
             isExpanded: true, lastActiveAt: Date(), createdAt: Date()
         )
         save { try profileDatabases[spaceID]?.save(node) }
