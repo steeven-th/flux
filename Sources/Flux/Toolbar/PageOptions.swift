@@ -26,33 +26,36 @@ struct PageOptions: View {
                     .help("Capture the Whole Page")
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Extensions").font(.headline)
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
-                    ForEach(state.extensionsInSelectedSpace) { item in
-                        ExtensionButton(item: item, profile: state.selectedProfile, currentPage: { tab.browserView })
-                            .frame(maxWidth: .infinity, minHeight: 40)
-                            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.primary.opacity(0.07)))
-                            .overlay(alignment: .bottomTrailing) { PinBadge(state: state, item: item) }
-                            .contextMenu {
-                                Button("Install in Other Spaces…") {
-                                    dismiss()
-                                    ExtensionInstaller.shared.ask(toInstall: item, state: state, justInstalled: false)
+            // Private windows run no extensions.
+            if !state.isPrivate {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Extensions").font(.headline)
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
+                        ForEach(state.extensionsInSelectedSpace) { item in
+                            ExtensionButton(item: item, profile: state.selectedProfile, currentPage: { tab.browserView })
+                                .frame(maxWidth: .infinity, minHeight: 40)
+                                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.primary.opacity(0.07)))
+                                .overlay(alignment: .bottomTrailing) { PinBadge(state: state, item: item) }
+                                .contextMenu {
+                                    Button("Install in Other Spaces…") {
+                                        dismiss()
+                                        ExtensionInstaller.shared.ask(toInstall: item, state: state, justInstalled: false)
+                                    }
+                                    .disabled(state.spacesWithout(extensionID: item.id).isEmpty)
                                 }
-                                .disabled(state.spacesWithout(extensionID: item.id).isEmpty)
-                            }
+                        }
+                        Button {
+                            dismiss()
+                            state.newTab(url: "https://chromewebstore.google.com/category/extensions")
+                        } label: {
+                            Image(systemName: "plus")
+                                .frame(maxWidth: .infinity, minHeight: 40)
+                                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.primary.opacity(0.07)))
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Add Extensions from the Chrome Web Store")
                     }
-                    Button {
-                        dismiss()
-                        state.newTab(url: "https://chromewebstore.google.com/category/extensions")
-                    } label: {
-                        Image(systemName: "plus")
-                            .frame(maxWidth: .infinity, minHeight: 40)
-                            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.primary.opacity(0.07)))
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .help("Add Extensions from the Chrome Web Store")
                 }
             }
 
