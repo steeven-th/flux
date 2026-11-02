@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/flux-icon.svg" width="128" alt="Flux icon"></p>
+
 # Flux
 
 A macOS browser with a sidebar, folders and spaces that stay apart. Each space has its own
@@ -36,6 +38,7 @@ Architecture decisions are recorded in [docs/decisions](docs/decisions).
 [docs/links.md](docs/links.md) explains where links from other apps open.
 [docs/media.md](docs/media.md) describes the mini player and how it controls pages.
 [docs/shortcuts.md](docs/shortcuts.md) lists the keyboard shortcuts and how to change them.
+[docs/brand.md](docs/brand.md) describes the icon and the colors.
 
 ## Contributing
 

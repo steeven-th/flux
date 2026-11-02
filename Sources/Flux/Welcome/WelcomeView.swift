@@ -114,10 +114,15 @@ private struct ImportStep: View {
 
 private struct IntroStep: View {
     var body: some View {
-        StepHeader(
-            title: "Welcome to Flux",
-            message: "Your tabs live in a sidebar. Spaces keep your sign-ins, passwords and extensions apart, and the Chrome extensions you use work here too."
-        )
+        VStack(alignment: .leading, spacing: 20) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 88, height: 88)
+            StepHeader(
+                title: "Welcome to Flux",
+                message: "Your tabs live in a sidebar. Spaces keep your sign-ins, passwords and extensions apart, and the Chrome extensions you use work here too."
+            )
+        }
     }
 }
 

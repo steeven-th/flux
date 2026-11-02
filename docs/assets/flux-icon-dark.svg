@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="flux-icon-dark-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#18263D"/>
+      <stop offset="1" stop-color="#0A111D"/>
+    </linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#flux-icon-dark-bg)"/>
+  <g fill="none" stroke-linecap="round" stroke-width="76">
+    <path d="M272 350 C 352 314 432 388 516 350 S 676 316 752 344" stroke="#3DD6C4"/>
+    <path d="M272 512 C 344 480 408 546 482 512 S 596 482 640 504" stroke="#6FA8FF"/>
+    <path d="M272 674 C 326 648 372 700 426 674 S 496 652 528 664" stroke="#F27BA6"/>
+  </g>
+</svg>
