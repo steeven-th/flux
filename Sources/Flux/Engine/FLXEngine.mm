@@ -270,6 +270,15 @@ void FLXEngineBrowserClosed(CefRefPtr<CefBrowser> browser) {
   for (auto& entry : browsers) {
     entry.second->GetHost()->CloseBrowser(true);
   }
+  // A browser Chromium opened by itself, like a DevTools window, may never say it closed, which
+  // would leave Flux running with no window. Quitting goes on without it after a while.
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+    if (g_browsers.empty()) return;
+    NSLog(@"Quitting with %zu browsers that didn't close", g_browsers.size());
+    g_browsers.clear();
+    FLXDevToolsHangUp();
+    CefQuitMessageLoop();
+  });
 }
 
 + (void (^)(NSString*, NSString*))externalPageHandler {
