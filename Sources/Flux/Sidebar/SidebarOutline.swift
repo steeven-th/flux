@@ -31,6 +31,9 @@ struct SidebarOutline: NSViewRepresentable {
         outline.middleClickHandler = { [weak coordinator = context.coordinator] item in
             if let tab = item as? Tab { coordinator?.state.close(tab) }
         }
+        outline.groupClickHandler = { [weak coordinator = context.coordinator] item in
+            coordinator?.toggle(item)
+        }
 
         let scroll = NSScrollView()
         scroll.documentView = outline
@@ -208,19 +211,7 @@ struct SidebarOutline: NSViewRepresentable {
         }
 
         func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
-            if item is Folder || item is SectionItem {
-                if outlineView.isItemExpanded(item) {
-                    outlineView.animator().collapseItem(item)
-                } else {
-                    outlineView.animator().expandItem(item)
-                }
-                return false
-            }
-            if item is NewTabItem {
-                onNewTab()
-                return false
-            }
-            return item is Tab || item is Split
+            item is Tab || item is Split
         }
 
         func outlineViewSelectionDidChange(_ notification: Notification) {
@@ -240,12 +231,36 @@ struct SidebarOutline: NSViewRepresentable {
             }
         }
 
-        /// A click on a split already selected changes no selection, but may pick another pane.
+        /// Rows that select nothing act here, once the click ends: the outline may ask
+        /// shouldSelectItem more than once for the same click. A click on a split already
+        /// selected changes no selection either, but may pick another pane.
         @objc func clickRow() {
-            guard let outline, outline.clickedRow >= 0,
-                  let split = outline.item(atRow: outline.clickedRow) as? Split,
-                  let pane = pane(of: split, clickedIn: outline, row: outline.clickedRow) else { return }
-            state.select(pane)
+            guard let outline, outline.clickedRow >= 0 else { return }
+            let row = outline.clickedRow
+            switch outline.item(atRow: row) {
+            case let folder as Folder:
+                // The disclosure arrow already expanded or collapsed the folder.
+                if let event = NSApp.currentEvent,
+                   outline.frameOfOutlineCell(atRow: row).contains(outline.convert(event.locationInWindow, from: nil)) {
+                    return
+                }
+                toggle(folder)
+            case is NewTabItem:
+                onNewTab()
+            case let split as Split:
+                if let pane = pane(of: split, clickedIn: outline, row: row) { state.select(pane) }
+            default:
+                break
+            }
+        }
+
+        func toggle(_ item: Any) {
+            guard let outline else { return }
+            if outline.isItemExpanded(item) {
+                outline.animator().collapseItem(item)
+            } else {
+                outline.animator().expandItem(item)
+            }
         }
 
         /// Panes share the row's width equally.
@@ -414,9 +429,24 @@ private final class HostingCell: NSTableCellView {
     }
 }
 
-/// A middle click closes the tab under it, like in other browsers.
+/// A middle click closes the tab under it, like in other browsers. Group rows send no action
+/// when clicked, so a click on a section's title is handled here.
 private final class SidebarOutlineView: NSOutlineView {
     var middleClickHandler: ((Any) -> Void)?
+    var groupClickHandler: ((Any) -> Void)?
+
+    override func mouseDown(with event: NSEvent) {
+        let row = row(at: convert(event.locationInWindow, from: nil))
+        if !event.modifierFlags.contains(.control), row >= 0, let item = item(atRow: row), isGroupItem(item) {
+            groupClickHandler?(item)
+            return
+        }
+        super.mouseDown(with: event)
+    }
+
+    private func isGroupItem(_ item: Any) -> Bool {
+        delegate?.outlineView?(self, isGroupItem: item) ?? false
+    }
 
     override func otherMouseUp(with event: NSEvent) {
         guard event.buttonNumber == 2 else { return super.otherMouseUp(with: event) }
