@@ -108,7 +108,8 @@ class BrowserClient : public CefClient,
                       public CefDownloadHandler,
                       public CefRequestHandler,
                       public CefLoadHandler,
-                      public CefContextMenuHandler {
+                      public CefContextMenuHandler,
+                      public CefFindHandler {
  public:
   BrowserClient(FLXBrowserView *owner, bool opened_by_page)
       : owner_(owner), profile_(owner.profile), opened_by_page_(opened_by_page) {}
@@ -119,6 +120,16 @@ class BrowserClient : public CefClient,
   CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
   CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
   CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override { return this; }
+  CefRefPtr<CefFindHandler> GetFindHandler() override { return this; }
+
+  void OnFindResult(CefRefPtr<CefBrowser> browser, int identifier, int count, const CefRect &selection_rect,
+                    int active_match_ordinal, bool final_update) override {
+    if (!IsOwnPage(browser)) return;
+    FLXBrowserView *owner = owner_;
+    if ([owner.delegate respondsToSelector:@selector(browserView:didFindMatches:activeMatch:)]) {
+      [owner.delegate browserView:owner didFindMatches:count activeMatch:active_match_ordinal];
+    }
+  }
 
   // Chrome's translation needs a Google key Flux doesn't have, so its items give way to Flux's
   // own, which translate with Apple's framework.
@@ -789,6 +800,14 @@ const CGFloat FLXPageCornerRadius = 18;
 
 - (void)reload {
   if (_browser) _browser->Reload();
+}
+
+- (void)findText:(NSString *)text forward:(BOOL)forward findNext:(BOOL)findNext {
+  if (_browser) _browser->GetHost()->Find(text.UTF8String, forward, false, findNext);
+}
+
+- (void)stopFinding {
+  if (_browser) _browser->GetHost()->StopFinding(true);
 }
 
 - (NSArray<NSData *> *)certificateChain {

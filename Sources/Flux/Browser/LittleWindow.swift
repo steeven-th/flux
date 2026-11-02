@@ -18,6 +18,7 @@ final class LittleWindowModel: NSObject {
     /// Called when the page closes itself.
     @ObservationIgnored var onClose: (() -> Void)?
     @ObservationIgnored var onFinishLoading: ((FLXBrowserView) -> Void)?
+    @ObservationIgnored private(set) lazy var finder = PageFinder { [weak self] in self?.page }
 
     init?(url: String, spaceID: UUID, state: BrowserState) {
         guard let profile = state.profile(ofSpace: spaceID) else { return nil }
@@ -71,7 +72,12 @@ extension LittleWindowModel: FLXBrowserViewDelegate {
     }
 
     func browserViewDidFinishLoading(_ browserView: FLXBrowserView) {
+        finder.pageDidLoad()
         onFinishLoading?(browserView)
+    }
+
+    func browserView(_ browserView: FLXBrowserView, didFindMatches count: Int, activeMatch: Int) {
+        finder.update(matchCount: count, activeMatch: activeMatch)
     }
 }
 
@@ -89,6 +95,7 @@ final class LittleWindowController: NSWindowController, NSWindowDelegate {
     var onWindowClose: (() -> Void)?
     private let pageContainer = NSView()
     private var pageMoved = false
+    private lazy var findBar = FindBarWindow(finder: model.finder)
 
     @discardableResult
     static func show(url: String, inSpace spaceID: UUID, state: BrowserState) -> LittleWindowController? {
@@ -154,6 +161,7 @@ final class LittleWindowController: NSWindowController, NSWindowDelegate {
         showPage()
         model.onPageChange = { [weak self] in self?.showPage() }
         model.onClose = { [weak self] in self?.close() }
+        observeFinder()
 
         // Each new one a little lower and to the right, like new windows elsewhere.
         window.center()
@@ -186,7 +194,29 @@ final class LittleWindowController: NSWindowController, NSWindowDelegate {
         NSApp.windows.first { $0 is MainWindow }?.makeKeyAndOrderFront(nil)
     }
 
+    func windowDidResize(_ notification: Notification) {
+        placeFindBar()
+    }
+
+    private func observeFinder() {
+        withObservationTracking {
+            _ = model.finder.isShown
+            _ = model.finder.focusRequest
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.placeFindBar()
+                self?.observeFinder()
+            }
+        }
+    }
+
+    private func placeFindBar() {
+        guard let window, model.finder.isShown else { return findBar.hide() }
+        findBar.show(atTopRightOf: window.convertToScreen(pageContainer.convert(pageContainer.bounds, to: nil)), over: window)
+    }
+
     func windowWillClose(_ notification: Notification) {
+        findBar.hide()
         if !pageMoved { model.page.close() }
         Self.controllers.removeAll { $0 === self }
         onWindowClose?()

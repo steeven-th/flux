@@ -26,6 +26,7 @@ final class Tab: NSObject, Identifiable {
     /// The page's width breakpoints, read while the responsive mode shows them.
     private(set) var mediaQueries: [MediaQuery] = []
 
+    @ObservationIgnored private(set) lazy var finder = PageFinder { [weak self] in self?.loadedView }
     /// The stored form of the tab, kept in step with the properties above.
     @ObservationIgnored private(set) var node: SidebarNode
     /// Called after the URL or title changed, to save the tab.
@@ -559,7 +560,12 @@ extension Tab: FLXBrowserViewDelegate {
         }
     }
 
+    func browserView(_ browserView: FLXBrowserView, didFindMatches count: Int, activeMatch: Int) {
+        finder.update(matchCount: count, activeMatch: activeMatch)
+    }
+
     func browserViewDidFinishLoading(_ browserView: FLXBrowserView) {
+        finder.pageDidLoad()
         if isLeavingChromiumHistory {
             browserView.sendDevToolsMethod("Page.resetNavigationHistory", params: nil) { [weak self] _ in
                 self?.isLeavingChromiumHistory = false

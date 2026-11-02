@@ -5,14 +5,18 @@ type the new one. Delete leaves the action without one, Escape keeps it as it wa
 to a changed shortcut puts the default back, and Restore Defaults does it for all of them.
 
 A shortcut needs ⌘, ⌃ or ⌥, unless it is a function key. When another action already uses it,
-Flux asks before taking it from that action. The Edit menu's shortcuts and ⌘Q can't be changed or
-taken.
+Flux asks before taking it from that action. Undo, Redo, Cut, Copy, Paste, Select All and ⌘Q
+can't be changed or taken.
 
 ## Defaults
 
 | Action | Shortcut |
 | --- | --- |
 | Settings | ⌘, |
+| Find | ⌘F |
+| Find Next | ⌘G |
+| Find Previous | ⇧⌘G |
+| Use Selection for Find | ⌘E |
 | Extensions | ⇧⌘E |
 | New Tab | ⌘T |
 | Open Location | ⌘L |
@@ -31,6 +35,11 @@ taken.
 | Show Downloads | ⌥⌘L |
 | Clear Browsing Data | ⇧⌘⌫ |
 | Space 1 to 9 | ⌃1 to ⌃9 |
+
+## Finding in a page
+
+⌘F shows a bar at the top right of the page, also in little windows. Return goes to the next
+match and Shift-Return to the previous one, Escape closes the bar. Each tab keeps its own search.
 
 ## How shortcuts reach Flux
 

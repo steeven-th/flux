@@ -41,6 +41,9 @@ NS_SWIFT_UI_ACTOR
 - (void)browserViewDidChangeNavigationState:(FLXBrowserView *)browserView;
 /// Sent each time the page has finished loading.
 - (void)browserViewDidFinishLoading:(FLXBrowserView *)browserView;
+/// Sent as a search in the page finds matches. `activeMatch` counts from 1, 0 without a match.
+/// Either is -1 when it hasn't changed since the last update.
+- (void)browserView:(FLXBrowserView *)browserView didFindMatches:(NSInteger)count activeMatch:(NSInteger)activeMatch;
 /// Titles of items Flux adds to the page's context menu. `selectedText` is empty without a
 /// selection.
 - (NSArray<NSString *> *)browserView:(FLXBrowserView *)browserView
@@ -85,6 +88,11 @@ NS_SWIFT_UI_ACTOR
 - (void)goForward;
 - (void)reload;
 - (void)reloadIgnoringCache;
+
+/// Highlights `text` in the page and selects the next match, or the previous one. `findNext`
+/// keeps going from the current match rather than starting a new search.
+- (void)findText:(NSString *)text forward:(BOOL)forward findNext:(BOOL)findNext;
+- (void)stopFinding;
 
 /// Opens Chromium's DevTools for the page, on the given panel ("console", "network"…) or the one
 /// they last showed.

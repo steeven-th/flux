@@ -41,6 +41,7 @@ final class PaneView: NSView {
     private let sidePanelLine = NSBox()
     private static let sidePanelWidth: CGFloat = 360
     private lazy var devToolsHandle = DevToolsResizeHandle { [weak self] delta in self?.resizeDevTools(by: delta) }
+    private lazy var findBar = FindBarWindow(finder: tab.finder)
     private var hasHeader = false
 
     init(tab: Tab, state: BrowserState) {
@@ -76,6 +77,8 @@ final class PaneView: NSView {
             _ = tab.sidePanel
             _ = tab.emulation
             _ = state.responsiveOptions
+            _ = tab.finder.isShown
+            _ = tab.finder.focusRequest
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.update()
@@ -107,7 +110,9 @@ final class PaneView: NSView {
     }
 
     override func viewWillMove(toWindow newWindow: NSWindow?) {
-        if newWindow == nil { devToolsHandle.hide() }
+        guard newWindow == nil else { return }
+        devToolsHandle.hide()
+        findBar.hide()
     }
 
     private func layoutContents() {
@@ -137,7 +142,7 @@ final class PaneView: NSView {
         responsiveView.frame = pageArea.frame
         layoutPage()
         roundCorners()
-        placeDevToolsHandle()
+        placeWindowsOverPage()
     }
 
     /// In responsive mode the page takes the size it is shown at, centered under the device
@@ -203,9 +208,16 @@ final class PaneView: NSView {
         tab.sidePanel?.roundedCorners = panelCorners.subtracting(top)
     }
 
-    /// The handle is a window of its own, over the line between the page and its DevTools, since
-    /// both are windows too. Added again each time, so it stays above page windows added since.
-    func placeDevToolsHandle() {
+    /// The DevTools handle and the find bar are windows of their own, over the page windows. Added
+    /// again each time, so they stay above page windows added since.
+    func placeWindowsOverPage() {
+        placeDevToolsHandle()
+        guard let window, tab.finder.isShown else { return findBar.hide() }
+        findBar.show(atTopRightOf: window.convertToScreen(pageArea.convert(pageArea.bounds, to: nil)), over: window)
+    }
+
+    /// Over the line between the page and its DevTools.
+    private func placeDevToolsHandle() {
         guard let window, !devToolsContainer.isHidden else { return devToolsHandle.hide() }
         let line = devToolsContainer.convert(devToolsContainer.bounds, to: nil)
         let frame = window.convertToScreen(NSRect(x: line.minX - 4, y: line.minY, width: 8, height: line.height))

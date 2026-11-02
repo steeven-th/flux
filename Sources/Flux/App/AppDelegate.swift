@@ -303,6 +303,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state?.selectedTab?.browserView.reloadIgnoringCache()
     }
 
+    /// The little window's when one has the keyboard, the selected tab's otherwise.
+    private var finder: PageFinder? {
+        LittleWindowController.key?.model.finder ?? state?.selectedTab?.finder
+    }
+
+    @objc func showFindBar(_ sender: Any?) {
+        finder?.show()
+    }
+
+    @objc func findNext(_ sender: Any?) {
+        finder?.next()
+    }
+
+    @objc func findPrevious(_ sender: Any?) {
+        finder?.previous()
+    }
+
+    @objc func findSelection(_ sender: Any?) {
+        finder?.findSelection()
+    }
+
     @objc func goBack(_ sender: Any?) {
         state?.selectedTab?.goBack()
     }
@@ -333,6 +354,9 @@ extension AppDelegate: NSMenuDelegate, NSMenuItemValidation {
         }
         if menuItem.action == #selector(closeSplitPane(_:)) {
             return state?.selectedSplit != nil
+        }
+        if [#selector(showFindBar(_:)), #selector(findNext(_:)), #selector(findPrevious(_:)), #selector(findSelection(_:))].contains(menuItem.action) {
+            return finder != nil
         }
         if menuItem.action == #selector(goBack(_:)) {
             return state?.selectedTab?.canGoBack ?? false

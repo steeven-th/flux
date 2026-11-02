@@ -31,6 +31,16 @@
         }
       }
     },
+    "%lld of %lld" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld sur %2$lld"
+          }
+        }
+      }
+    },
     "%lld Spaces" : {
       "localizations" : {
         "en" : {
@@ -1251,6 +1261,46 @@
         }
       }
     },
+    "Find in Page" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher dans la page"
+          }
+        }
+      }
+    },
+    "Find Next" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher le suivant"
+          }
+        }
+      }
+    },
+    "Find Previous" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher le précédent"
+          }
+        }
+      }
+    },
+    "Find…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher…"
+          }
+        }
+      }
+    },
     "Fit to Window" : {
       "localizations" : {
         "fr" : {
@@ -2012,6 +2062,16 @@
       }
     },
     "No results" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun résultat"
+          }
+        }
+      }
+    },
+    "No Results" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
@@ -3547,6 +3607,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Retirer de la barre d'adresse"
+          }
+        }
+      }
+    },
+    "Use Selection for Find" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher la sélection"
           }
         }
       }

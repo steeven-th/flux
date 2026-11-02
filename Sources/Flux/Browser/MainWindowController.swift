@@ -106,7 +106,7 @@ final class MainWindowController: NSWindowController {
                 guard let self else { return }
                 self.overlay?.updateFrame(self.overlayFrame)
                 self.peekPresenter?.updateFrame(self.pageArea)
-                self.panes.values.forEach { $0.placeDevToolsHandle() }
+                self.panes.values.forEach { $0.placeWindowsOverPage() }
             }
         }
         peekPresenter = PeekPresenter(host: window, state: state)
@@ -295,7 +295,7 @@ final class MainWindowController: NSWindowController {
         }
         layoutPages()
         // Page windows added since go above the handles.
-        panes.values.forEach { $0.placeDevToolsHandle() }
+        panes.values.forEach { $0.placeWindowsOverPage() }
     }
 
     private func observeDraggedTab() {

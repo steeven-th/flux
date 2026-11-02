@@ -32,7 +32,13 @@ enum MainMenu {
             NSMenuItem(title: String(localized: "Copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c"),
             NSMenuItem(title: String(localized: "Paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v"),
             NSMenuItem(title: String(localized: "Select All"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"),
-        ]))
+            .separator(),
+        ] + customizable([
+            NSMenuItem(title: String(localized: "Find…"), action: #selector(AppDelegate.showFindBar(_:)), keyEquivalent: "f"),
+            NSMenuItem(title: String(localized: "Find Next"), action: #selector(AppDelegate.findNext(_:)), keyEquivalent: "g"),
+            shifted(NSMenuItem(title: String(localized: "Find Previous"), action: #selector(AppDelegate.findPrevious(_:)), keyEquivalent: "g")),
+            NSMenuItem(title: String(localized: "Use Selection for Find"), action: #selector(AppDelegate.findSelection(_:)), keyEquivalent: "e"),
+        ])))
         menu.addItem(submenu(title: String(localized: "View"), items: customizable([
             NSMenuItem(title: String(localized: "Toggle Sidebar"), action: #selector(AppDelegate.showOrHideSidebar(_:)), keyEquivalent: "s"),
             .separator(),
