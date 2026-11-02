@@ -101,7 +101,7 @@ struct PageOptions: View {
     /// The certificate and those that issued it, in macOS's own certificate sheet.
     private func showCertificate() {
         let certificates = tab.browserView.certificateChain.compactMap { SecCertificateCreateWithData(nil, $0 as CFData) }
-        guard !certificates.isEmpty, let window = NSApp.windows.first(where: { $0 is MainWindow }) else { return }
+        guard !certificates.isEmpty, let window = MainWindow.active else { return }
         dismiss()
         SFCertificatePanel.shared().beginSheet(
             for: window, modalDelegate: nil, didEnd: nil, contextInfo: nil, certificates: certificates, showGroup: true

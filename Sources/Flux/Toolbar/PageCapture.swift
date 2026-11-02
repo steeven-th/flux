@@ -65,7 +65,7 @@ enum PageCapture {
     }
 
     private static func finished(_ url: URL?, state: BrowserState) {
-        guard let window = NSApp.windows.first(where: { $0 is MainWindow }) else { return }
+        guard let window = MainWindow.active else { return }
         Toast.show(url == nil ? String(localized: "The capture failed") : String(localized: "Capture copied and saved to Downloads"), over: window)
         state.mediaLibrary.refresh()
     }

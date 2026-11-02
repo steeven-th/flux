@@ -20,8 +20,10 @@ shortcuts and can't be taken. Minimize acts on the window the page belongs to.
 | Use Selection for Find | ⌘E |
 | Extensions | ⇧⌘E |
 | New Tab | ⌘T |
+| New Window | ⌘N |
 | Open Location | ⌘L |
 | Close Tab | ⌘W |
+| Close Window | ⇧⌘W |
 | Pin or Unpin Tab | ⌘D |
 | Open in Space (from a little window) | ⌘O |
 | Save Page As | ⇧⌘S |
@@ -57,6 +59,12 @@ shortcuts and can't be taken. Minimize acts on the window the page belongs to.
 
 ⌘F shows a bar at the top right of the page, also in little windows. Return goes to the next
 match and Shift-Return to the previous one, Escape closes the bar. Each tab keeps its own search.
+
+## Windows
+
+Each window shows a space of its own. A tab shows in one window at a time: selecting a tab
+another window shows brings that window to the front. A new window shows no tab until you pick
+one. Windows open again at launch where they were.
 
 ## Tabs
 

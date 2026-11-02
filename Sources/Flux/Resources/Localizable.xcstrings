@@ -801,6 +801,16 @@
         }
       }
     },
+    "Close Window" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermer la fenêtre"
+          }
+        }
+      }
+    },
     "Close “%@”?" : {
       "localizations" : {
         "fr" : {
@@ -2197,6 +2207,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nouvel onglet"
+          }
+        }
+      }
+    },
+    "New Window" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvelle fenêtre"
           }
         }
       }

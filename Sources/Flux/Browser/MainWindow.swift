@@ -8,3 +8,11 @@ final class MainWindow: NSWindow {
         isKeyWindow || (childWindows ?? []).contains { $0.isKeyWindow }
     }
 }
+
+extension MainWindow {
+    /// The main window with the keyboard, its pages' included, or the frontmost one.
+    static var active: MainWindow? {
+        let key = NSApp.keyWindow.flatMap { window in sequence(first: window, next: \.parent).first { $0 is MainWindow } }
+        return (key ?? NSApp.orderedWindows.first { $0 is MainWindow }) as? MainWindow
+    }
+}

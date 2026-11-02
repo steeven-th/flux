@@ -2,14 +2,14 @@ import AppKit
 import SwiftUI
 
 @MainActor
-final class MainWindowController: NSWindowController {
+final class MainWindowController: NSWindowController, NSWindowDelegate {
     private static let defaultSidebarWidth: CGFloat = 260
     private static let sidebarWidths: ClosedRange<CGFloat> = 200...480
     private static let pageMargin: CGFloat = 8
     private static let resizeHandleWidth: CGFloat = 6
-    private static let frameName = "MainWindow"
-
-    private let state: BrowserState
+    let state: BrowserState
+    /// Called once the window closed.
+    var onClose: (() -> Void)?
     private let content = NSView()
     private lazy var sidebar: NSView = {
         let view = NSHostingView(rootView: SidebarView(state: state) { [weak self] target in
@@ -40,7 +40,8 @@ final class MainWindowController: NSWindowController {
     private var handleLeading: NSLayoutConstraint!
     private var sidebarWidth: CGFloat
 
-    init(state: BrowserState) {
+    /// `frameName` saves the window's size and place, one per window.
+    init(state: BrowserState, frameName: String) {
         self.state = state
         sidebarWidth = state.sidebarWidth.map { $0.clamped(to: Self.sidebarWidths) } ?? Self.defaultSidebarWidth
         let window = MainWindow(
@@ -53,9 +54,14 @@ final class MainWindowController: NSWindowController {
         window.titleVisibility = .hidden
         // AppKit saves the window's size and place as it changes, and moves it back on screen if
         // that screen is gone.
-        if !window.setFrameUsingName(Self.frameName) { window.center() }
-        window.setFrameAutosaveName(Self.frameName)
+        if !window.setFrameUsingName(frameName) { window.center() }
+        window.setFrameAutosaveName(frameName)
         super.init(window: window)
+        window.delegate = self
+        state.onShowWindow = { [weak self] in
+            self?.window?.makeKeyAndOrderFront(nil)
+            NSApp.activate()
+        }
 
         let background = NSHostingView(rootView: SpaceBackground(state: state))
         for view in [background, pageShadow, pageContainer, resizeHandle, revealEdge] as [NSView] {
@@ -130,6 +136,7 @@ final class MainWindowController: NSWindowController {
         }
         showSelectedTab()
         observeSelectedTab()
+        observeTitle()
         observePeek()
         observePanes()
         observeDraggedTab()
@@ -147,6 +154,28 @@ final class MainWindowController: NSWindowController {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) is not available")
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        // Pages leave with their panes, so they live on for the tabs, in other windows.
+        panes.values.forEach { $0.removeFromSuperview() }
+        panes = [:]
+        overlay?.hide(animated: false)
+        dropOverlay.hide()
+        if let paneClickMonitor { NSEvent.removeMonitor(paneClickMonitor) }
+        paneClickMonitor = nil
+        state.closeWindow()
+        onClose?()
+    }
+
+    /// Hidden in the title bar, but listed in the Window menu.
+    private func observeTitle() {
+        let title = withObservationTracking {
+            [state.selectedSpace.name, state.selectedTab?.displayTitle].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " – ")
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeTitle() }
+        }
+        window?.title = title
     }
 
     func toggleSidebar() {

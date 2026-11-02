@@ -151,7 +151,7 @@ private struct ProfileDetail: View {
     /// Chromium's pages open as a tab of a space using the profile, in Flux's window.
     private func show(_ url: String) {
         state.showChromePage(url, forProfile: profile.folder)
-        NSApp.windows.first { $0 is MainWindow }?.makeKeyAndOrderFront(nil)
+        MainWindow.active?.makeKeyAndOrderFront(nil)
     }
 }
 

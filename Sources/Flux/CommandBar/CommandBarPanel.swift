@@ -40,7 +40,13 @@ final class CommandBarPanel: NSPanel {
 
     override var canBecomeKey: Bool { true }
 
+    /// The page that had the keyboard, to give it back.
+    private weak var previousKeyWindow: NSWindow?
+
     private func present(over window: NSWindow) {
+        previousKeyWindow = NSApp.keyWindow.flatMap { key in
+            sequence(first: key, next: \.parent).contains { $0 === window } ? key : nil
+        }
         window.addChildWindow(self, ordered: .above)
         updateFrame()
         makeKeyAndOrderFront(nil)
@@ -97,9 +103,13 @@ final class CommandBarPanel: NSPanel {
         close()
     }
 
+    /// The keyboard goes back to the window the bar was over, or its page. AppKit would give it to
+    /// the last window that had it, which can be another browser window.
     override func close() {
+        let returning = isKeyWindow ? previousKeyWindow ?? parent : nil
         parent?.removeChildWindow(self)
         super.close()
+        returning?.makeKey()
     }
 }
 

@@ -2,8 +2,18 @@ import AppKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var state: BrowserState?
-    private var windowController: MainWindowController?
+    /// The browser windows, in the order they opened.
+    private var windows: [MainWindowController] = []
+    /// The one with the keyboard, or the last one that had it. Commands act on it.
+    private weak var activeWindow: MainWindowController?
+    private var windowController: MainWindowController? {
+        activeWindow ?? windows.first
+    }
+    private var state: BrowserState? {
+        windowController?.state
+    }
+    /// The first window's state set Flux's callbacks up, so it lives on after its window closes.
+    private var firstState: BrowserState?
     private var dialogFixer: ChromiumDialogFixer?
     private var isRelaunching = false
     private var welcome: WelcomeWindowController?
@@ -47,28 +57,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             showFatalError(error)
             return
         }
-        FLXEngine.externalPageHandler = { [weak state] url, profilePath in
-            state?.openExternalPage(url, profilePath: profilePath)
+        FLXEngine.externalPageHandler = { [weak self] url, profilePath in
+            self?.state?.openExternalPage(url, profilePath: profilePath)
         }
         prepare(state)
-        state.onExtensionInstall = { [weak state] item, spaceID in
-            guard let state, !ExtensionInstaller.shared.didInstall(item.id, inSpace: spaceID) else { return }
+        state.onExtensionInstall = { [weak self] item, spaceID in
+            guard let state = self?.state, !ExtensionInstaller.shared.didInstall(item.id, inSpace: spaceID) else { return }
             ExtensionInstaller.shared.ask(toInstall: item, state: state, justInstalled: true)
         }
         state.startArchiving()
         state.startSavingScrollPositions()
         state.startSleepingTabs()
-        let windowController = MainWindowController(state: state)
-        windowController.showWindow(nil)
+        firstState = state
+        let windowController = openWindow(state)
         if state.isWindowFullScreen { windowController.window?.toggleFullScreen(nil) }
-        self.state = state
-        self.windowController = windowController
+        for saved in state.windowsToRestore {
+            openWindow(BrowserState(sharing: state, showing: saved))
+        }
+        windowController.window?.makeKeyAndOrderFront(nil)
+        activeWindow = windowController
+        watchKeyWindow()
         let links = pendingLinks
         pendingLinks = []
         links.forEach { openFromOtherApp($0.url, from: $0.app) }
         if state.selectedTab == nil, links.isEmpty {
             windowController.showCommandBar(.newTab)
         }
+    }
+
+    /// Each window saves its size and place under a name of its own.
+    @discardableResult
+    private func openWindow(_ state: BrowserState) -> MainWindowController {
+        let names = Set(windows.compactMap { $0.window?.frameAutosaveName })
+        let name = (1...).lazy.map { $0 == 1 ? "MainWindow" : "MainWindow \($0)" }.first { !names.contains($0) }!
+        let controller = MainWindowController(state: state, frameName: name)
+        controller.onClose = { [weak self, weak controller] in
+            self?.windows.removeAll { $0 === controller }
+        }
+        windows.append(controller)
+        controller.showWindow(nil)
+        return controller
+    }
+
+    /// Pages are child windows that take the keyboard, so the window they belong to is looked up.
+    private func watchKeyWindow() {
+        NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, let window = NSApp.keyWindow else { return }
+                let root = sequence(first: window, next: \.parent).reduce(window) { $1 }
+                if let controller = self.windows.first(where: { $0.window === root }) {
+                    self.activeWindow = controller
+                }
+            }
+        }
+    }
+
+    @objc func newWindow(_ sender: Any?) {
+        guard let state else { return }
+        let controller = openWindow(BrowserState(sharing: state, showing: .init(spaceID: state.selectedSpaceID, selectedTabIDs: [:]), isNew: true))
+        activeWindow = controller
+        // Once the window has the keyboard, which it takes after showing.
+        DispatchQueue.main.async { controller.showCommandBar(.newTab) }
+    }
+
+    @objc func closeWindow(_ sender: Any?) {
+        windowController?.window?.performClose(nil)
     }
 
     /// Links clicked in other apps, and HTML files opened with Flux.

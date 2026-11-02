@@ -19,7 +19,7 @@ final class ExtensionInstaller {
     /// Asks which of the spaces without the extension should get it too.
     func ask(toInstall item: InstalledExtension, state: BrowserState, justInstalled: Bool) {
         let spaces = state.spacesWithout(extensionID: item.id)
-        guard !spaces.isEmpty, let window = NSApp.windows.first(where: { $0 is MainWindow }) else { return }
+        guard !spaces.isEmpty, let window = MainWindow.active else { return }
         let alert = NSAlert()
         alert.messageText = justInstalled
             ? String(localized: "Install “\(item.name)” in other spaces too?")

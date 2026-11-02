@@ -191,7 +191,7 @@ final class LittleWindowController: NSWindowController, NSWindowDelegate {
         model.page.removeFromSuperview()
         model.state.adopt(model.page, url: model.url, title: model.title, favicon: model.favicon, in: model.spaceID)
         close()
-        NSApp.windows.first { $0 is MainWindow }?.makeKeyAndOrderFront(nil)
+        MainWindow.active?.makeKeyAndOrderFront(nil)
     }
 
     func windowDidResize(_ notification: Notification) {

@@ -399,7 +399,7 @@ final class Tab: NSObject, Identifiable {
     func translationFailed(_ error: Error) {
         translation = nil
         isTranslating = false
-        guard let window = NSApp.windows.first(where: { $0 is MainWindow }) else { return }
+        guard let window = MainWindow.active else { return }
         Toast.show(error.localizedDescription, over: window)
     }
 

@@ -7,6 +7,7 @@ import os
 final class BrowserState {
     static let spaceColors = ["#F97316", "#3B82F6", "#22C55E", "#A855F7", "#EC4899", "#EAB308", "#14B8A6", "#EF4444"]
     private static let selectedSpaceKey = "selectedSpaceID"
+    private static let windowsKey = "windows"
     private static let confirmsTabRemovalKey = "confirmsTabRemoval"
     private static let searchEngineKey = "searchEngine"
     private static let sidebarWidthKey = "sidebarWidth"
@@ -38,62 +39,143 @@ final class BrowserState {
     private static let archiveLifetime: TimeInterval = 30 * 86_400
     private static let logger = Logger(subsystem: "com.flux-browser.Flux", category: "storage")
 
-    private(set) var spaces: [Space] = []
-    private(set) var tabs: [Tab] = []
-    private(set) var folders: [Folder] = []
-    private(set) var splits: [Split] = []
+    /// Shared with the other windows.
+    @ObservationIgnored let store: BrowserStore
+    private(set) var spaces: [Space] {
+        get { store.spaces }
+        set { store.spaces = newValue }
+    }
+    private(set) var tabs: [Tab] {
+        get { store.tabs }
+        set { store.tabs = newValue }
+    }
+    private(set) var folders: [Folder] {
+        get { store.folders }
+        set { store.folders = newValue }
+    }
+    private(set) var splits: [Split] {
+        get { store.splits }
+        set { store.splits = newValue }
+    }
     /// Bumped whenever the sidebar's structure changes: items added, removed or moved.
-    private(set) var sidebarRevision = 0
+    private(set) var sidebarRevision: Int {
+        get { store.sidebarRevision }
+        set { store.sidebarRevision = newValue }
+    }
     /// Bumped when the archive changes, since it is read from the database.
-    private(set) var archiveRevision = 0
+    private(set) var archiveRevision: Int {
+        get { store.archiveRevision }
+        set { store.archiveRevision = newValue }
+    }
     var isArchiveShown = false
     /// A tab being dragged from the sidebar, which can be dropped on the pages to split them.
     var draggedTab: Tab?
     /// Downloads and media, shown in place of the sidebar.
     var isLibraryShown = false
     /// Bumped when a setting read from the database changes, for views showing it.
-    private(set) var settingsRevision = 0
+    private(set) var settingsRevision: Int {
+        get { store.settingsRevision }
+        set { store.settingsRevision = newValue }
+    }
     /// A page opened from a link, shown over the selected tab.
     private(set) var peek: Peek?
-    @ObservationIgnored private var archiveTimer: Timer?
-    @ObservationIgnored private var scrollTimer: Timer?
-    @ObservationIgnored private var sleepTimer: Timer?
-    /// Each space's selected tab, saved in its space record as well.
+    private var archiveTimer: Timer? {
+        get { store.archiveTimer }
+        set { store.archiveTimer = newValue }
+    }
+    private var scrollTimer: Timer? {
+        get { store.scrollTimer }
+        set { store.scrollTimer = newValue }
+    }
+    private var sleepTimer: Timer? {
+        get { store.sleepTimer }
+        set { store.sleepTimer = newValue }
+    }
+    /// Each space's selected tab in this window. The first window's are saved in the space records
+    /// as well.
     private var selectedTabIDs: [UUID: UUID] = [:]
     var selectedSpaceID: UUID {
         willSet { selectedTab?.saveScrollPosition() }
         didSet {
             profiles[selectedSpaceID]?.load()
-            save { try appDatabase.setSetting(Self.selectedSpaceKey, to: selectedSpaceID.uuidString) }
+            saveWindows()
         }
+    }
+    /// Windows open when Flux last quit, after the first, for the app to open again.
+    @ObservationIgnored private(set) var windowsToRestore: [SavedWindow] = []
+    /// Brings this window to the front, when another one selects a tab it shows.
+    @ObservationIgnored var onShowWindow: (() -> Void)?
+    /// A new window shows no tab until one is chosen, as in Arc. Its command bar would lose the
+    /// keyboard to the page otherwise.
+    private var showsChosenTabsOnly = false
+
+    /// What a window shows, saved so every window opens again where it was.
+    struct SavedWindow: Codable {
+        var spaceID: UUID
+        var selectedTabIDs: [UUID: UUID]
     }
 
     @ObservationIgnored private let appDatabase: AppDatabase
-    @ObservationIgnored private var spaceRecords: [UUID: SpaceRecord] = [:]
-    @ObservationIgnored private var profiles: [UUID: FLXProfile] = [:]
-    @ObservationIgnored private var profileDatabases: [UUID: ProfileDatabase] = [:]
-    @ObservationIgnored private var extensionLists: [UUID: ExtensionList] = [:]
-    @ObservationIgnored private var faviconCaches: [UUID: FaviconCache] = [:]
-    @ObservationIgnored private var histories: [UUID: ChromiumHistory] = [:]
-    @ObservationIgnored private var passwordManagers: [UUID: ChromiumPasswordManager] = [:]
+    private var spaceRecords: [UUID: SpaceRecord] {
+        get { store.spaceRecords }
+        set { store.spaceRecords = newValue }
+    }
+    private var profiles: [UUID: FLXProfile] {
+        get { store.profiles }
+        set { store.profiles = newValue }
+    }
+    private var profileDatabases: [UUID: ProfileDatabase] {
+        get { store.profileDatabases }
+        set { store.profileDatabases = newValue }
+    }
+    private var extensionLists: [UUID: ExtensionList] {
+        get { store.extensionLists }
+        set { store.extensionLists = newValue }
+    }
+    private var faviconCaches: [UUID: FaviconCache] {
+        get { store.faviconCaches }
+        set { store.faviconCaches = newValue }
+    }
+    private var histories: [UUID: ChromiumHistory] {
+        get { store.histories }
+        set { store.histories = newValue }
+    }
+    private var passwordManagers: [UUID: ChromiumPasswordManager] {
+        get { store.passwordManagers }
+        set { store.passwordManagers = newValue }
+    }
     /// By profile folder: spaces sharing a profile share its downloads.
-    @ObservationIgnored private var downloadLists: [String: DownloadList] = [:]
-    @ObservationIgnored private var media: MediaLibrary?
+    private var downloadLists: [String: DownloadList] {
+        get { store.downloadLists }
+        set { store.downloadLists = newValue }
+    }
+    private var media: MediaLibrary? {
+        get { store.media }
+        set { store.media = newValue }
+    }
 
     init(appDatabase: AppDatabase) throws {
         self.appDatabase = appDatabase
+        store = BrowserStore()
         var records = try appDatabase.spaces()
         if records.isEmpty {
             // The welcome window creates the first space, so this only happens if it was skipped.
             records = [try Self.createFirstSpace(name: String(localized: "Personal"), icon: nil, color: Self.spaceColors[0], in: appDatabase)]
         }
         FLXProfile.languagesProvider = { _ in Self.systemLanguageList }
-        let savedSelection = try appDatabase.setting(Self.selectedSpaceKey).flatMap(UUID.init(uuidString:))
+        let savedWindows = (try appDatabase.setting(Self.windowsKey))
+            .flatMap { try? JSONDecoder().decode([SavedWindow].self, from: Data($0.utf8)) }?
+            .filter { window in records.contains { $0.id == window.spaceID } } ?? []
+        let oldSelection = try appDatabase.setting(Self.selectedSpaceKey).flatMap(UUID.init(uuidString:))
+        let savedSelection = savedWindows.first?.spaceID ?? oldSelection
         selectedSpaceID = records.first { $0.id == savedSelection }?.id ?? records[0].id
 
         for record in records {
             try open(record)
         }
+        if let first = savedWindows.first { selectedTabIDs.merge(first.selectedTabIDs) { _, saved in saved } }
+        windowsToRestore = Array(savedWindows.dropFirst())
+        store.windows = [self]
         // Other spaces' profiles load when first shown.
         profiles[selectedSpaceID]?.load()
         linkRules = try appDatabase.linkRules()
@@ -102,6 +184,32 @@ final class BrowserState {
         }
         PageTranslator.shared.configure(translationProvider)
         PageTranslator.shared.onCharactersSent = { [weak self] count in self?.recordTranslatedCharacters(count) }
+    }
+
+    /// Another window, over the same spaces and tabs. `isNew` for a window opened rather than
+    /// restored.
+    init(sharing other: BrowserState, showing saved: SavedWindow, isNew: Bool = false) {
+        appDatabase = other.appDatabase
+        store = other.store
+        selectedSpaceID = saved.spaceID
+        selectedTabIDs = saved.selectedTabIDs
+        showsChosenTabsOnly = isNew
+        store.windows.append(self)
+        profiles[selectedSpaceID]?.load()
+        saveWindows()
+    }
+
+    /// The window closed. Its tabs stay in their spaces.
+    func closeWindow() {
+        closePeek()
+        store.windows.removeAll { $0 === self }
+        saveWindows()
+    }
+
+    private func saveWindows() {
+        let saved = store.windows.map { SavedWindow(spaceID: $0.selectedSpaceID, selectedTabIDs: $0.selectedTabIDs) }
+        let json = (try? JSONEncoder().encode(saved)).flatMap { String(data: $0, encoding: .utf8) }
+        save { try appDatabase.setSetting(Self.windowsKey, to: json) }
     }
 
     static func createFirstSpace(name: String, icon: String?, color: String, in database: AppDatabase) throws -> SpaceRecord {
@@ -124,10 +232,12 @@ final class BrowserState {
         profiles[space.id] = profile
         profileDatabases[space.id] = database
         let extensionList = ExtensionList(profile: profile, profileFolder: space.profileFolder)
-        extensionList.onInstall = { [weak self] item in
+        // Through the store, since the window opening the space may close before it.
+        extensionList.onInstall = { [weak store] item in
             // Once for the profile, though each of its spaces has a list.
-            guard let self, firstSpace(usingProfile: space.profileFolder)?.id == space.id else { return }
-            onExtensionInstall?(item, space.id)
+            let folder = space.profileFolder.standardizedFileURL
+            guard let store, store.spaces.first(where: { $0.profileFolder.standardizedFileURL == folder })?.id == space.id else { return }
+            store.onExtensionInstall?(item, space.id)
         }
         extensionLists[space.id] = extensionList
         faviconCaches[space.id] = FaviconCache(profileFolder: space.profileFolder)
@@ -156,11 +266,14 @@ final class BrowserState {
 
     private func makeTab(_ node: SidebarNode, page: FLXBrowserView? = nil) -> Tab {
         let tab = Tab(node: node, profile: profiles[node.spaceID]!, favicons: faviconCaches[node.spaceID]!, page: page)
-        tab.onChange = { [weak self] tab in
-            self?.save { try self?.profileDatabases[tab.spaceID]?.save(tab.node) }
+        // Through the store, since the window making the tab may close before it.
+        tab.onChange = { [weak store] tab in
+            guard let window = store?.windows.first else { return }
+            window.save { try window.profileDatabases[tab.spaceID]?.save(tab.node) }
         }
-        tab.onOpenPage = { [weak self] opener, page, disposition in
-            self?.open(page, from: opener.spaceID, disposition: disposition)
+        tab.onOpenPage = { [weak store] opener, page, disposition in
+            guard let store, let window = store.windows.first(where: { $0.shownTabs.contains { $0 === opener } }) ?? store.windows.first else { return }
+            window.open(page, from: opener.spaceID, disposition: disposition)
         }
         return tab
     }
@@ -266,9 +379,36 @@ final class BrowserState {
         tabs.filter { $0.spaceID == selectedSpaceID }
     }
 
+    /// A page shows in one window at a time. Windows opened earlier keep a tab both selected, and
+    /// a window without a selection shows the last tab no other window chose.
     var selectedTab: Tab? {
-        let id = selectedTabIDs[selectedSpaceID]
-        return tabs.first { $0.id == id } ?? tabsInSelectedSpace.last
+        if let id = selectedTabIDs[selectedSpaceID], let tab = tabs.first(where: { $0.id == id }),
+           !windowsBefore.contains(where: { $0.chosenTabs.contains { $0 === tab } }) {
+            return tab
+        }
+        guard !showsChosenTabsOnly else { return nil }
+        let elsewhere = otherWindows.flatMap(\.chosenTabs)
+        return tabsInSelectedSpace.last { tab in !elsewhere.contains { $0 === tab } }
+    }
+
+    private var otherWindows: [BrowserState] {
+        store.windows.filter { $0 !== self }
+    }
+
+    private var windowsBefore: [BrowserState] {
+        Array(store.windows.prefix { $0 !== self })
+    }
+
+    /// The tab this window chose, with its split's panes, without looking at other windows, so
+    /// windows never wait on each other.
+    private var chosenTabs: [Tab] {
+        guard let id = selectedTabIDs[selectedSpaceID], let tab = tabs.first(where: { $0.id == id }) else { return [] }
+        return split(of: tab).map(panes(of:)) ?? [tab]
+    }
+
+    /// The tabs every window shows.
+    private var tabsShownInAnyWindow: [Tab] {
+        store.windows.flatMap(\.shownTabs)
     }
 
     /// Whether removing a pinned tab or a favorite asks first. On unless the user turned it off.
@@ -364,18 +504,26 @@ final class BrowserState {
         return folders.map { Profile(folder: $0, spaces: spacesByFolder[$0] ?? []) }
     }
 
+    /// A tab another window shows brings that window to the front instead, as in Arc.
     func select(_ tab: Tab) {
+        if let other = otherWindows.first(where: { $0.shownTabs.contains { $0 === tab } }) {
+            other.select(tab)
+            other.onShowWindow?()
+            return
+        }
+        showsChosenTabsOnly = false
         guard selectedTabIDs[tab.spaceID] != tab.id else { return }
         selectedTab?.saveScrollPosition()
         // Seen until now: a tab looked at for a long time is not inactive the moment it is left.
         for shown in shownTabs where shown !== tab { shown.markActive() }
         selectedTabIDs[tab.spaceID] = tab.id
-        if var record = spaceRecords[tab.spaceID] {
+        if store.windows.first === self, var record = spaceRecords[tab.spaceID] {
             record.selectedTabID = tab.id
             spaceRecords[tab.spaceID] = record
             save { try appDatabase.save(record) }
         }
         tab.markActive()
+        saveWindows()
     }
 
     @discardableResult
@@ -417,7 +565,7 @@ final class BrowserState {
     }
 
     private func close(_ tab: Tab, removing: Bool) {
-        let wasSelected = selectedTab?.id == tab.id
+        let showing = store.windows.filter { $0.selectedTab === tab }
         let split = split(of: tab)
         let otherPanes = split.map(panes(of:))?.filter { $0 !== tab } ?? []
         if !removing {
@@ -432,18 +580,28 @@ final class BrowserState {
             if let split { dissolveIfNeeded(split) }
             sidebarRevision += 1
         }
-        if wasSelected {
-            // Another pane of the split, if it stays, rather than another tab.
-            if removing, let pane = otherPanes.first {
-                select(pane)
-                return
-            }
-            let candidates = tabs.filter { $0.spaceID == tab.spaceID && $0 !== tab && ($0.isLoaded || !$0.isKept) }
-            if let next = candidates.max(by: { ($0.node.lastActiveAt ?? .distantPast) < ($1.node.lastActiveAt ?? .distantPast) }) {
-                select(next)
-            } else {
-                selectedTabIDs[tab.spaceID] = nil
-            }
+        for window in showing {
+            window.selectTab(after: tab, otherPanes: removing ? otherPanes : [])
+        }
+    }
+
+    /// Another pane of the split, if it stays, rather than another tab. Never one another window
+    /// shows.
+    private func selectTab(after tab: Tab, otherPanes: [Tab]) {
+        if let pane = otherPanes.first {
+            select(pane)
+            return
+        }
+        let elsewhere = otherWindows.flatMap(\.shownTabs)
+        let candidates = tabs.filter { candidate in
+            candidate.spaceID == tab.spaceID && candidate !== tab && (candidate.isLoaded || !candidate.isKept)
+                && !elsewhere.contains { $0 === candidate }
+        }
+        if let next = candidates.max(by: { ($0.node.lastActiveAt ?? .distantPast) < ($1.node.lastActiveAt ?? .distantPast) }) {
+            select(next)
+        } else {
+            selectedTabIDs[tab.spaceID] = nil
+            saveWindows()
         }
     }
 
@@ -469,7 +627,7 @@ final class BrowserState {
     private func sleepInactiveTabs() {
         guard let interval = tabSleepDelay.interval else { return }
         let limit = Date().addingTimeInterval(-interval)
-        let shown = shownTabs
+        let shown = tabsShownInAnyWindow
         let inactive = tabs.filter { tab in
             tab.isLoaded && tab.devTools == nil && !shown.contains { $0 === tab }
                 && (tab.node.lastActiveAt ?? tab.node.createdAt) < limit
@@ -480,7 +638,7 @@ final class BrowserState {
                 "String([...document.querySelectorAll('audio, video')].some(m => !m.paused && !m.ended))"
             ) { [weak self, weak tab] value in
                 guard let self, let tab, value as? String != "true", tab.isLoaded,
-                      !self.shownTabs.contains(where: { $0 === tab }) else { return }
+                      !self.tabsShownInAnyWindow.contains(where: { $0 === tab }) else { return }
                 self.unload(tab)
             }
         }
@@ -492,7 +650,7 @@ final class BrowserState {
         scrollTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard NSApp.isActive else { return }
-                self?.selectedTab?.saveScrollPosition()
+                self?.store.windows.forEach { $0.selectedTab?.saveScrollPosition() }
             }
         }
     }
@@ -561,7 +719,10 @@ final class BrowserState {
     }
 
     /// Tried in order on links from other apps.
-    private(set) var linkRules: [LinkRule] = []
+    private(set) var linkRules: [LinkRule] {
+        get { store.linkRules }
+        set { store.linkRules = newValue }
+    }
 
     func setLinkRules(_ rules: [LinkRule]) {
         linkRules = rules.enumerated().map { position, rule in
@@ -844,7 +1005,7 @@ final class BrowserState {
             let inactive = tabs.filter { tab in
                 let group = split(of: tab).map(panes(of:)) ?? [tab]
                 return tab.spaceID == space.id && tab.node.section == .today
-                    && !group.contains { $0.id == selectedTabIDs[space.id] }
+                    && !group.contains { tab in store.windows.contains { $0.selectedTabIDs[space.id] == tab.id } }
                     && group.allSatisfy { ($0.node.lastActiveAt ?? $0.node.createdAt) < now.addingTimeInterval(-interval) }
             }
             inactive.forEach(remove)
@@ -1431,7 +1592,10 @@ final class BrowserState {
     }
 
     /// Called with an extension just installed and the space it was installed in.
-    @ObservationIgnored var onExtensionInstall: ((InstalledExtension, UUID) -> Void)?
+    var onExtensionInstall: ((InstalledExtension, UUID) -> Void)? {
+        get { store.onExtensionInstall }
+        set { store.onExtensionInstall = newValue }
+    }
 
     /// The spaces whose profile doesn't have the extension, one per profile. A profile not loaded
     /// yet is read from its files.
