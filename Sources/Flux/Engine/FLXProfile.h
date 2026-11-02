@@ -33,6 +33,10 @@ NS_SWIFT_UI_ACTOR
 /// cache path.
 + (instancetype)profileAtPath:(NSString *)path;
 
+/// A profile kept in memory, as Chrome's incognito mode does: nothing is written to disk, and it
+/// is all gone once the profile and its pages are released. Each call makes a new one.
++ (instancetype)privateBrowsingProfile;
+
 /// Chromium loads a profile with its extensions, which run in processes of their own, so a profile
 /// only loads when it is first needed: with its first page, or when this is called.
 - (void)load;

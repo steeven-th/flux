@@ -182,6 +182,11 @@ static NSString *_Nullable (^g_languages_provider)(NSString *) = nil;
   return profile;
 }
 
+// CEF keeps a context without a cache path in memory.
++ (instancetype)privateBrowsingProfile {
+  return [[FLXProfile alloc] initWithPath:@""];
+}
+
 - (instancetype)initWithPath:(NSString *)path {
   self = [super init];
   if (!self) return nil;

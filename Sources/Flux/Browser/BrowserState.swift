@@ -199,14 +199,51 @@ final class BrowserState {
         saveWindows()
     }
 
-    /// The window closed. Its tabs stay in their spaces.
+    /// A private window. Private windows share one space, with a profile in memory, until the
+    /// last one closes.
+    init(privateSharing other: BrowserState) {
+        appDatabase = other.appDatabase
+        let store = BrowserStore.privateStore ?? Self.makePrivateStore()
+        BrowserStore.privateStore = store
+        self.store = store
+        selectedSpaceID = store.spaces[0].id
+        showsChosenTabsOnly = true
+        store.windows.append(self)
+        profiles[selectedSpaceID]?.load()
+    }
+
+    /// No database, no history, no extensions, no downloads list: nothing goes to disk.
+    private static func makePrivateStore() -> BrowserStore {
+        let store = BrowserStore(isPrivate: true)
+        let record = SpaceRecord(
+            id: UUID(), name: String(localized: "Private Browsing"), icon: nil, color: "#48484A",
+            position: FractionalIndex.between(nil, nil), profileFolder: "", selectedTabID: nil, createdAt: Date()
+        )
+        store.spaces = [Space(record: record)]
+        store.spaceRecords[record.id] = record
+        store.profiles[record.id] = FLXProfile.privateBrowsing()
+        store.faviconCaches[record.id] = FaviconCache(profileFolder: nil)
+        return store
+    }
+
+    var isPrivate: Bool {
+        store.isPrivate
+    }
+
+    /// The window closed. Its tabs stay in their spaces. The last private window takes its pages
+    /// with it, and with them the private session.
     func closeWindow() {
         closePeek()
         store.windows.removeAll { $0 === self }
+        if isPrivate, store.windows.isEmpty {
+            tabs.forEach { $0.close() }
+            tabs = []
+        }
         saveWindows()
     }
 
     private func saveWindows() {
+        guard !isPrivate else { return }
         let saved = store.windows.map { SavedWindow(spaceID: $0.selectedSpaceID, selectedTabIDs: $0.selectedTabIDs) }
         let json = (try? JSONEncoder().encode(saved)).flatMap { String(data: $0, encoding: .utf8) }
         save { try appDatabase.setSetting(Self.windowsKey, to: json) }
@@ -286,6 +323,7 @@ final class BrowserState {
         preparingProfile prepare: ((URL) -> Void)? = nil
     ) -> UUID {
         let id = UUID()
+        guard !isPrivate else { return selectedSpaceID }
         let lastPosition = spaces.last.flatMap { spaceRecords[$0.id]?.position }
         let record = SpaceRecord(
             id: id, name: name, icon: icon, color: color,
@@ -302,7 +340,7 @@ final class BrowserState {
     }
 
     func updateSpace(_ id: UUID, name: String, icon: String?, color: String) {
-        guard var record = spaceRecords[id], let index = spaces.firstIndex(where: { $0.id == id }) else { return }
+        guard !isPrivate, var record = spaceRecords[id], let index = spaces.firstIndex(where: { $0.id == id }) else { return }
         record.name = name
         record.icon = icon
         record.color = color
@@ -319,7 +357,7 @@ final class BrowserState {
     }
 
     func deleteSpace(_ id: UUID) {
-        guard spaces.count > 1, let record = spaceRecords[id] else { return }
+        guard !isPrivate, spaces.count > 1, let record = spaceRecords[id] else { return }
         let ownsProfile = ownsProfile(id)
         let database = profileDatabases[id]
 
@@ -517,7 +555,7 @@ final class BrowserState {
         // Seen until now: a tab looked at for a long time is not inactive the moment it is left.
         for shown in shownTabs where shown !== tab { shown.markActive() }
         selectedTabIDs[tab.spaceID] = tab.id
-        if store.windows.first === self, var record = spaceRecords[tab.spaceID] {
+        if !isPrivate, store.windows.first === self, var record = spaceRecords[tab.spaceID] {
             record.selectedTabID = tab.id
             spaceRecords[tab.spaceID] = record
             save { try appDatabase.save(record) }

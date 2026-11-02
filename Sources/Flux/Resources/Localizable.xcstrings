@@ -2191,6 +2191,16 @@
         }
       }
     },
+    "New Private Window" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouvelle fenêtre de navigation privée"
+          }
+        }
+      }
+    },
     "New Space" : {
       "localizations" : {
         "fr" : {
@@ -2737,6 +2747,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Confidentialité et sécurité"
+          }
+        }
+      }
+    },
+    "Private Browsing" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Navigation privée"
           }
         }
       }

@@ -21,6 +21,7 @@ shortcuts and can't be taken. Minimize acts on the window the page belongs to.
 | Extensions | ⇧⌘E |
 | New Tab | ⌘T |
 | New Window | ⌘N |
+| New Private Window | ⇧⌘N |
 | Open Location | ⌘L |
 | Close Tab | ⌘W |
 | Close Window | ⇧⌘W |
@@ -65,6 +66,10 @@ match and Shift-Return to the previous one, Escape closes the bar. Each tab keep
 Each window shows a space of its own. A tab shows in one window at a time: selecting a tab
 another window shows brings that window to the front. A new window shows no tab until you pick
 one. Windows open again at launch where they were.
+
+Private windows are dark and keep everything in memory: cookies, cache, history and their tabs are
+gone once the last private window closes. They share one session while one is open, run no
+extensions, and never open again at launch.
 
 ## Tabs
 

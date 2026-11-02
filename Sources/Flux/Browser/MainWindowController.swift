@@ -40,8 +40,9 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
     private var handleLeading: NSLayoutConstraint!
     private var sidebarWidth: CGFloat
 
-    /// `frameName` saves the window's size and place, one per window.
-    init(state: BrowserState, frameName: String) {
+    /// `frameName` saves the window's size and place, one per window. Private windows save
+    /// nothing.
+    init(state: BrowserState, frameName: String?) {
         self.state = state
         sidebarWidth = state.sidebarWidth.map { $0.clamped(to: Self.sidebarWidths) } ?? Self.defaultSidebarWidth
         let window = MainWindow(
@@ -54,8 +55,14 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         window.titleVisibility = .hidden
         // AppKit saves the window's size and place as it changes, and moves it back on screen if
         // that screen is gone.
-        if !window.setFrameUsingName(frameName) { window.center() }
-        window.setFrameAutosaveName(frameName)
+        if let frameName {
+            if !window.setFrameUsingName(frameName) { window.center() }
+            window.setFrameAutosaveName(frameName)
+        } else {
+            window.center()
+        }
+        // Dark, so a private window isn't taken for another.
+        if state.isPrivate { window.appearance = NSAppearance(named: .darkAqua) }
         super.init(window: window)
         window.delegate = self
         state.onShowWindow = { [weak self] in

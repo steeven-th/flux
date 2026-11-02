@@ -16,6 +16,14 @@ final class BrowserStore {
     var linkRules: [LinkRule] = []
     /// One per window, in the order they opened.
     var windows: [BrowserState] = []
+    /// Private windows share a store of their own, with one space and nothing on disk.
+    let isPrivate: Bool
+    /// The private windows' store while one is open.
+    static weak var privateStore: BrowserStore?
+
+    init(isPrivate: Bool = false) {
+        self.isPrivate = isPrivate
+    }
 
     @ObservationIgnored var spaceRecords: [UUID: SpaceRecord] = [:]
     @ObservationIgnored var profiles: [UUID: FLXProfile] = [:]

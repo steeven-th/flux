@@ -12,6 +12,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var state: BrowserState? {
         windowController?.state
     }
+    /// The active window's state, or a regular window's when it is private: links from other apps
+    /// and new windows never go to a private window.
+    private var regularState: BrowserState? {
+        state.flatMap { $0.isPrivate ? nil : $0 } ?? windows.first { !$0.state.isPrivate }?.state
+    }
     /// The first window's state set Flux's callbacks up, so it lives on after its window closes.
     private var firstState: BrowserState?
     private var dialogFixer: ChromiumDialogFixer?
@@ -58,7 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         FLXEngine.externalPageHandler = { [weak self] url, profilePath in
-            self?.state?.openExternalPage(url, profilePath: profilePath)
+            self?.regularState?.openExternalPage(url, profilePath: profilePath)
         }
         prepare(state)
         state.onExtensionInstall = { [weak self] item, spaceID in
@@ -90,7 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func openWindow(_ state: BrowserState) -> MainWindowController {
         let names = Set(windows.compactMap { $0.window?.frameAutosaveName })
         let name = (1...).lazy.map { $0 == 1 ? "MainWindow" : "MainWindow \($0)" }.first { !names.contains($0) }!
-        let controller = MainWindowController(state: state, frameName: name)
+        let controller = MainWindowController(state: state, frameName: state.isPrivate ? nil : name)
         controller.onClose = { [weak self, weak controller] in
             self?.windows.removeAll { $0 === controller }
         }
@@ -113,10 +118,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func newWindow(_ sender: Any?) {
-        guard let state else { return }
+        guard let state = regularState else { return }
         let controller = openWindow(BrowserState(sharing: state, showing: .init(spaceID: state.selectedSpaceID, selectedTabIDs: [:]), isNew: true))
         activeWindow = controller
         // Once the window has the keyboard, which it takes after showing.
+        DispatchQueue.main.async { controller.showCommandBar(.newTab) }
+    }
+
+    @objc func newPrivateWindow(_ sender: Any?) {
+        guard let state else { return }
+        let controller = openWindow(BrowserState(privateSharing: state))
+        activeWindow = controller
         DispatchQueue.main.async { controller.showCommandBar(.newTab) }
     }
 
@@ -136,7 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The first link rule that matches decides where the link opens, the Links settings otherwise.
     private func openFromOtherApp(_ url: URL, from app: SourceApp?) {
-        guard let state else { return }
+        guard let state = regularState else { return }
         if let app, app.bundleID != Bundle.main.bundleIdentifier { state.noteLinkSource(app) }
         let rule = state.linkRule(for: url, from: app)
         let spaceID = rule?.spaceID ?? state.selectedSpaceID
@@ -145,7 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             state.selectedSpaceID = spaceID
             state.newTab(url: url.absoluteString, in: spaceID)
-            windowController?.window?.makeKeyAndOrderFront(nil)
+            windows.first { $0.state === state }?.window?.makeKeyAndOrderFront(nil)
             NSApp.activate()
         }
     }
