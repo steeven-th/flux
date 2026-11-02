@@ -147,6 +147,10 @@ struct SidebarOutline: NSViewRepresentable {
             item is SectionItem
         }
 
+        func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? {
+            item is SectionItem ? nil : HoverRowView()
+        }
+
         func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
             let row: AnyView
             switch item {
@@ -389,5 +393,37 @@ private final class SidebarOutlineView: NSOutlineView {
         guard event.buttonNumber == 2 else { return super.otherMouseUp(with: event) }
         let row = row(at: convert(event.locationInWindow, from: nil))
         if row >= 0, let item = item(atRow: row) { middleClickHandler?(item) }
+    }
+}
+
+/// Shows a background under the mouse, where the selection would show. The page window usually has
+/// the keyboard, so the row follows the mouse whichever window is key.
+private final class HoverRowView: NSTableRowView {
+    private var trackingArea: NSTrackingArea?
+    private var isHovered = false {
+        didSet { if isHovered != oldValue { needsDisplay = true } }
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea { removeTrackingArea(trackingArea) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self)
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        isHovered = true
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        isHovered = false
+    }
+
+    override func drawBackground(in dirtyRect: NSRect) {
+        super.drawBackground(in: dirtyRect)
+        guard isHovered, !isSelected else { return }
+        NSColor.labelColor.withAlphaComponent(0.06).setFill()
+        NSBezierPath(roundedRect: bounds.insetBy(dx: 10, dy: 0), xRadius: 6, yRadius: 6).fill()
     }
 }

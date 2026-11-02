@@ -30,13 +30,14 @@ struct TabRow: View {
             }
             .frame(width: 16, height: 16)
 
+            // Before the title, so the buttons shown on hover don't move it.
+            AudioButton(tab: tab)
+
             Text(tab.displayTitle)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 // Arc dims tabs whose page isn't loaded.
                 .opacity(tab.isLoaded ? 1 : 0.6)
-
-            AudioButton(tab: tab)
 
             Spacer(minLength: 0)
 
