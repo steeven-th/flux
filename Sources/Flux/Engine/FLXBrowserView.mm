@@ -103,6 +103,22 @@ std::map<int, FLXBrowserView *> &PendingPages() {
   return pages;
 }
 
+// The permission values are CEF's own.
+static_assert(FLXPermissionCamera == CEF_PERMISSION_TYPE_CAMERA_STREAM);
+static_assert(FLXPermissionNotifications == CEF_PERMISSION_TYPE_NOTIFICATIONS);
+static_assert(FLXPermissionSensors == CEF_PERMISSION_TYPE_SENSORS);
+
+}  // namespace
+
+@interface FLXPermissionRequest ()
+- (instancetype)initWithOrigin:(NSString *)origin
+                   permissions:(FLXPermission)permissions
+                      callback:(CefRefPtr<CefPermissionPromptCallback>)callback;
+- (void)cancel;
+@end
+
+namespace {
+
 class BrowserClient : public CefClient,
                       public CefLifeSpanHandler,
                       public CefDisplayHandler,
@@ -110,7 +126,8 @@ class BrowserClient : public CefClient,
                       public CefRequestHandler,
                       public CefLoadHandler,
                       public CefContextMenuHandler,
-                      public CefFindHandler {
+                      public CefFindHandler,
+                      public CefPermissionHandler {
  public:
   BrowserClient(FLXBrowserView *owner, bool opened_by_page)
       : owner_(owner), profile_(owner.profile), opened_by_page_(opened_by_page) {}
@@ -122,6 +139,32 @@ class BrowserClient : public CefClient,
   CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
   CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override { return this; }
   CefRefPtr<CefFindHandler> GetFindHandler() override { return this; }
+  CefRefPtr<CefPermissionHandler> GetPermissionHandler() override { return this; }
+
+  bool OnShowPermissionPrompt(CefRefPtr<CefBrowser> browser, uint64_t prompt_id, const CefString &requesting_origin,
+                              uint32_t requested_permissions,
+                              CefRefPtr<CefPermissionPromptCallback> callback) override {
+    FLXBrowserView *owner = owner_;
+    if (!IsOwnPage(browser) || ![owner.delegate respondsToSelector:@selector(browserView:didRequestPermission:)]) {
+      return false;
+    }
+    FLXPermissionRequest *request = [[FLXPermissionRequest alloc] initWithOrigin:ToNSString(requesting_origin)
+                                                                      permissions:requested_permissions
+                                                                         callback:callback];
+    permission_requests_[prompt_id] = request;
+    [owner.delegate browserView:owner didRequestPermission:request];
+    return true;
+  }
+
+  // Also called once Flux answered.
+  void OnDismissPermissionPrompt(CefRefPtr<CefBrowser> browser, uint64_t prompt_id,
+                                 cef_permission_request_result_t result) override {
+    auto request = permission_requests_.find(prompt_id);
+    if (request == permission_requests_.end()) return;
+    FLXPermissionRequest *dismissed = request->second;
+    permission_requests_.erase(request);
+    [dismissed cancel];
+  }
 
   bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
                                 CefProcessId source_process, CefRefPtr<CefProcessMessage> message) override {
@@ -447,6 +490,7 @@ class BrowserClient : public CefClient,
   std::string menu_text_;
   /// Frames of the page playing sound, as FluxHelper reports them.
   std::set<std::string> audible_frames_;
+  std::map<uint64_t, FLXPermissionRequest *> permission_requests_;
   /// What each frame that played something reports, as JSON, by frame identifier.
   std::map<std::string, std::string> media_states_;
   std::string media_frame_;
@@ -586,6 +630,48 @@ void RemoveSystemCorners(NSWindow *window) {
 }  // namespace
 
 const CGFloat FLXPageCornerRadius = 18;
+
+@implementation FLXPermissionRequest {
+  CefRefPtr<CefPermissionPromptCallback> _callback;
+}
+
+- (instancetype)initWithOrigin:(NSString *)origin
+                   permissions:(FLXPermission)permissions
+                      callback:(CefRefPtr<CefPermissionPromptCallback>)callback {
+  self = [super init];
+  if (!self) return nil;
+  _origin = [origin copy];
+  _permissions = permissions;
+  _callback = callback;
+  return self;
+}
+
+- (void)allow {
+  [self answer:CEF_PERMISSION_RESULT_ACCEPT];
+}
+
+- (void)block {
+  [self answer:CEF_PERMISSION_RESULT_DENY];
+}
+
+- (void)dismiss {
+  [self answer:CEF_PERMISSION_RESULT_DISMISS];
+}
+
+- (void)answer:(cef_permission_request_result_t)result {
+  if (!_callback) return;
+  CefRefPtr<CefPermissionPromptCallback> callback = _callback;
+  _callback = nullptr;
+  callback->Continue(result);
+}
+
+- (void)cancel {
+  if (!_callback) return;
+  _callback = nullptr;
+  if (_onCancel) _onCancel();
+}
+
+@end
 
 @implementation FLXBrowserView {
   NSView *_dimView;

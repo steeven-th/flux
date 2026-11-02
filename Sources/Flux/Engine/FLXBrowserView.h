@@ -27,6 +27,50 @@ typedef NS_ENUM(NSInteger, FLXOpenDisposition) {
   FLXOpenDispositionShiftClick,
 };
 
+/// What a site asks to use. A request can ask for several, camera and microphone for one.
+typedef NS_OPTIONS(uint32_t, FLXPermission) {
+  FLXPermissionCameraPanTiltZoom = 1 << 1,
+  FLXPermissionCamera = 1 << 2,
+  FLXPermissionClipboard = 1 << 4,
+  FLXPermissionTopLevelStorageAccess = 1 << 5,
+  FLXPermissionLocalFonts = 1 << 7,
+  FLXPermissionGeolocation = 1 << 8,
+  FLXPermissionIdleDetection = 1 << 11,
+  FLXPermissionMicrophone = 1 << 12,
+  FLXPermissionMIDI = 1 << 13,
+  FLXPermissionMultipleDownloads = 1 << 14,
+  FLXPermissionNotifications = 1 << 15,
+  FLXPermissionKeyboardLock = 1 << 16,
+  FLXPermissionPointerLock = 1 << 17,
+  FLXPermissionProtocolHandler = 1 << 19,
+  FLXPermissionStorageAccess = 1 << 20,
+  FLXPermissionWindowManagement = 1 << 23,
+  FLXPermissionFileSystem = 1 << 24,
+  FLXPermissionLocalNetwork = 1 << 25 | 1 << 26 | 1 << 27,
+  FLXPermissionSensors = 1 << 28,
+};
+
+/// A site asking to use something, such as notifications or the camera. Chromium keeps the answer
+/// for the site, as Chrome does.
+NS_SWIFT_UI_ACTOR
+@interface FLXPermissionRequest : NSObject
+
+/// The site, as an origin such as https://example.com/.
+@property (nonatomic, readonly, copy) NSString *origin;
+@property (nonatomic, readonly) FLXPermission permissions;
+/// Called when Chromium drops the request before it is answered, when the page goes elsewhere
+/// for one.
+@property (nonatomic, copy, nullable) void (^onCancel)(void);
+
+- (void)allow;
+- (void)block;
+/// Closes the request without an answer, so the site may ask again later.
+- (void)dismiss;
+
+- (instancetype)init NS_UNAVAILABLE;
+
+@end
+
 NS_SWIFT_UI_ACTOR
 @protocol FLXBrowserViewDelegate <NSObject>
 @optional
@@ -55,6 +99,9 @@ NS_SWIFT_UI_ACTOR
 /// whether it has previous and next tracks, and its volume. Nil once nothing in the page plays
 /// or has played.
 - (void)browserView:(FLXBrowserView *)browserView didChangeMedia:(nullable NSDictionary<NSString *, id> *)media;
+/// Sent when the page asks for a permission. Without this method, Chromium shows its own prompt,
+/// which doesn't respond in Flux's windows.
+- (void)browserView:(FLXBrowserView *)browserView didRequestPermission:(FLXPermissionRequest *)request;
 /// Sent as a search in the page finds matches. `activeMatch` counts from 1, 0 without a match.
 /// Either is -1 when it hasn't changed since the last update.
 - (void)browserView:(FLXBrowserView *)browserView didFindMatches:(NSInteger)count activeMatch:(NSInteger)activeMatch;

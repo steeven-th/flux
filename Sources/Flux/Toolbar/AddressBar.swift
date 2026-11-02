@@ -50,6 +50,19 @@ struct AddressBar: View {
         }
         .padding(.trailing, 3)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.primary.opacity(0.06)))
+        .popover(isPresented: isAskingPermission, arrowEdge: .bottom) {
+            if let tab = state.selectedTab, let request = tab.permissionRequest {
+                PermissionPrompt(request: request, onAnswer: tab.answerPermission)
+            }
+        }
+    }
+
+    /// Closing the popover by clicking elsewhere leaves the request unanswered, as in Chrome.
+    private var isAskingPermission: Binding<Bool> {
+        Binding(
+            get: { state.selectedTab?.permissionRequest != nil },
+            set: { if !$0 { state.selectedTab?.answerPermission(nil) } }
+        )
     }
 
     private var text: String {

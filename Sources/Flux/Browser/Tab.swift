@@ -21,6 +21,8 @@ final class Tab: NSObject, Identifiable {
     private(set) var mediaStartedAt: Date?
     /// Closed from the mini player, until the page plays again.
     var isMediaDismissed = false
+    /// What the site asks to use, waiting for an answer. Shown under the address while the tab is.
+    private(set) var permissionRequest: FLXPermissionRequest?
     /// 1 at the default size. Chromium keeps it per site, so it changes as the page does.
     private(set) var zoomFactor = 1.0
     /// The page's DevTools while open, shown next to it.
@@ -142,6 +144,17 @@ final class Tab: NSObject, Identifiable {
         case .previous: loadedView?.sendMediaCommand("previous", value: 0)
         case .next: loadedView?.sendMediaCommand("next", value: 0)
         case .volume(let volume): loadedView?.sendMediaCommand("volume", value: volume)
+        }
+    }
+
+    /// Nil closes the request without an answer.
+    func answerPermission(_ allows: Bool?) {
+        guard let request = permissionRequest else { return }
+        permissionRequest = nil
+        switch allows {
+        case true?: request.allow()
+        case false?: request.block()
+        case nil: request.dismiss()
         }
     }
 
@@ -504,6 +517,7 @@ final class Tab: NSObject, Identifiable {
         isLoaded = false
         isPlayingAudio = false
         media = nil
+        answerPermission(nil)
         outsideHistory = node.history ?? NavigationHistory()
         (chromiumCanGoBack, chromiumCanGoForward) = (false, false)
         updateNavigationState()
@@ -608,6 +622,15 @@ extension Tab: FLXBrowserViewDelegate {
 
     func browserView(_ browserView: FLXBrowserView, didChangeAudible audible: Bool) {
         isPlayingAudio = audible
+    }
+
+    func browserView(_ browserView: FLXBrowserView, didRequestPermission request: FLXPermissionRequest) {
+        answerPermission(nil)
+        request.onCancel = { [weak self, weak request] in
+            guard let self, self.permissionRequest === request else { return }
+            self.permissionRequest = nil
+        }
+        permissionRequest = request
     }
 
     func browserView(_ browserView: FLXBrowserView, didChangeMedia media: [String: Any]?) {

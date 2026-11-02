@@ -21,6 +21,16 @@
         }
       }
     },
+    "%@ wants to" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ souhaite"
+          }
+        }
+      }
+    },
     "%@ · %@ of %@" : {
       "localizations" : {
         "fr" : {
@@ -391,6 +401,16 @@
         }
       }
     },
+    "Allow" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autoriser"
+          }
+        }
+      }
+    },
     "Also import Today's tabs" : {
       "localizations" : {
         "fr" : {
@@ -527,6 +547,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fond en mode responsive :"
+          }
+        }
+      }
+    },
+    "Block" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bloquer"
           }
         }
       }
@@ -1131,6 +1161,16 @@
         }
       }
     },
+    "Download several files" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Télécharger plusieurs fichiers"
+          }
+        }
+      }
+    },
     "Downloads" : {
       "localizations" : {
         "fr" : {
@@ -1197,6 +1237,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Édition"
+          }
+        }
+      }
+    },
+    "Edit files on your Mac" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifier des fichiers sur votre Mac"
           }
         }
       }
@@ -1841,6 +1891,26 @@
         }
       }
     },
+    "Know when you're using your Mac" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Savoir quand vous utilisez votre Mac"
+          }
+        }
+      }
+    },
+    "Know your location" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connaître votre position"
+          }
+        }
+      }
+    },
     "Language" : {
       "localizations" : {
         "fr" : {
@@ -1941,6 +2011,16 @@
         }
       }
     },
+    "Lock and use your pointer" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verrouiller et utiliser votre pointeur"
+          }
+        }
+      }
+    },
     "Make Flux the Default Browser" : {
       "localizations" : {
         "fr" : {
@@ -1957,6 +2037,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gérer"
+          }
+        }
+      }
+    },
+    "Manage windows on all your displays" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gérer les fenêtres sur tous vos écrans"
           }
         }
       }
@@ -2107,6 +2197,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Déplacer vers le haut"
+          }
+        }
+      }
+    },
+    "Move your camera" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déplacer votre caméra"
           }
         }
       }
@@ -2517,6 +2617,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ouvrir les liens dans Peek avec ⇧-clic"
+          }
+        }
+      }
+    },
+    "Open links of some types" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir certains types de liens"
           }
         }
       }
@@ -3251,6 +3361,16 @@
         }
       }
     },
+    "See text and images you copy" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voir les textes et images que vous copiez"
+          }
+        }
+      }
+    },
     "Select All" : {
       "localizations" : {
         "fr" : {
@@ -3487,6 +3607,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Afficher les media queries"
+          }
+        }
+      }
+    },
+    "Show notifications" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher les notifications"
           }
         }
       }
@@ -4021,12 +4151,102 @@
         }
       }
     },
+    "Use cookies and site data" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser les cookies et les données des sites"
+          }
+        }
+      }
+    },
+    "Use devices on your local network" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser les appareils de votre réseau local"
+          }
+        }
+      }
+    },
+    "Use other features of your Mac" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser d'autres fonctions de votre Mac"
+          }
+        }
+      }
+    },
     "Use Selection for Find" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rechercher la sélection"
+          }
+        }
+      }
+    },
+    "Use the fonts on your Mac" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser les polices de votre Mac"
+          }
+        }
+      }
+    },
+    "Use your camera" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser votre caméra"
+          }
+        }
+      }
+    },
+    "Use your keyboard shortcuts" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser vos raccourcis clavier"
+          }
+        }
+      }
+    },
+    "Use your microphone" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser votre micro"
+          }
+        }
+      }
+    },
+    "Use your MIDI devices" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser vos appareils MIDI"
+          }
+        }
+      }
+    },
+    "Use your motion sensors" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utiliser vos capteurs de mouvement"
           }
         }
       }
