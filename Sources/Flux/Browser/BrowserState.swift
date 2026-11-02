@@ -189,7 +189,7 @@ final class BrowserState {
         // Other spaces' profiles load when first shown.
         profiles[selectedSpaceID]?.load()
         linkRules = try appDatabase.linkRules()
-        ExtensionActions.shared.onSidePanel = { [weak self] page, url in
+        ToolbarActionRunner.shared.onSidePanel = { [weak self] page, url in
             self?.tabs.first { $0.isLoaded && $0.browserView === page }?.showSidePanel(url)
         }
         PageTranslator.shared.configure(translationProvider)

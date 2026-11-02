@@ -27,7 +27,7 @@ struct ExtensionButton: View {
         }
         .buttonStyle(.borderless)
         .help(item.name)
-        .disabled(item.popupURL == nil && !ExtensionActions.shared.isAvailable)
+        .disabled(item.popupURL == nil && !ToolbarActionRunner.shared.isAvailable)
         .background(AnchorReader(view: anchor))
     }
 
@@ -37,7 +37,7 @@ struct ExtensionButton: View {
         if let url = item.popupURL {
             ExtensionPopupPanel.show(url: url, profile: profile, below: anchor)
         } else if let page = currentPage() {
-            await ExtensionActions.shared.run(item.id, on: page, below: anchor)
+            await ToolbarActionRunner.shared.run(item.id, on: page, below: anchor)
         }
     }
 }
