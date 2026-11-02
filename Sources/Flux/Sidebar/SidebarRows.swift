@@ -36,6 +36,8 @@ struct TabRow: View {
                 // Arc dims tabs whose page isn't loaded.
                 .opacity(tab.isLoaded ? 1 : 0.6)
 
+            AudioButton(tab: tab)
+
             Spacer(minLength: 0)
 
             if isHovered {
@@ -157,5 +159,24 @@ private struct SplitPaneItem: View {
         .background(RoundedRectangle(cornerRadius: 5).fill(.primary.opacity(isFocused ? 0.08 : 0)).padding(.vertical, 3))
         .contentShape(Rectangle())
         .onHover { isHovered = $0 }
+    }
+}
+
+/// Shows that a tab plays sound, or is muted, and mutes it or turns its sound back on, as in Arc.
+struct AudioButton: View {
+    let tab: Tab
+
+    var body: some View {
+        if tab.isPlayingAudio || tab.isMuted {
+            Button(action: tab.toggleMute) {
+                Image(systemName: tab.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .help(tab.isMuted ? "Unmute Tab" : "Mute Tab")
+        }
     }
 }

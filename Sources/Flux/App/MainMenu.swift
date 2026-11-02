@@ -54,6 +54,16 @@ enum MainMenu {
             NSMenuItem(title: String(localized: "Zoom Out"), action: #selector(AppDelegate.zoomOut(_:)), keyEquivalent: "-"),
             NSMenuItem(title: String(localized: "Actual Size"), action: #selector(AppDelegate.resetZoom(_:)), keyEquivalent: "0"),
         ])))
+        menu.addItem(submenu(title: String(localized: "Tab"), items: customizable([
+            control(NSMenuItem(title: String(localized: "Select Next Tab"), action: #selector(AppDelegate.showNextTab(_:)), keyEquivalent: "\t")),
+            controlShift(NSMenuItem(title: String(localized: "Select Previous Tab"), action: #selector(AppDelegate.showPreviousTab(_:)), keyEquivalent: "\t")),
+            .separator(),
+            NSMenuItem(title: String(localized: "Duplicate Tab"), action: #selector(AppDelegate.duplicateTab(_:)), keyEquivalent: ""),
+            shifted(NSMenuItem(title: String(localized: "Copy Address"), action: #selector(AppDelegate.copyAddress(_:)), keyEquivalent: "c")),
+            NSMenuItem(title: String(localized: "Mute Tab"), action: #selector(AppDelegate.toggleMute(_:)), keyEquivalent: ""),
+            .separator(),
+            shifted(NSMenuItem(title: String(localized: "Reopen Closed Tab"), action: #selector(AppDelegate.reopenClosedTab(_:)), keyEquivalent: "t")),
+        ] + tabNumberItems())))
         menu.addItem(submenu(title: String(localized: "History"), items: customizable([
             NSMenuItem(title: String(localized: "Show All History"), action: #selector(AppDelegate.showHistory(_:)), keyEquivalent: "y"),
             shifted(NSMenuItem(title: String(localized: "Show Archive"), action: #selector(AppDelegate.showArchive(_:)), keyEquivalent: "a")),
@@ -89,10 +99,27 @@ enum MainMenu {
         for item in items {
             guard let action = item.action else { continue }
             let name = NSStringFromSelector(action).replacing(":", with: "")
-            let id = action == #selector(AppDelegate.selectSpace(_:)) ? "\(name)\(item.tag + 1)" : name
+            let id = switch action {
+            case #selector(AppDelegate.selectSpace(_:)): "\(name)\(item.tag + 1)"
+            case #selector(AppDelegate.selectTabNumber(_:)): "\(name)\(item.tag)"
+            default: name
+            }
             item.identifier = NSUserInterfaceItemIdentifier(Shortcuts.identifierPrefix + id)
         }
         return items
+    }
+
+    /// ⌘1 to ⌘8 select the first tabs and ⌘9 the last. Hidden, as in other browsers, but their
+    /// shortcuts work.
+    private static func tabNumberItems() -> [NSMenuItem] {
+        (1...9).map { number in
+            let title = number == 9 ? String(localized: "Select Last Tab") : String(localized: "Select Tab \(number)")
+            let item = NSMenuItem(title: title, action: #selector(AppDelegate.selectTabNumber(_:)), keyEquivalent: "\(number)")
+            item.tag = number
+            item.isHidden = true
+            item.allowsKeyEquivalentWhenHidden = true
+            return item
+        }
     }
 
     private static func submenu(title: String, items: [NSMenuItem]) -> NSMenuItem {
@@ -105,6 +132,11 @@ enum MainMenu {
 
     private static func optionCommand(_ item: NSMenuItem) -> NSMenuItem {
         item.keyEquivalentModifierMask = [.command, .option]
+        return item
+    }
+
+    private static func control(_ item: NSMenuItem) -> NSMenuItem {
+        item.keyEquivalentModifierMask = .control
         return item
     }
 

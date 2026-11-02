@@ -351,6 +351,16 @@
         }
       }
     },
+    "Address Copied" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse copiée"
+          }
+        }
+      }
+    },
     "AirDrop" : {
       "localizations" : {
         "fr" : {
@@ -861,6 +871,16 @@
         }
       }
     },
+    "Copy Address" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copier l'adresse"
+          }
+        }
+      }
+    },
     "Copy Image" : {
       "localizations" : {
         "fr" : {
@@ -1087,6 +1107,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "DPR : %@"
+          }
+        }
+      }
+    },
+    "Duplicate Tab" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dupliquer l'onglet"
           }
         }
       }
@@ -1961,6 +1991,26 @@
         }
       }
     },
+    "Mute Tab" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couper le son de l'onglet"
+          }
+        }
+      }
+    },
+    "Muted" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Son coupé"
+          }
+        }
+      }
+    },
     "Name" : {
       "localizations" : {
         "fr" : {
@@ -2731,6 +2781,16 @@
         }
       }
     },
+    "Reopen Closed Tab" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rouvrir l'onglet fermé"
+          }
+        }
+      }
+    },
     "Replace" : {
       "localizations" : {
         "fr" : {
@@ -2987,6 +3047,46 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sélectionner un élément"
+          }
+        }
+      }
+    },
+    "Select Last Tab" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernier onglet"
+          }
+        }
+      }
+    },
+    "Select Next Tab" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onglet suivant"
+          }
+        }
+      }
+    },
+    "Select Previous Tab" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onglet précédent"
+          }
+        }
+      }
+    },
+    "Select Tab %lld" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onglet %lld"
           }
         }
       }
@@ -3341,6 +3441,16 @@
         }
       }
     },
+    "Tab" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onglet"
+          }
+        }
+      }
+    },
     "Tablets and Computers" : {
       "localizations" : {
         "fr" : {
@@ -3607,6 +3717,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Décharger l'onglet"
+          }
+        }
+      }
+    },
+    "Unmute Tab" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rétablir le son de l'onglet"
           }
         }
       }

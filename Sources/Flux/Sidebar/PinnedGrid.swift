@@ -62,6 +62,9 @@ struct PinnedGrid: NSViewRepresentable {
         collection.dragExitHandler = { [weak coordinator = context.coordinator] in coordinator?.endPreview() }
         collection.menuProvider = { [weak coordinator = context.coordinator] index in coordinator?.menu(for: index) }
         collection.middleClickHandler = { [weak coordinator = context.coordinator] index in coordinator?.unloadTab(at: index) }
+        collection.speakerClickHandler = { [weak coordinator = context.coordinator] index in
+            coordinator?.toggleMute(at: index) ?? false
+        }
         context.coordinator.collection = collection
         return collection
     }
@@ -272,6 +275,13 @@ struct PinnedGrid: NSViewRepresentable {
             return state.entry(id: id)
         }
 
+        /// False when the tile shows no speaker, so the click selects it.
+        func toggleMute(at index: Int) -> Bool {
+            guard let tab = tiles[safe: index] ?? nil, tab.isPlayingAudio || tab.isMuted else { return false }
+            tab.toggleMute()
+            return true
+        }
+
         func unloadTab(at index: Int) {
             guard let tab = tiles[safe: index] ?? nil else { return }
             state.close(tab)
@@ -324,10 +334,13 @@ private final class PinnedGridLayout: NSCollectionViewFlowLayout {
     }
 }
 
-/// Builds its context menu for the tile under the click. A middle click unloads the tile's tab.
+/// Builds its context menu for the tile under the click. A middle click unloads the tile's tab, and
+/// a click on a tile's speaker mutes it or turns its sound back on.
 private final class PinnedCollectionView: NSCollectionView {
     var menuProvider: ((Int) -> NSMenu?)?
     var middleClickHandler: ((Int) -> Void)?
+    /// Returns whether the tile had a speaker to click.
+    var speakerClickHandler: ((Int) -> Bool)?
     /// The delegate isn't told when a drag leaves the grid, so the preview is undone from here.
     var dragExitHandler: (() -> Void)?
 
@@ -340,6 +353,16 @@ private final class PinnedCollectionView: NSCollectionView {
         let point = convert(event.locationInWindow, from: nil)
         guard let index = indexPathForItem(at: point)?.item else { return nil }
         return menuProvider?(index)
+    }
+
+    /// The speaker sits in the tile's top right corner.
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        if let indexPath = indexPathForItem(at: point), let frame = item(at: indexPath)?.view.frame {
+            let speaker = NSRect(x: frame.maxX - 20, y: isFlipped ? frame.minY : frame.maxY - 20, width: 20, height: 20)
+            if speaker.contains(point), speakerClickHandler?(indexPath.item) == true { return }
+        }
+        super.mouseDown(with: event)
     }
 
     override func otherMouseUp(with event: NSEvent) {
@@ -413,6 +436,7 @@ struct PinnedTile: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(shape.fill(Color.primary.opacity(isSelected ? 0.14 : 0.06)))
         .overlay(shape.strokeBorder(Color.primary.opacity(isSelected ? 0.25 : 0.12), lineWidth: 1))
+        .overlay(alignment: .topTrailing) { AudioButton(tab: tab) }
         .help(tab.displayTitle)
     }
 }

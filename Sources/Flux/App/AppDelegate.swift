@@ -324,6 +324,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         finder?.findSelection()
     }
 
+    // Not selectNextTab(_:): windows answer that one first, for their own tabs, and disable it.
+    @objc func showNextTab(_ sender: Any?) {
+        state?.selectTab(after: 1)
+    }
+
+    @objc func showPreviousTab(_ sender: Any?) {
+        state?.selectTab(after: -1)
+    }
+
+    @objc func selectTabNumber(_ sender: NSMenuItem) {
+        state?.selectTab(number: sender.tag)
+    }
+
+    @objc func duplicateTab(_ sender: Any?) {
+        guard let state, let tab = state.selectedTab else { return }
+        state.duplicate(tab)
+    }
+
+    /// The little window's page when one has the keyboard.
+    @objc func copyAddress(_ sender: Any?) {
+        guard let url = LittleWindowController.key?.model.url ?? state?.selectedTab?.url,
+              let window = NSApp.keyWindow.map({ $0.parent ?? $0 }) else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(url, forType: .string)
+        Toast.show(String(localized: "Address Copied"), over: window)
+    }
+
+    @objc func toggleMute(_ sender: Any?) {
+        state?.selectedTab?.toggleMute()
+    }
+
+    @objc func reopenClosedTab(_ sender: Any?) {
+        state?.reopenClosedTab()
+    }
+
     @objc func zoomIn(_ sender: Any?) {
         zoom(.in)
     }
@@ -379,6 +414,19 @@ extension AppDelegate: NSMenuDelegate, NSMenuItemValidation {
         }
         if [#selector(showFindBar(_:)), #selector(findNext(_:)), #selector(findPrevious(_:)), #selector(findSelection(_:))].contains(menuItem.action) {
             return finder != nil
+        }
+        if menuItem.action == #selector(toggleMute(_:)) {
+            menuItem.title = state?.selectedTab?.isMuted == true ? String(localized: "Unmute Tab") : String(localized: "Mute Tab")
+            return state?.selectedTab != nil
+        }
+        if menuItem.action == #selector(reopenClosedTab(_:)) {
+            return state?.archivedTabsInSelectedSpace.isEmpty == false
+        }
+        if [#selector(showNextTab(_:)), #selector(showPreviousTab(_:)), #selector(selectTabNumber(_:)), #selector(duplicateTab(_:))].contains(menuItem.action) {
+            return state?.selectedTab != nil
+        }
+        if menuItem.action == #selector(copyAddress(_:)) {
+            return LittleWindowController.key != nil || state?.selectedTab != nil
         }
         if [#selector(zoomIn(_:)), #selector(zoomOut(_:)), #selector(resetZoom(_:))].contains(menuItem.action) {
             return LittleWindowController.key != nil || state?.selectedTab != nil

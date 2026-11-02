@@ -33,6 +33,12 @@ can't be changed or taken.
 | Zoom In | ⌘= |
 | Zoom Out | ⌘- |
 | Actual Size | ⌘0 |
+| Select Next Tab | ⌃⇥ |
+| Select Previous Tab | ⌃⇧⇥ |
+| Select Tab 1 to 8 | ⌘1 to ⌘8 |
+| Select Last Tab | ⌘9 |
+| Copy Address | ⇧⌘C |
+| Reopen Closed Tab | ⇧⌘T |
 | Show All History | ⌘Y |
 | Show Archive | ⇧⌘A |
 | Show Downloads | ⌥⌘L |
@@ -44,6 +50,17 @@ can't be changed or taken.
 ⌘F shows a bar at the top right of the page, also in little windows. Return goes to the next
 match and Shift-Return to the previous one, Escape closes the bar. Each tab keeps its own search.
 
+## Tabs
+
+Next and previous tabs follow the sidebar: pinned tabs, then favorites in open folders, then
+today's tabs, each pane of a split in turn. Reopen Closed Tab brings back the space's most recent
+tab from its archive, at the end of today's tabs.
+
+A tab playing sound shows a speaker in the sidebar, on its row or its pinned tile. Clicking it
+mutes the tab, and clicking it again turns its sound back on. Each frame of the page tells Flux
+when its audio and video elements play, those kept out of the page by players included. Sound made
+with Web Audio shows no speaker, but Tab > Mute Tab still mutes it.
+
 ## Zoom
 
 Chromium keeps the zoom per site in each profile, so every tab of the site follows it. The address
@@ -54,6 +71,11 @@ shows the zoom when it isn't 100 %, and clicking it goes back to the actual size
 The page gets a shortcut before Flux's menus, as in Chrome, so a web app that uses ⌘S or ⌘D keeps
 it.
 
-A shortcut is saved with the character its key types without modifiers on your keyboard. With
+Chromium handles some shortcuts itself and never hands them to the menus: ⌘1 to ⌘9 for its own
+tabs, ⇧⌘C to inspect an element. Flux matches its actions using them before Chromium does. Apps
+with global shortcuts, like launchers, may take ⌘1 to ⌘9 before Flux gets them.
+
+A shortcut is saved with the character its key types without modifiers on your keyboard. Digits
+are read from the key instead, since some keyboards only type them with Shift. With
 Shift and a key that isn't a letter, menus only match the character Shift makes, which changes
 from one keyboard to another. Flux matches those on the key instead, before the page sees them.

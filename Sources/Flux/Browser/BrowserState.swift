@@ -933,6 +933,44 @@ final class BrowserState {
         return nil
     }
 
+    /// The space's tabs in the order the sidebar shows them, without those in closed folders.
+    func tabsInSidebarOrder(spaceID: UUID? = nil) -> [Tab] {
+        func tabs(in section: SidebarNode.Section, parentID: UUID?) -> [Tab] {
+            entries(in: section, parentID: parentID, spaceID: spaceID).flatMap { entry -> [Tab] in
+                switch entry {
+                case .tab(let tab): [tab]
+                case .folder(let folder): folder.node.isExpanded ? tabs(in: section, parentID: folder.id) : []
+                case .split(let split): tabs(in: section, parentID: split.id)
+                }
+            }
+        }
+        return [SidebarNode.Section.pinned, .favorites, .today].flatMap { tabs(in: $0, parentID: nil) }
+    }
+
+    /// Wraps around at either end.
+    func selectTab(after offset: Int) {
+        let tabs = tabsInSidebarOrder()
+        guard !tabs.isEmpty else { return }
+        let index = selectedTab.flatMap { tab in tabs.firstIndex { $0 === tab } } ?? (offset > 0 ? -1 : 0)
+        select(tabs[((index + offset) % tabs.count + tabs.count) % tabs.count])
+    }
+
+    /// The first eight by number, the last with 9, as in other browsers.
+    func selectTab(number: Int) {
+        let tabs = tabsInSidebarOrder()
+        guard let tab = number == 9 ? tabs.last : tabs.dropFirst(number - 1).first else { return }
+        select(tab)
+    }
+
+    func reopenClosedTab() {
+        guard let archived = archivedTabsInSelectedSpace.first else { return }
+        restore(archived)
+    }
+
+    func duplicate(_ tab: Tab) {
+        newTab(url: tab.url, in: tab.spaceID)
+    }
+
     /// The pinned tabs shown as icons at the top of the sidebar.
     var pinnedTabs: [Tab] {
         entries(in: .pinned, parentID: nil).compactMap { entry in

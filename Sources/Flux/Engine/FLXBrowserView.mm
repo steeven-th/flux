@@ -10,6 +10,7 @@
 #include "include/cef_x509_certificate.h"
 
 #include <map>
+#include <set>
 
 #include "include/cef_client.h"
 #include "include/cef_command_ids.h"
@@ -121,6 +122,25 @@ class BrowserClient : public CefClient,
   CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
   CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override { return this; }
   CefRefPtr<CefFindHandler> GetFindHandler() override { return this; }
+
+  bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+                                CefProcessId source_process, CefRefPtr<CefProcessMessage> message) override {
+    if (message->GetName() != "FluxAudio" || !frame) return false;
+    if (!IsOwnPage(browser)) return true;
+    bool was_audible = !audible_frames_.empty();
+    std::string id = frame->GetIdentifier().ToString();
+    if (message->GetArgumentList()->GetBool(0)) {
+      audible_frames_.insert(id);
+    } else {
+      audible_frames_.erase(id);
+    }
+    bool is_audible = !audible_frames_.empty();
+    FLXBrowserView *owner = owner_;
+    if (is_audible != was_audible && [owner.delegate respondsToSelector:@selector(browserView:didChangeAudible:)]) {
+      [owner.delegate browserView:owner didChangeAudible:is_audible];
+    }
+    return true;
+  }
 
   void OnFindResult(CefRefPtr<CefBrowser> browser, int identifier, int count, const CefRect &selection_rect,
                     int active_match_ordinal, bool final_update) override {
@@ -373,6 +393,8 @@ class BrowserClient : public CefClient,
 
   __weak FLXBrowserView *owner_;
   std::string menu_text_;
+  /// Frames of the page playing sound, as FluxHelper reports them.
+  std::set<std::string> audible_frames_;
   CefPoint menu_point_;
   // Kept for downloads that outlive their tab.
   FLXProfile *profile_;
@@ -809,6 +831,14 @@ const CGFloat FLXPageCornerRadius = 18;
     case FLXZoomOut: _browser->GetHost()->Zoom(CEF_ZOOM_COMMAND_OUT); break;
     case FLXZoomReset: _browser->GetHost()->Zoom(CEF_ZOOM_COMMAND_RESET); break;
   }
+}
+
+- (BOOL)isAudioMuted {
+  return _browser && _browser->GetHost()->IsAudioMuted();
+}
+
+- (void)setAudioMuted:(BOOL)audioMuted {
+  if (_browser) _browser->GetHost()->SetAudioMuted(audioMuted);
 }
 
 // Chromium's zoom levels are powers of 1.2.

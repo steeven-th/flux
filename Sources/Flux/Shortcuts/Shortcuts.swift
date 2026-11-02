@@ -118,11 +118,18 @@ final class Shortcuts {
         try? database?.setSetting(Self.settingKey, to: json)
     }
 
-    /// Shortcuts the menu can't match are matched on the key, before Chromium, which would hand
-    /// them to the menu as well. Others are left to the menu, which only gets them after the page,
-    /// so a web app can still use them.
+    /// Chromium handles these itself and never hands them to the menu: ⌘1 to ⌘9 select its own
+    /// tabs, ⇧⌘C opens DevTools to pick an element.
+    private static func isKeptByChromium(_ shortcut: KeyShortcut) -> Bool {
+        shortcut.isDigit || shortcut == KeyShortcut(key: "c", modifiers: [.command, .shift])
+    }
+
+    /// Shortcuts the menu can't match, or that Chromium keeps, are matched on the key before
+    /// Chromium sees them. Others are left to the menu, which only gets them after the page, so a
+    /// web app can still use them.
     private func handle(_ event: NSEvent) -> Bool {
-        guard !isRecording, let pressed = KeyShortcut(event: event), pressed.needsKeyMatching,
+        guard !isRecording else { return false }
+        guard let pressed = KeyShortcut(event: event), pressed.needsKeyMatching || Self.isKeptByChromium(pressed),
               let action = actions.first(where: { shortcut(for: $0) == pressed }), let menu = action.item.menu else {
             return false
         }

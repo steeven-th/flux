@@ -12,6 +12,9 @@ final class Tab: NSObject, Identifiable {
     private(set) var isLoaded = false
     private(set) var canGoBack = false
     private(set) var canGoForward = false
+    private(set) var isMuted = false
+    /// Sound from the page's audio and video elements. Web Audio goes unnoticed.
+    private(set) var isPlayingAudio = false
     /// 1 at the default size. Chromium keeps it per site, so it changes as the page does.
     private(set) var zoomFactor = 1.0
     /// The page's DevTools while open, shown next to it.
@@ -89,6 +92,7 @@ final class Tab: NSObject, Identifiable {
         }
         let view = FLXBrowserView(url: url, profile: profile)
         view.delegate = self
+        view.isAudioMuted = isMuted
         scrollToRestore = node.scrollY
         outsideHistory = node.history ?? NavigationHistory()
         lastChromiumEntryID = nil
@@ -121,6 +125,11 @@ final class Tab: NSObject, Identifiable {
     func load(_ url: String) {
         browserView.loadURL(url)
         update(url: url)
+    }
+
+    func toggleMute() {
+        isMuted.toggle()
+        browserView.isAudioMuted = isMuted
     }
 
     func zoom(_ zoom: FLXZoom) {
@@ -475,6 +484,7 @@ final class Tab: NSObject, Identifiable {
         guard let view = loadedView else { return }
         loadedView = nil
         isLoaded = false
+        isPlayingAudio = false
         outsideHistory = node.history ?? NavigationHistory()
         (chromiumCanGoBack, chromiumCanGoForward) = (false, false)
         updateNavigationState()
@@ -571,6 +581,10 @@ extension Tab: FLXBrowserViewDelegate {
         case .translatePage: translatePage()
         case .showOriginal: showOriginal()
         }
+    }
+
+    func browserView(_ browserView: FLXBrowserView, didChangeAudible audible: Bool) {
+        isPlayingAudio = audible
     }
 
     func browserView(_ browserView: FLXBrowserView, didFindMatches count: Int, activeMatch: Int) {

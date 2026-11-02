@@ -48,6 +48,9 @@ NS_SWIFT_UI_ACTOR
 - (void)browserViewDidChangeNavigationState:(FLXBrowserView *)browserView;
 /// Sent each time the page has finished loading.
 - (void)browserViewDidFinishLoading:(FLXBrowserView *)browserView;
+/// Sent when the page starts or stops playing sound from its audio and video elements, its frames
+/// included.
+- (void)browserView:(FLXBrowserView *)browserView didChangeAudible:(BOOL)audible;
 /// Sent as a search in the page finds matches. `activeMatch` counts from 1, 0 without a match.
 /// Either is -1 when it hasn't changed since the last update.
 - (void)browserView:(FLXBrowserView *)browserView didFindMatches:(NSInteger)count activeMatch:(NSInteger)activeMatch;
@@ -99,6 +102,7 @@ NS_SWIFT_UI_ACTOR
 /// Highlights `text` in the page and selects the next match, or the previous one. `findNext`
 /// keeps going from the current match rather than starting a new search.
 - (void)zoom:(FLXZoom)zoom;
+@property (nonatomic, getter=isAudioMuted) BOOL audioMuted;
 /// 1 at the default size.
 @property (nonatomic, readonly) double zoomFactor;
 

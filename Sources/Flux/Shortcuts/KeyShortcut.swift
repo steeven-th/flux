@@ -18,7 +18,16 @@ struct KeyShortcut: Codable, Hashable {
         self.init(key: menuItem.keyEquivalent, modifiers: menuItem.keyEquivalentModifierMask)
     }
 
+    /// The keys of the digits row, which on a French keyboard type digits only with Shift.
+    private static let digitKeys: [UInt16: String] = [
+        18: "1", 19: "2", 20: "3", 21: "4", 23: "5", 22: "6", 26: "7", 28: "8", 25: "9", 29: "0",
+    ]
+
     init?(event: NSEvent) {
+        if let digit = Self.digitKeys[event.keyCode] {
+            self.init(key: digit, modifiers: event.modifierFlags)
+            return
+        }
         guard var key = event.characters(byApplyingModifiers: []), !key.isEmpty else { return nil }
         // What the Delete key types. Menus expect a backspace for it.
         if key == "\u{7f}" { key = "\u{8}" }
@@ -41,10 +50,16 @@ struct KeyShortcut: Codable, Hashable {
 
     /// Menus only match a shortcut with Shift on the character Shift makes, which depends on the
     /// keyboard, "+" or "_" for "=" on some, "+" or "6" on a French one. Letters are fine.
+    /// Shift and Tab make a back tab, which menus don't match against Tab either.
     var needsKeyMatching: Bool {
         guard flags.contains(.shift), let scalar = key.unicodeScalars.first else { return false }
+        if key == "\t" { return true }
         return !CharacterSet.letters.contains(scalar) && !CharacterSet.controlCharacters.contains(scalar)
             && scalar.value < UInt32(NSUpArrowFunctionKey)
+    }
+
+    var isDigit: Bool {
+        key.count == 1 && key.first?.isWholeNumber == true
     }
 
     var displayName: String {
