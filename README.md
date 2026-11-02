@@ -36,3 +36,7 @@ Architecture decisions are recorded in [docs/decisions](docs/decisions).
 [docs/links.md](docs/links.md) explains where links from other apps open.
 [docs/media.md](docs/media.md) describes the mini player and how it controls pages.
 [docs/shortcuts.md](docs/shortcuts.md) lists the keyboard shortcuts and how to change them.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security problems go through [SECURITY.md](SECURITY.md).

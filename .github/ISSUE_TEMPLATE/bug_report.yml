@@ -1,0 +1,54 @@
+name: Bug report
+description: Something in Flux doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. For a security problem, please don't open an issue, see SECURITY.md instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you see, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a new tab in a space
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: site
+    attributes:
+      label: Website
+      description: The address of the page, if the problem happens on a specific site.
+      placeholder: https://example.com
+  - type: input
+    id: version
+    attributes:
+      label: Flux version
+      description: From Flux > About Flux, or the commit you built.
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: macOS 15.2
+    validations:
+      required: true
+  - type: textarea
+    id: extensions
+    attributes:
+      label: Extensions
+      description: Extensions installed in the space where it happens, if any. Some bugs only show with one of them.
+  - type: textarea
+    id: more
+    attributes:
+      label: Screenshots or other details
+      description: Screenshots, a screen recording, or anything else that helps.

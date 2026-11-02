@@ -1,0 +1,21 @@
+name: Feature request
+description: An idea for Flux, or something from Arc you miss.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What you want to do
+      description: The situation and what gets in your way today. Describing the need helps more than describing a solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How Flux could help
+      description: How you picture it working.
+  - type: textarea
+    id: arc
+    attributes:
+      label: In Arc or other browsers
+      description: If Arc or another browser does this, how does it work there? Screenshots are welcome.
