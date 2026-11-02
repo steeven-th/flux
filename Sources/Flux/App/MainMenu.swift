@@ -49,6 +49,10 @@ enum MainMenu {
             shifted(NSMenuItem(title: String(localized: "Reload Ignoring Cache"), action: #selector(AppDelegate.reloadPageIgnoringCache(_:)), keyEquivalent: "r")),
             NSMenuItem(title: String(localized: "Back"), action: #selector(AppDelegate.goBack(_:)), keyEquivalent: "["),
             NSMenuItem(title: String(localized: "Forward"), action: #selector(AppDelegate.goForward(_:)), keyEquivalent: "]"),
+            .separator(),
+            NSMenuItem(title: String(localized: "Zoom In"), action: #selector(AppDelegate.zoomIn(_:)), keyEquivalent: "="),
+            NSMenuItem(title: String(localized: "Zoom Out"), action: #selector(AppDelegate.zoomOut(_:)), keyEquivalent: "-"),
+            NSMenuItem(title: String(localized: "Actual Size"), action: #selector(AppDelegate.resetZoom(_:)), keyEquivalent: "0"),
         ])))
         menu.addItem(submenu(title: String(localized: "History"), items: customizable([
             NSMenuItem(title: String(localized: "Show All History"), action: #selector(AppDelegate.showHistory(_:)), keyEquivalent: "y"),

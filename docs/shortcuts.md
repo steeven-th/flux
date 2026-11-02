@@ -30,6 +30,9 @@ can't be changed or taken.
 | Reload Ignoring Cache | ⇧⌘R |
 | Back | ⌘[ |
 | Forward | ⌘] |
+| Zoom In | ⌘= |
+| Zoom Out | ⌘- |
+| Actual Size | ⌘0 |
 | Show All History | ⌘Y |
 | Show Archive | ⇧⌘A |
 | Show Downloads | ⌥⌘L |
@@ -40,6 +43,11 @@ can't be changed or taken.
 
 ⌘F shows a bar at the top right of the page, also in little windows. Return goes to the next
 match and Shift-Return to the previous one, Escape closes the bar. Each tab keeps its own search.
+
+## Zoom
+
+Chromium keeps the zoom per site in each profile, so every tab of the site follows it. The address
+shows the zoom when it isn't 100 %, and clicking it goes back to the actual size.
 
 ## How shortcuts reach Flux
 

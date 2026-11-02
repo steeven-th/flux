@@ -251,6 +251,16 @@
         }
       }
     },
+    "Actual Size" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Taille réelle"
+          }
+        }
+      }
+    },
     "Add a Device…" : {
       "localizations" : {
         "fr" : {
@@ -2751,6 +2761,16 @@
         }
       }
     },
+    "Reset Zoom" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rétablir la taille réelle"
+          }
+        }
+      }
+    },
     "Responsive" : {
       "localizations" : {
         "fr" : {
@@ -3777,6 +3797,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vos onglets vivent dans une barre latérale. Les espaces séparent vos connexions, mots de passe et extensions, et les extensions Chrome que vous utilisez fonctionnent aussi ici."
+          }
+        }
+      }
+    },
+    "Zoom In" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agrandir"
+          }
+        }
+      }
+    },
+    "Zoom Out" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réduire"
           }
         }
       }

@@ -25,6 +25,7 @@ struct AddressBar: View {
             .padding(.leading, 8)
 
             if let tab = state.selectedTab {
+                ZoomButton(state: state, tab: tab)
                 TranslationButton(tab: tab)
             }
 
@@ -77,5 +78,28 @@ struct CopyLinkButton: View {
         }
         .buttonStyle(.borderless)
         .help(copied ? "Copied" : "Copy Link")
+    }
+}
+
+/// Shows the page's zoom when it isn't 100 %, and puts it back.
+private struct ZoomButton: View {
+    let state: BrowserState
+    let tab: Tab
+
+    var body: some View {
+        if abs(tab.zoomFactor - 1) > 0.001 {
+            Button {
+                tab.zoom(.reset)
+                state.tabs.forEach { $0.refreshZoom() }
+            } label: {
+                Text(tab.zoomFactor, format: .percent.precision(.fractionLength(0)))
+                    .font(.caption.monospacedDigit())
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(.primary.opacity(0.08)))
+            }
+            .buttonStyle(.plain)
+            .help("Reset Zoom")
+        }
     }
 }

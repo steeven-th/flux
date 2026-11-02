@@ -9,6 +9,13 @@ NS_ASSUME_NONNULL_BEGIN
 /// Pages show with rounded corners. Views drawn around them follow this radius.
 FOUNDATION_EXPORT const CGFloat FLXPageCornerRadius;
 
+/// Chrome's zoom steps, remembered per site in the profile.
+typedef NS_ENUM(NSInteger, FLXZoom) {
+  FLXZoomIn,
+  FLXZoomOut,
+  FLXZoomReset,
+};
+
 /// How a page asked for a new one.
 typedef NS_ENUM(NSInteger, FLXOpenDisposition) {
   /// A ⌘-click, a middle click or a menu item asking for a tab, shown or not.
@@ -91,6 +98,10 @@ NS_SWIFT_UI_ACTOR
 
 /// Highlights `text` in the page and selects the next match, or the previous one. `findNext`
 /// keeps going from the current match rather than starting a new search.
+- (void)zoom:(FLXZoom)zoom;
+/// 1 at the default size.
+@property (nonatomic, readonly) double zoomFactor;
+
 - (void)findText:(NSString *)text forward:(BOOL)forward findNext:(BOOL)findNext;
 - (void)stopFinding;
 

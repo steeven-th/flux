@@ -802,6 +802,20 @@ const CGFloat FLXPageCornerRadius = 18;
   if (_browser) _browser->Reload();
 }
 
+- (void)zoom:(FLXZoom)zoom {
+  if (!_browser) return;
+  switch (zoom) {
+    case FLXZoomIn: _browser->GetHost()->Zoom(CEF_ZOOM_COMMAND_IN); break;
+    case FLXZoomOut: _browser->GetHost()->Zoom(CEF_ZOOM_COMMAND_OUT); break;
+    case FLXZoomReset: _browser->GetHost()->Zoom(CEF_ZOOM_COMMAND_RESET); break;
+  }
+}
+
+// Chromium's zoom levels are powers of 1.2.
+- (double)zoomFactor {
+  return _browser ? pow(1.2, _browser->GetHost()->GetZoomLevel()) : 1;
+}
+
 - (void)findText:(NSString *)text forward:(BOOL)forward findNext:(BOOL)findNext {
   if (_browser) _browser->GetHost()->Find(text.UTF8String, forward, false, findNext);
 }

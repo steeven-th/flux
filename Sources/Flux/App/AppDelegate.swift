@@ -324,6 +324,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         finder?.findSelection()
     }
 
+    @objc func zoomIn(_ sender: Any?) {
+        zoom(.in)
+    }
+
+    @objc func zoomOut(_ sender: Any?) {
+        zoom(.out)
+    }
+
+    @objc func resetZoom(_ sender: Any?) {
+        zoom(.reset)
+    }
+
+    /// Chromium zooms every page of the site in the profile, so other tabs are read again.
+    private func zoom(_ zoom: FLXZoom) {
+        if let little = LittleWindowController.key {
+            little.model.page.zoom(zoom)
+        } else {
+            state?.selectedTab?.zoom(zoom)
+        }
+        state?.tabs.forEach { $0.refreshZoom() }
+    }
+
     @objc func goBack(_ sender: Any?) {
         state?.selectedTab?.goBack()
     }
@@ -357,6 +379,9 @@ extension AppDelegate: NSMenuDelegate, NSMenuItemValidation {
         }
         if [#selector(showFindBar(_:)), #selector(findNext(_:)), #selector(findPrevious(_:)), #selector(findSelection(_:))].contains(menuItem.action) {
             return finder != nil
+        }
+        if [#selector(zoomIn(_:)), #selector(zoomOut(_:)), #selector(resetZoom(_:))].contains(menuItem.action) {
+            return LittleWindowController.key != nil || state?.selectedTab != nil
         }
         if menuItem.action == #selector(goBack(_:)) {
             return state?.selectedTab?.canGoBack ?? false

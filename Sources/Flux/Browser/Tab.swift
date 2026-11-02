@@ -12,6 +12,8 @@ final class Tab: NSObject, Identifiable {
     private(set) var isLoaded = false
     private(set) var canGoBack = false
     private(set) var canGoForward = false
+    /// 1 at the default size. Chromium keeps it per site, so it changes as the page does.
+    private(set) var zoomFactor = 1.0
     /// The page's DevTools while open, shown next to it.
     private(set) var devTools: FLXBrowserView?
     /// An extension's side panel, between the page and its DevTools.
@@ -119,6 +121,16 @@ final class Tab: NSObject, Identifiable {
     func load(_ url: String) {
         browserView.loadURL(url)
         update(url: url)
+    }
+
+    func zoom(_ zoom: FLXZoom) {
+        browserView.zoom(zoom)
+        refreshZoom()
+    }
+
+    func refreshZoom() {
+        guard let loadedView else { return }
+        zoomFactor = loadedView.zoomFactor
     }
 
     func goBack() {
@@ -507,6 +519,7 @@ final class Tab: NSObject, Identifiable {
 extension Tab: FLXBrowserViewDelegate {
     func browserView(_ browserView: FLXBrowserView, didChangeURL url: String) {
         update(url: url)
+        refreshZoom()
         recordHistory()
     }
 
@@ -566,6 +579,7 @@ extension Tab: FLXBrowserViewDelegate {
 
     func browserViewDidFinishLoading(_ browserView: FLXBrowserView) {
         finder.pageDidLoad()
+        refreshZoom()
         if isLeavingChromiumHistory {
             browserView.sendDevToolsMethod("Page.resetNavigationHistory", params: nil) { [weak self] _ in
                 self?.isLeavingChromiumHistory = false
