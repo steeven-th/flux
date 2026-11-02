@@ -359,6 +359,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state?.reopenClosedTab()
     }
 
+    /// The little window's page when one has the keyboard, the selected tab's otherwise.
+    private var shownPage: FLXBrowserView? {
+        LittleWindowController.key?.model.page ?? state?.selectedTab?.browserView
+    }
+
+    @objc func stopLoading(_ sender: Any?) {
+        shownPage?.stopLoading()
+    }
+
+    @objc func printPage(_ sender: Any?) {
+        shownPage?.print()
+    }
+
+    @objc func savePage(_ sender: Any?) {
+        shownPage?.savePage()
+    }
+
+    @objc func viewSource(_ sender: Any?) {
+        guard let state, let page = shownPage, !page.currentURL.hasPrefix("view-source:") else { return }
+        state.newTab(url: "view-source:" + page.currentURL)
+    }
+
     @objc func zoomIn(_ sender: Any?) {
         zoom(.in)
     }
@@ -430,6 +452,14 @@ extension AppDelegate: NSMenuDelegate, NSMenuItemValidation {
         }
         if [#selector(zoomIn(_:)), #selector(zoomOut(_:)), #selector(resetZoom(_:))].contains(menuItem.action) {
             return LittleWindowController.key != nil || state?.selectedTab != nil
+        }
+        if [#selector(stopLoading(_:)), #selector(printPage(_:)), #selector(savePage(_:)), #selector(viewSource(_:))].contains(menuItem.action) {
+            return LittleWindowController.key != nil || state?.selectedTab != nil
+        }
+        // Text fields of Flux's own take ⌘← and ⌘→ to move the caret.
+        if [#selector(goBack(_:)), #selector(goForward(_:))].contains(menuItem.action),
+           menuItem.tag == MainMenu.arrowNavigationTag, NSApp.keyWindow?.firstResponder is NSText {
+            return false
         }
         if menuItem.action == #selector(goBack(_:)) {
             return state?.selectedTab?.canGoBack ?? false

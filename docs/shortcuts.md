@@ -23,16 +23,20 @@ can't be changed or taken.
 | Close Tab | ⌘W |
 | Pin or Unpin Tab | ⌘D |
 | Open in Space (from a little window) | ⌘O |
+| Save Page As | ⇧⌘S |
+| Print | ⌘P |
 | Toggle Sidebar | ⌘S |
 | Add Split View | ⌃⇧= |
 | Close Split Pane | ⌃⇧- |
 | Reload Page | ⌘R |
 | Reload Ignoring Cache | ⇧⌘R |
-| Back | ⌘[ |
-| Forward | ⌘] |
+| Stop Loading | ⌘. |
+| Back | ⌘[ (and ⌘← out of text fields) |
+| Forward | ⌘] (and ⌘→ out of text fields) |
 | Zoom In | ⌘= |
 | Zoom Out | ⌘- |
 | Actual Size | ⌘0 |
+| View Page Source | ⌥⌘U |
 | Select Next Tab | ⌃⇥ |
 | Select Previous Tab | ⌃⇧⇥ |
 | Select Tab 1 to 8 | ⌘1 to ⌘8 |
@@ -72,7 +76,8 @@ The page gets a shortcut before Flux's menus, as in Chrome, so a web app that us
 it.
 
 Chromium handles some shortcuts itself and never hands them to the menus: ⌘1 to ⌘9 for its own
-tabs, ⇧⌘C to inspect an element. Flux matches its actions using them before Chromium does. Apps
+tabs, ⇧⌘C to inspect an element, ⌘. as Escape. Flux matches its actions using them before Chromium
+does, by the key or by the character typed, since ⌘. needs Shift on a French keyboard. Apps
 with global shortcuts, like launchers, may take ⌘1 to ⌘9 before Flux gets them.
 
 A shortcut is saved with the character its key types without modifiers on your keyboard. Digits

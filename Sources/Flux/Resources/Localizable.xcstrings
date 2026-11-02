@@ -2581,6 +2581,16 @@
         }
       }
     },
+    "Print…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imprimer…"
+          }
+        }
+      }
+    },
     "Privacy and Security" : {
       "localizations" : {
         "fr" : {
@@ -2877,6 +2887,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enregistrer"
+          }
+        }
+      }
+    },
+    "Save Page As…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrer la page sous…"
           }
         }
       }
@@ -3411,6 +3431,16 @@
         }
       }
     },
+    "Stop Loading" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrêter le chargement"
+          }
+        }
+      }
+    },
     "Switch spaces" : {
       "localizations" : {
         "fr" : {
@@ -3787,6 +3817,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Présentation"
+          }
+        }
+      }
+    },
+    "View Page Source" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher le code source"
           }
         }
       }

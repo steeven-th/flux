@@ -22,6 +22,9 @@ enum MainMenu {
             NSMenuItem(title: String(localized: "New Folder"), action: #selector(AppDelegate.newFolder(_:)), keyEquivalent: ""),
             NSMenuItem(title: String(localized: "Open in Space"), action: #selector(AppDelegate.openLittleWindowInSpace(_:)), keyEquivalent: "o"),
             .separator(),
+            shifted(NSMenuItem(title: String(localized: "Save Page As…"), action: #selector(AppDelegate.savePage(_:)), keyEquivalent: "s")),
+            NSMenuItem(title: String(localized: "Print…"), action: #selector(AppDelegate.printPage(_:)), keyEquivalent: "p"),
+            .separator(),
             NSMenuItem(title: String(localized: "Import from Another Browser…"), action: #selector(AppDelegate.importFromBrowser(_:)), keyEquivalent: ""),
         ])))
         menu.addItem(submenu(title: String(localized: "Edit"), items: [
@@ -47,13 +50,16 @@ enum MainMenu {
             .separator(),
             NSMenuItem(title: String(localized: "Reload Page"), action: #selector(AppDelegate.reloadPage(_:)), keyEquivalent: "r"),
             shifted(NSMenuItem(title: String(localized: "Reload Ignoring Cache"), action: #selector(AppDelegate.reloadPageIgnoringCache(_:)), keyEquivalent: "r")),
+            NSMenuItem(title: String(localized: "Stop Loading"), action: #selector(AppDelegate.stopLoading(_:)), keyEquivalent: "."),
             NSMenuItem(title: String(localized: "Back"), action: #selector(AppDelegate.goBack(_:)), keyEquivalent: "["),
             NSMenuItem(title: String(localized: "Forward"), action: #selector(AppDelegate.goForward(_:)), keyEquivalent: "]"),
             .separator(),
             NSMenuItem(title: String(localized: "Zoom In"), action: #selector(AppDelegate.zoomIn(_:)), keyEquivalent: "="),
             NSMenuItem(title: String(localized: "Zoom Out"), action: #selector(AppDelegate.zoomOut(_:)), keyEquivalent: "-"),
             NSMenuItem(title: String(localized: "Actual Size"), action: #selector(AppDelegate.resetZoom(_:)), keyEquivalent: "0"),
-        ])))
+            .separator(),
+            optionCommand(NSMenuItem(title: String(localized: "View Page Source"), action: #selector(AppDelegate.viewSource(_:)), keyEquivalent: "u")),
+        ]) + arrowNavigationItems()))
         menu.addItem(submenu(title: String(localized: "Tab"), items: customizable([
             control(NSMenuItem(title: String(localized: "Select Next Tab"), action: #selector(AppDelegate.showNextTab(_:)), keyEquivalent: "\t")),
             controlShift(NSMenuItem(title: String(localized: "Select Previous Tab"), action: #selector(AppDelegate.showPreviousTab(_:)), keyEquivalent: "\t")),
@@ -108,6 +114,23 @@ enum MainMenu {
         }
         return items
     }
+
+    /// ⌘← and ⌘→ go back and forward too, as in Chrome, out of text fields. Hidden, and fixed, since
+    /// Back and Forward already have their own shortcuts.
+    private static func arrowNavigationItems() -> [NSMenuItem] {
+        [
+            (String(localized: "Back"), #selector(AppDelegate.goBack(_:)), NSLeftArrowFunctionKey),
+            (String(localized: "Forward"), #selector(AppDelegate.goForward(_:)), NSRightArrowFunctionKey),
+        ].map { title, action, key in
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: String(UnicodeScalar(UInt16(key))!))
+            item.tag = arrowNavigationTag
+            item.isHidden = true
+            item.allowsKeyEquivalentWhenHidden = true
+            return item
+        }
+    }
+
+    static let arrowNavigationTag = 1
 
     /// ⌘1 to ⌘8 select the first tabs and ⌘9 the last. Hidden, as in other browsers, but their
     /// shortcuts work.

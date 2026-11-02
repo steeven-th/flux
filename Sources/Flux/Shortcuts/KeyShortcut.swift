@@ -34,6 +34,13 @@ struct KeyShortcut: Codable, Hashable {
         self.init(key: key.lowercased(), modifiers: event.modifierFlags)
     }
 
+    /// The character the keys typed, Shift included, as menus see it: on a French keyboard ⌘. is
+    /// typed with Shift.
+    init?(typedBy event: NSEvent) {
+        guard let key = event.charactersIgnoringModifiers?.lowercased(), !key.isEmpty else { return nil }
+        self.init(key: key, modifiers: event.modifierFlags.subtracting(.shift))
+    }
+
     var flags: NSEvent.ModifierFlags {
         NSEvent.ModifierFlags(rawValue: modifiers)
     }

@@ -119,9 +119,14 @@ final class Shortcuts {
     }
 
     /// Chromium handles these itself and never hands them to the menu: ⌘1 to ⌘9 select its own
-    /// tabs, ⇧⌘C opens DevTools to pick an element.
+    /// tabs, ⇧⌘C opens DevTools to pick an element, and ⌘. is Escape on the Mac.
+    private static let keptByChromium: Set<KeyShortcut> = [
+        KeyShortcut(key: "c", modifiers: [.command, .shift]),
+        KeyShortcut(key: ".", modifiers: .command),
+    ]
+
     private static func isKeptByChromium(_ shortcut: KeyShortcut) -> Bool {
-        shortcut.isDigit || shortcut == KeyShortcut(key: "c", modifiers: [.command, .shift])
+        shortcut.isDigit || keptByChromium.contains(shortcut)
     }
 
     /// Shortcuts the menu can't match, or that Chromium keeps, are matched on the key before
@@ -129,8 +134,11 @@ final class Shortcuts {
     /// web app can still use them.
     private func handle(_ event: NSEvent) -> Bool {
         guard !isRecording else { return false }
-        guard let pressed = KeyShortcut(event: event), pressed.needsKeyMatching || Self.isKeptByChromium(pressed),
-              let action = actions.first(where: { shortcut(for: $0) == pressed }), let menu = action.item.menu else {
+        let pressed = KeyShortcut(event: event).map { [$0] } ?? []
+        let typed = KeyShortcut(typedBy: event).map { [$0] } ?? []
+        let candidates = pressed.filter { $0.needsKeyMatching || Self.isKeptByChromium($0) } + typed.filter(Self.isKeptByChromium)
+        guard let action = actions.first(where: { action in candidates.contains { $0 == shortcut(for: action) } }),
+              let menu = action.item.menu else {
             return false
         }
         menu.update()

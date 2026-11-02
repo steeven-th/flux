@@ -98,6 +98,11 @@ NS_SWIFT_UI_ACTOR
 - (void)goForward;
 - (void)reload;
 - (void)reloadIgnoringCache;
+- (void)stopLoading;
+/// Chrome's print preview, over the page.
+- (void)print;
+/// Chrome's save panel, which saves the page as a file.
+- (void)savePage;
 
 /// Highlights `text` in the page and selects the next match, or the previous one. `findNext`
 /// keeps going from the current match rather than starting a new search.

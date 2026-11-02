@@ -824,6 +824,33 @@ const CGFloat FLXPageCornerRadius = 18;
   if (_browser) _browser->Reload();
 }
 
+// CefBrowser::StopLoad lets a navigation that hasn't answered yet go on. Chrome's own command
+// stops it. The address was taken when the navigation started, so the page's is read again.
+- (void)stopLoading {
+  [self runChromeCommand:IDC_STOP];
+  if (!_browser) return;
+  NSString *url = ToNSString(_browser->GetMainFrame()->GetURL());
+  if (url.length == 0 || [url isEqualToString:self.currentURL]) return;
+  self.currentURL = url;
+  if ([self.delegate respondsToSelector:@selector(browserView:didChangeURL:)]) {
+    [self.delegate browserView:self didChangeURL:url];
+  }
+}
+
+- (void)print {
+  [self runChromeCommand:IDC_PRINT];
+}
+
+- (void)savePage {
+  [self runChromeCommand:IDC_SAVE_PAGE];
+}
+
+- (void)runChromeCommand:(int)command {
+  if (_browser && _browser->GetHost()->CanExecuteChromeCommand(command)) {
+    _browser->GetHost()->ExecuteChromeCommand(command, CEF_WOD_CURRENT_TAB);
+  }
+}
+
 - (void)zoom:(FLXZoom)zoom {
   if (!_browser) return;
   switch (zoom) {
