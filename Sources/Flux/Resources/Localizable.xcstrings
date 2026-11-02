@@ -2231,6 +2231,16 @@
         }
       }
     },
+    "Next" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suivant"
+          }
+        }
+      }
+    },
     "No archived tabs" : {
       "localizations" : {
         "fr" : {
@@ -2651,6 +2661,16 @@
         }
       }
     },
+    "Pause" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pause"
+          }
+        }
+      }
+    },
     "Payment Methods" : {
       "localizations" : {
         "fr" : {
@@ -2727,6 +2747,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Épingler dans la barre d'adresse"
+          }
+        }
+      }
+    },
+    "Play" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecture"
+          }
+        }
+      }
+    },
+    "Previous" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Précédent"
           }
         }
       }
@@ -3481,6 +3521,16 @@
         }
       }
     },
+    "Show Tab" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher l'onglet"
+          }
+        }
+      }
+    },
     "Show the Site's Certificate" : {
       "localizations" : {
         "fr" : {
@@ -3607,6 +3657,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Commencer avec un nouvel espace"
+          }
+        }
+      }
+    },
+    "Stop and Close" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrêter et fermer"
           }
         }
       }

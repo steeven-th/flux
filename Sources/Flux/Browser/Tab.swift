@@ -15,6 +15,12 @@ final class Tab: NSObject, Identifiable {
     private(set) var isMuted = false
     /// Sound from the page's audio and video elements. Web Audio goes unnoticed.
     private(set) var isPlayingAudio = false
+    /// What the page plays, for the mini player. Nil until something has played in it.
+    private(set) var media: TabMedia?
+    /// When the page last started playing, so the mini player shows the latest one.
+    private(set) var mediaStartedAt: Date?
+    /// Closed from the mini player, until the page plays again.
+    var isMediaDismissed = false
     /// 1 at the default size. Chromium keeps it per site, so it changes as the page does.
     private(set) var zoomFactor = 1.0
     /// The page's DevTools while open, shown next to it.
@@ -127,6 +133,16 @@ final class Tab: NSObject, Identifiable {
     func load(_ url: String) {
         browserView.loadURL(url)
         update(url: url)
+    }
+
+    func send(_ command: MediaCommand) {
+        switch command {
+        case .play: loadedView?.sendMediaCommand("play", value: 0)
+        case .pause: loadedView?.sendMediaCommand("pause", value: 0)
+        case .previous: loadedView?.sendMediaCommand("previous", value: 0)
+        case .next: loadedView?.sendMediaCommand("next", value: 0)
+        case .volume(let volume): loadedView?.sendMediaCommand("volume", value: volume)
+        }
     }
 
     func toggleMute() {
@@ -487,6 +503,7 @@ final class Tab: NSObject, Identifiable {
         loadedView = nil
         isLoaded = false
         isPlayingAudio = false
+        media = nil
         outsideHistory = node.history ?? NavigationHistory()
         (chromiumCanGoBack, chromiumCanGoForward) = (false, false)
         updateNavigationState()
@@ -591,6 +608,15 @@ extension Tab: FLXBrowserViewDelegate {
 
     func browserView(_ browserView: FLXBrowserView, didChangeAudible audible: Bool) {
         isPlayingAudio = audible
+    }
+
+    func browserView(_ browserView: FLXBrowserView, didChangeMedia media: [String: Any]?) {
+        let new = media.map(TabMedia.init)
+        if new?.isPlaying == true, self.media?.isPlaying != true {
+            mediaStartedAt = Date()
+            isMediaDismissed = false
+        }
+        self.media = new
     }
 
     func browserView(_ browserView: FLXBrowserView, didFindMatches count: Int, activeMatch: Int) {

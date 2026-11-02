@@ -1,4 +1,6 @@
+#include <map>
 #include <set>
+#include <string>
 
 #include "include/cef_app.h"
 #include "include/cef_sandbox_mac.h"
@@ -70,23 +72,128 @@ constexpr char kAudioWatcher[] = R"(
 
 constexpr char kAudioMessage[] = "FluxAudio";
 
-// Sends whether the frame plays sound to the browser process.
-class AudioReporter : public CefV8Handler {
+// What the frame plays, for the mini player, and the commands it gets back. Sites give their
+// previous and next track actions to navigator.mediaSession, which offers no way to call them from
+// outside, so the script keeps them as the site sets them. Without them, play, pause and volume go
+// to the media elements. Nothing is reported until something has played in the frame.
+constexpr char kMediaWatcher[] = R"(
+((report) => {
+  const handlers = new Map();
+  const elements = new Set();
+  let hasPlayed = false;
+  let lastState = '';
+
+  const latest = () => [...elements].reverse().find((element) => !element.paused) ?? [...elements].pop();
+  const isPlaying = () => elements.size > 0
+    ? [...elements].some((element) => !element.paused && !element.ended)
+    : navigator.mediaSession?.playbackState === 'playing';
+  const send = () => {
+    if (!hasPlayed) return;
+    const metadata = navigator.mediaSession?.metadata;
+    const state = JSON.stringify({
+      playing: isPlaying(),
+      title: metadata?.title ?? '',
+      artist: metadata?.artist ?? '',
+      previous: handlers.has('previoustrack'),
+      next: handlers.has('nexttrack'),
+      volume: latest()?.volume ?? 1,
+    });
+    if (state === lastState) return;
+    lastState = state;
+    report(state);
+  };
+  const note = (element) => {
+    elements.delete(element);
+    elements.add(element);
+    if (!element.paused) hasPlayed = true;
+    send();
+  };
+
+  // The MediaSession global only shows up after this script runs, but navigator.mediaSession is
+  // already there.
+  const prototype = navigator.mediaSession && Object.getPrototypeOf(navigator.mediaSession);
+  if (prototype) {
+    const setActionHandler = prototype.setActionHandler;
+    prototype.setActionHandler = function (action, handler) {
+      if (typeof handler === 'function') handlers.set(action, handler); else handlers.delete(action);
+      const result = setActionHandler.apply(this, arguments);
+      send();
+      return result;
+    };
+    for (const name of ['metadata', 'playbackState']) {
+      const property = Object.getOwnPropertyDescriptor(prototype, name);
+      if (!property?.set) continue;
+      Object.defineProperty(prototype, name, {
+        ...property,
+        set(value) {
+          property.set.call(this, value);
+          if (name === 'playbackState' && value === 'playing') hasPlayed = true;
+          send();
+        },
+      });
+    }
+  }
+
+  const types = ['play', 'playing', 'pause', 'ended', 'emptied', 'volumechange'];
+  for (const type of types) {
+    document.addEventListener(type, (event) => {
+      if (event.target instanceof HTMLMediaElement) note(event.target);
+    }, true);
+  }
+  const watched = new WeakSet();
+  const play = HTMLMediaElement.prototype.play;
+  HTMLMediaElement.prototype.play = function () {
+    if (!this.isConnected && !watched.has(this)) {
+      watched.add(this);
+      for (const type of types) this.addEventListener(type, () => note(this));
+    }
+    return play.apply(this, arguments);
+  };
+
+  const run = (action, fallback) => {
+    const handler = handlers.get(action);
+    if (!handler) return fallback?.();
+    try { handler({ action }); } catch {}
+  };
+  return (command, value) => {
+    switch (command) {
+      case 'play': run('play', () => latest()?.play()); break;
+      case 'pause': run('pause', () => elements.forEach((element) => element.pause())); break;
+      case 'previous': run('previoustrack'); break;
+      case 'next': run('nexttrack'); break;
+      case 'volume': elements.forEach((element) => { element.volume = value; }); break;
+    }
+    send();
+  };
+})
+)";
+
+constexpr char kMediaMessage[] = "FluxMedia";
+constexpr char kMediaCommandMessage[] = "FluxMediaCommand";
+
+// Sends the script's single argument, whether the frame plays sound or what it plays, to the
+// browser process.
+class FrameReporter : public CefV8Handler {
  public:
-  explicit AudioReporter(CefRefPtr<CefFrame> frame) : frame_(frame) {}
+  FrameReporter(CefRefPtr<CefFrame> frame, const char* message) : frame_(frame), message_(message) {}
 
   bool Execute(const CefString& name, CefRefPtr<CefV8Value> object, const CefV8ValueList& arguments,
                CefRefPtr<CefV8Value>& retval, CefString& exception) override {
     if (arguments.empty() || !frame_->IsValid()) return true;
-    CefRefPtr<CefProcessMessage> message = CefProcessMessage::Create(kAudioMessage);
-    message->GetArgumentList()->SetBool(0, arguments[0]->GetBoolValue());
+    CefRefPtr<CefProcessMessage> message = CefProcessMessage::Create(message_);
+    if (arguments[0]->IsBool()) {
+      message->GetArgumentList()->SetBool(0, arguments[0]->GetBoolValue());
+    } else {
+      message->GetArgumentList()->SetString(0, arguments[0]->GetStringValue());
+    }
     frame_->SendProcessMessage(PID_BROWSER, message);
     return true;
   }
 
  private:
   CefRefPtr<CefFrame> frame_;
-  IMPLEMENT_REFCOUNTING(AudioReporter);
+  std::string message_;
+  IMPLEMENT_REFCOUNTING(FrameReporter);
 };
 
 class RendererApp : public CefApp, public CefRenderProcessHandler {
@@ -106,7 +213,15 @@ class RendererApp : public CefApp, public CefRenderProcessHandler {
   void OnContextCreated(CefRefPtr<CefBrowser> browser,
                         CefRefPtr<CefFrame> frame,
                         CefRefPtr<CefV8Context> context) override {
-    WatchAudio(frame, context);
+    // Extensions' content scripts get contexts of their own in the frame, which see the page's
+    // media events but not its objects.
+    CefRefPtr<CefV8Context> page_context = frame->GetV8Context();
+    if (!page_context || !context->IsSame(page_context)) return;
+    Watch(kAudioWatcher, kAudioMessage, frame, context);
+    std::string id = frame->GetIdentifier().ToString();
+    page_contexts_[id] = context;
+    CefRefPtr<CefV8Value> control = Watch(kMediaWatcher, kMediaMessage, frame, context);
+    if (control && control->IsFunction()) media_controls_[id] = control;
     if (!popup_browsers_.count(browser->GetIdentifier()) || !frame->IsMain()) return;
     if (frame->GetURL().ToString().rfind("chrome-extension://", 0) != 0) return;
     CefRefPtr<CefV8Value> result;
@@ -118,22 +233,51 @@ class RendererApp : public CefApp, public CefRenderProcessHandler {
   void OnContextReleased(CefRefPtr<CefBrowser> browser,
                          CefRefPtr<CefFrame> frame,
                          CefRefPtr<CefV8Context> context) override {
+    std::string id = frame->GetIdentifier().ToString();
+    auto page_context = page_contexts_.find(id);
+    if (page_context == page_contexts_.end() || !context->IsSame(page_context->second)) return;
+    page_contexts_.erase(page_context);
+    media_controls_.erase(id);
     CefRefPtr<CefProcessMessage> message = CefProcessMessage::Create(kAudioMessage);
     message->GetArgumentList()->SetBool(0, false);
     frame->SendProcessMessage(PID_BROWSER, message);
+    CefRefPtr<CefProcessMessage> media = CefProcessMessage::Create(kMediaMessage);
+    media->GetArgumentList()->SetString(0, "");
+    frame->SendProcessMessage(PID_BROWSER, media);
+  }
+
+  bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
+                                CefRefPtr<CefFrame> frame,
+                                CefProcessId source_process,
+                                CefRefPtr<CefProcessMessage> message) override {
+    if (message->GetName() != kMediaCommandMessage) return false;
+    auto control = media_controls_.find(frame->GetIdentifier().ToString());
+    CefRefPtr<CefV8Context> context = frame->GetV8Context();
+    if (control == media_controls_.end() || !context) return true;
+    CefRefPtr<CefListValue> arguments = message->GetArgumentList();
+    CefV8ValueList values{CefV8Value::CreateString(arguments->GetString(0)),
+                          CefV8Value::CreateDouble(arguments->GetDouble(1))};
+    control->second->ExecuteFunctionWithContext(context, nullptr, values);
+    return true;
   }
 
  private:
   // The reporting function is handed to the script rather than put on the page's globals.
-  static void WatchAudio(CefRefPtr<CefFrame> frame, CefRefPtr<CefV8Context> context) {
+  // Returns what the script returns.
+  static CefRefPtr<CefV8Value> Watch(const char* script, const char* message, CefRefPtr<CefFrame> frame,
+                                     CefRefPtr<CefV8Context> context) {
     CefRefPtr<CefV8Value> watcher;
     CefRefPtr<CefV8Exception> exception;
-    if (!context->Eval(kAudioWatcher, CefString(), 0, watcher, exception) || !watcher->IsFunction()) return;
-    CefV8ValueList arguments{CefV8Value::CreateFunction("report", new AudioReporter(frame))};
-    watcher->ExecuteFunctionWithContext(context, nullptr, arguments);
+    if (!context->Eval(script, CefString(), 0, watcher, exception) || !watcher->IsFunction()) return nullptr;
+    CefV8ValueList arguments{CefV8Value::CreateFunction("report", new FrameReporter(frame, message))};
+    return watcher->ExecuteFunctionWithContext(context, nullptr, arguments);
   }
 
   std::set<int> popup_browsers_;
+  /// The page's own context in each frame, and the media script's command function there, by
+  /// frame identifier.
+  std::map<std::string, CefRefPtr<CefV8Context>> page_contexts_;
+  std::map<std::string, CefRefPtr<CefV8Value>> media_controls_;
 
   IMPLEMENT_REFCOUNTING(RendererApp);
 };

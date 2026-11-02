@@ -58,8 +58,14 @@ struct SidebarView: View {
             }
             .animation(.easeOut(duration: 0.18), value: recentFiles.isShown)
 
+            if let tab = state.miniPlayerTab {
+                MiniPlayer(state: state, tab: tab)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
             SpaceBar(state: state, recentFiles: recentFiles)
         }
+        .animation(.easeOut(duration: 0.2), value: state.miniPlayerTab?.id)
     }
 }
 

@@ -125,7 +125,12 @@ class BrowserClient : public CefClient,
 
   bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
                                 CefProcessId source_process, CefRefPtr<CefProcessMessage> message) override {
-    if (message->GetName() != "FluxAudio" || !frame) return false;
+    if (!frame) return false;
+    if (message->GetName() == "FluxMedia") {
+      if (IsOwnPage(browser)) UpdateMedia(frame->GetIdentifier().ToString(), message->GetArgumentList()->GetString(0));
+      return true;
+    }
+    if (message->GetName() != "FluxAudio") return false;
     if (!IsOwnPage(browser)) return true;
     bool was_audible = !audible_frames_.empty();
     std::string id = frame->GetIdentifier().ToString();
@@ -381,6 +386,15 @@ class BrowserClient : public CefClient,
     }
   }
 
+  void SendMediaCommand(CefRefPtr<CefBrowser> browser, NSString *command, double value) {
+    CefRefPtr<CefFrame> frame = media_frame_.empty() ? nullptr : browser->GetFrameByIdentifier(media_frame_);
+    if (!frame) return;
+    CefRefPtr<CefProcessMessage> message = CefProcessMessage::Create("FluxMediaCommand");
+    message->GetArgumentList()->SetString(0, command.UTF8String);
+    message->GetArgumentList()->SetDouble(1, value);
+    frame->SendProcessMessage(PID_RENDERER, message);
+  }
+
  private:
   // A foreground tab asked by the page itself, rather than by a ⌘-click, comes from a link target
   // or window.open.
@@ -402,6 +416,25 @@ class BrowserClient : public CefClient,
 
   bool IsOwnPage(CefRefPtr<CefBrowser> browser) const { return browser->GetIdentifier() == page_id_; }
 
+  // The page's media is the frame that last started playing, or else any frame that played.
+  void UpdateMedia(const std::string &frame, const std::string &state) {
+    if (state.empty()) {
+      media_states_.erase(frame);
+    } else {
+      media_states_[frame] = state;
+      if (state.find("\"playing\":true") != std::string::npos) media_frame_ = frame;
+    }
+    if (!media_states_.count(media_frame_)) media_frame_ = media_states_.empty() ? "" : media_states_.begin()->first;
+    std::string shown = media_frame_.empty() ? "" : media_states_[media_frame_];
+    if (shown == shown_media_) return;
+    shown_media_ = shown;
+    FLXBrowserView *owner = owner_;
+    if (![owner.delegate respondsToSelector:@selector(browserView:didChangeMedia:)]) return;
+    NSData *data = [ToNSString(shown) dataUsingEncoding:NSUTF8StringEncoding];
+    id media = data.length ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+    [owner.delegate browserView:owner didChangeMedia:[media isKindOfClass:NSDictionary.class] ? media : nil];
+  }
+
   // A navigation that turns into a download never commits, so a page opened for one still has
   // the empty document it started with.
   static bool ShowsNothing(CefRefPtr<CefBrowser> browser) {
@@ -414,6 +447,10 @@ class BrowserClient : public CefClient,
   std::string menu_text_;
   /// Frames of the page playing sound, as FluxHelper reports them.
   std::set<std::string> audible_frames_;
+  /// What each frame that played something reports, as JSON, by frame identifier.
+  std::map<std::string, std::string> media_states_;
+  std::string media_frame_;
+  std::string shown_media_;
   CefPoint menu_point_;
   // Kept for downloads that outlive their tab.
   FLXProfile *profile_;
@@ -886,6 +923,10 @@ const CGFloat FLXPageCornerRadius = 18;
 
 - (void)setAudioMuted:(BOOL)audioMuted {
   if (_browser) _browser->GetHost()->SetAudioMuted(audioMuted);
+}
+
+- (void)sendMediaCommand:(NSString *)command value:(double)value {
+  if (_browser) _client->SendMediaCommand(_browser, command, value);
 }
 
 // Chromium's zoom levels are powers of 1.2.

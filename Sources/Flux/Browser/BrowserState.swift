@@ -1405,6 +1405,21 @@ final class BrowserState {
         return selectedTab.map { [$0] } ?? []
     }
 
+    /// The tab the mini player controls: the one that last started playing, while it isn't shown.
+    var miniPlayerTab: Tab? {
+        let latest = tabs
+            .filter { $0.media != nil && !$0.isMediaDismissed }
+            .max { ($0.mediaStartedAt ?? .distantPast) < ($1.mediaStartedAt ?? .distantPast) }
+        guard let latest, !shownTabs.contains(where: { $0 === latest }) else { return nil }
+        return latest
+    }
+
+    /// Shows a tab of any space.
+    func show(_ tab: Tab) {
+        selectedSpaceID = tab.spaceID
+        select(tab)
+    }
+
     /// Whether the tab can join the selected tab in a split. Pinned tabs stay icons, they don't
     /// split.
     func canSplit(with tab: Tab) -> Bool {

@@ -51,6 +51,10 @@ NS_SWIFT_UI_ACTOR
 /// Sent when the page starts or stops playing sound from its audio and video elements, its frames
 /// included.
 - (void)browserView:(FLXBrowserView *)browserView didChangeAudible:(BOOL)audible;
+/// Sent when what the page plays changes: whether it plays, the title and artist the site gives,
+/// whether it has previous and next tracks, and its volume. Nil once nothing in the page plays
+/// or has played.
+- (void)browserView:(FLXBrowserView *)browserView didChangeMedia:(nullable NSDictionary<NSString *, id> *)media;
 /// Sent as a search in the page finds matches. `activeMatch` counts from 1, 0 without a match.
 /// Either is -1 when it hasn't changed since the last update.
 - (void)browserView:(FLXBrowserView *)browserView didFindMatches:(NSInteger)count activeMatch:(NSInteger)activeMatch;
@@ -111,6 +115,10 @@ NS_SWIFT_UI_ACTOR
 /// keeps going from the current match rather than starting a new search.
 - (void)zoom:(FLXZoom)zoom;
 @property (nonatomic, getter=isAudioMuted) BOOL audioMuted;
+
+/// Sends "play", "pause", "previous", "next" or "volume" (with `value` from 0 to 1) to what the
+/// page plays.
+- (void)sendMediaCommand:(NSString *)command value:(double)value;
 /// 1 at the default size.
 @property (nonatomic, readonly) double zoomFactor;
 
