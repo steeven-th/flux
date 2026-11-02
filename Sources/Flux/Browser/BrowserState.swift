@@ -68,8 +68,15 @@ final class BrowserState {
         set { store.archiveRevision = newValue }
     }
     var isArchiveShown = false
-    /// A tab being dragged from the sidebar, which can be dropped on the pages to split them.
-    var draggedTab: Tab?
+    /// A tab being dragged from the sidebar, which can be dropped on the pages to split them, in
+    /// this window or another one.
+    var draggedTab: Tab? {
+        get { store.draggedTab }
+        set { store.draggedTab = newValue }
+    }
+    /// Set while a tab dropped from another window moves here, so selecting it doesn't send it
+    /// back to that window.
+    private var isTakingTab = false
     /// Downloads and media, shown in place of the sidebar.
     var isLibraryShown = false
     /// Bumped when a setting read from the database changes, for views showing it.
@@ -544,7 +551,7 @@ final class BrowserState {
 
     /// A tab another window shows brings that window to the front instead, as in Arc.
     func select(_ tab: Tab) {
-        if let other = otherWindows.first(where: { $0.shownTabs.contains { $0 === tab } }) {
+        if !isTakingTab, let other = otherWindows.first(where: { $0.shownTabs.contains { $0 === tab } }) {
             other.select(tab)
             other.onShowWindow?()
             return
@@ -624,13 +631,13 @@ final class BrowserState {
     }
 
     /// Another pane of the split, if it stays, rather than another tab. Never one another window
-    /// shows.
-    private func selectTab(after tab: Tab, otherPanes: [Tab]) {
+    /// shows, or is taking.
+    private func selectTab(after tab: Tab, otherPanes: [Tab], avoiding taken: [Tab] = []) {
         if let pane = otherPanes.first {
             select(pane)
             return
         }
-        let elsewhere = otherWindows.flatMap(\.shownTabs)
+        let elsewhere = otherWindows.flatMap(\.shownTabs) + taken
         let candidates = tabs.filter { candidate in
             candidate.spaceID == tab.spaceID && candidate !== tab && (candidate.isLoaded || !candidate.isKept)
                 && !elsewhere.contains { $0 === candidate }
@@ -1424,8 +1431,18 @@ final class BrowserState {
         }
     }
 
+    /// A tab another window shows moves to this one, and that window shows another tab.
     func drop(_ tab: Tab, on target: SplitDropTarget) {
         guard canDrop(tab, on: target) else { return }
+        isTakingTab = true
+        defer {
+            isTakingTab = false
+            // This window's choice only counts once the windows opened before it let go of it.
+            let taken = chosenTabs
+            for window in otherWindows where window.shownTabs.contains(where: { shown in taken.contains { $0 === shown } }) {
+                window.selectTab(after: tab, otherPanes: [], avoiding: taken)
+            }
+        }
         switch target {
         case .insert(let pane, let after, let isVertical):
             let isNew = split(of: pane) == nil

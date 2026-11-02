@@ -18,9 +18,11 @@ through it, so its code and the views built on it stay as they were, each window
 state.
 
 A page shows in one window at a time, since a Chromium page has one view. Selecting a tab another
-window shows brings that window to the front, as in Arc. A window without a selection in a space
-shows the last tab no other window chose, and windows opened earlier keep a tab both selected. A
-window opened with ⌘N shows no tab until one is chosen, with the command bar open.
+window shows brings that window to the front, as in Arc. A tab dragged from a sidebar onto the
+pages of another window joins a split there, and the window it leaves shows another tab. A window
+without a selection in a space shows the last tab no other window chose, and windows opened earlier
+keep a tab both selected. A window opened with ⌘N shows no tab until one is chosen, with the
+command bar open.
 
 Commands act on the window with the keyboard, its pages included. Every window's space and
 selections are saved in the `windows` setting, and each one saves its size and place under a name

@@ -16,6 +16,8 @@ final class BrowserStore {
     var linkRules: [LinkRule] = []
     /// One per window, in the order they opened.
     var windows: [BrowserState] = []
+    /// A tab dragged from a sidebar, which any window showing its space can take.
+    var draggedTab: Tab?
     /// Private windows share a store of their own, with one space and nothing on disk.
     let isPrivate: Bool
     /// The private windows' store while one is open.
