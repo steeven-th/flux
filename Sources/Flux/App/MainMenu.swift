@@ -59,6 +59,9 @@ enum MainMenu {
             NSMenuItem(title: String(localized: "Actual Size"), action: #selector(AppDelegate.resetZoom(_:)), keyEquivalent: "0"),
             .separator(),
             optionCommand(NSMenuItem(title: String(localized: "View Page Source"), action: #selector(AppDelegate.viewSource(_:)), keyEquivalent: "u")),
+            optionCommand(NSMenuItem(title: String(localized: "Developer Tools"), action: #selector(AppDelegate.toggleDevTools(_:)), keyEquivalent: "i")),
+            optionCommand(NSMenuItem(title: String(localized: "JavaScript Console"), action: #selector(AppDelegate.showConsole(_:)), keyEquivalent: "j")),
+            optionCommand(NSMenuItem(title: String(localized: "Inspect Element"), action: #selector(AppDelegate.inspectElement(_:)), keyEquivalent: "c")),
         ]) + arrowNavigationItems()))
         menu.addItem(submenu(title: String(localized: "Tab"), items: customizable([
             control(NSMenuItem(title: String(localized: "Select Next Tab"), action: #selector(AppDelegate.showNextTab(_:)), keyEquivalent: "\t")),

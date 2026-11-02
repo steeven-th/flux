@@ -37,6 +37,9 @@ can't be changed or taken.
 | Zoom Out | ⌘- |
 | Actual Size | ⌘0 |
 | View Page Source | ⌥⌘U |
+| Developer Tools (shows or hides them) | ⌥⌘I |
+| JavaScript Console | ⌥⌘J |
+| Inspect Element | ⌥⌘C |
 | Select Next Tab | ⌃⇥ |
 | Select Previous Tab | ⌃⇧⇥ |
 | Select Tab 1 to 8 | ⌘1 to ⌘8 |
@@ -76,7 +79,7 @@ The page gets a shortcut before Flux's menus, as in Chrome, so a web app that us
 it.
 
 Chromium handles some shortcuts itself and never hands them to the menus: ⌘1 to ⌘9 for its own
-tabs, ⇧⌘C to inspect an element, ⌘. as Escape. Flux matches its actions using them before Chromium
+tabs, ⇧⌘C, ⌥⌘I, ⌥⌘J and ⌥⌘C to open its DevTools in a window of their own, ⌘. as Escape. Flux matches its actions using them before Chromium
 does, by the key or by the character typed, since ⌘. needs Shift on a French keyboard. Apps
 with global shortcuts, like launchers, may take ⌘1 to ⌘9 before Flux gets them.
 

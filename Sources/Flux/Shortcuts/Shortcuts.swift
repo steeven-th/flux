@@ -119,9 +119,13 @@ final class Shortcuts {
     }
 
     /// Chromium handles these itself and never hands them to the menu: ⌘1 to ⌘9 select its own
-    /// tabs, ⇧⌘C opens DevTools to pick an element, and ⌘. is Escape on the Mac.
+    /// tabs, ⇧⌘C, ⌥⌘I, ⌥⌘J and ⌥⌘C open its DevTools, in a window of their own, and ⌘. is Escape
+    /// on the Mac.
     private static let keptByChromium: Set<KeyShortcut> = [
         KeyShortcut(key: "c", modifiers: [.command, .shift]),
+        KeyShortcut(key: "i", modifiers: [.command, .option]),
+        KeyShortcut(key: "j", modifiers: [.command, .option]),
+        KeyShortcut(key: "c", modifiers: [.command, .option]),
         KeyShortcut(key: ".", modifiers: .command),
     ]
 

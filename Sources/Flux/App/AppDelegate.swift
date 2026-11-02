@@ -381,6 +381,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state.newTab(url: "view-source:" + page.currentURL)
     }
 
+    @objc func toggleDevTools(_ sender: Any?) {
+        guard let tab = state?.selectedTab else { return }
+        if tab.devTools == nil {
+            tab.browserView.showDevTools(onPanel: nil)
+        } else {
+            tab.browserView.closeDevTools()
+        }
+    }
+
+    @objc func showConsole(_ sender: Any?) {
+        state?.selectedTab?.show(.console)
+    }
+
+    @objc func inspectElement(_ sender: Any?) {
+        state?.selectedTab?.show(.picker)
+    }
+
     @objc func zoomIn(_ sender: Any?) {
         zoom(.in)
     }
@@ -452,6 +469,13 @@ extension AppDelegate: NSMenuDelegate, NSMenuItemValidation {
         }
         if [#selector(zoomIn(_:)), #selector(zoomOut(_:)), #selector(resetZoom(_:))].contains(menuItem.action) {
             return LittleWindowController.key != nil || state?.selectedTab != nil
+        }
+        // DevTools show next to a tab's page, not in little windows.
+        if [#selector(toggleDevTools(_:)), #selector(showConsole(_:)), #selector(inspectElement(_:))].contains(menuItem.action) {
+            if menuItem.action == #selector(toggleDevTools(_:)) {
+                menuItem.title = state?.selectedTab?.devTools == nil ? String(localized: "Developer Tools") : String(localized: "Hide Developer Tools")
+            }
+            return LittleWindowController.key == nil && state?.selectedTab != nil
         }
         if [#selector(stopLoading(_:)), #selector(printPage(_:)), #selector(savePage(_:)), #selector(viewSource(_:))].contains(menuItem.action) {
             return LittleWindowController.key != nil || state?.selectedTab != nil

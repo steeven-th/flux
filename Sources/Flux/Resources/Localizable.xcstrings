@@ -1061,6 +1061,16 @@
         }
       }
     },
+    "Developer Tools" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outils de développement"
+          }
+        }
+      }
+    },
     "Device pixel ratio:" : {
       "localizations" : {
         "fr" : {
@@ -1531,6 +1541,16 @@
         }
       }
     },
+    "Hide Developer Tools" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masquer les outils de développement"
+          }
+        }
+      }
+    },
     "Hide DevTools" : {
       "localizations" : {
         "fr" : {
@@ -1631,6 +1651,16 @@
         }
       }
     },
+    "Inspect Element" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inspecter l'élément"
+          }
+        }
+      }
+    },
     "Install" : {
       "localizations" : {
         "fr" : {
@@ -1717,6 +1747,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ses onglets, connexions, mots de passe enregistrés, historique et extensions seront supprimés. Cette action est irréversible."
+          }
+        }
+      }
+    },
+    "JavaScript Console" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Console JavaScript"
           }
         }
       }
