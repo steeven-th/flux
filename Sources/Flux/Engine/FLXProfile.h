@@ -63,6 +63,7 @@ NS_SWIFT_UI_ACTOR
 /// Sets a Chromium preference of this profile, once the profile has loaded, without loading it.
 - (void)setPreference:(NSString *)name boolValue:(BOOL)value;
 - (void)setPreference:(NSString *)name stringValue:(NSString *)value;
+- (void)setPreference:(NSString *)name stringListValue:(NSArray<NSString *> *)value;
 
 /// Nil until the profile has loaded, or when the preference isn't a string.
 - (nullable NSString *)stringPreference:(NSString *)name;

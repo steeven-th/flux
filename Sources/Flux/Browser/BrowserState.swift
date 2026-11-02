@@ -15,7 +15,9 @@ final class BrowserState {
     private static let warnsBeforeQuittingKey = "warnsBeforeQuitting"
     private static let fullScreenKey = "windowFullScreen"
     private static let asksWhereToSaveKey = "asksWhereToSaveDownloads"
+    /// Replaced by Chromium's own list of pinned extensions. Read once to copy it there.
     private static let unpinnedExtensionsKey = "unpinnedExtensions"
+    private static let pinnedExtensionsMigratedKey = "pinnedExtensionsMigrated"
     private static let collapsedSectionsKey = "collapsedSections"
     private static let developerSitesKey = "developerSites"
     private static let devToolsWidthKey = "devToolsWidth"
@@ -283,6 +285,16 @@ final class BrowserState {
             let folder = space.profileFolder.standardizedFileURL
             guard let store, store.spaces.first(where: { $0.profileFolder.standardizedFileURL == folder })?.id == space.id else { return }
             store.onExtensionInstall?(item, space.id)
+        }
+        if (try? appDatabase.setting(Self.pinnedExtensionsMigratedKey(forProfile: space.profileFolder))) == nil {
+            extensionList.unpinnedBeforeMigration = loadSet(key: Self.unpinnedExtensionsKey, profile: space.profileFolder)
+            extensionList.onMigration = { [weak self] in
+                guard let self else { return }
+                save {
+                    try self.appDatabase.setSetting(Self.pinnedExtensionsMigratedKey(forProfile: space.profileFolder), to: "true")
+                    try self.appDatabase.setSetting("\(Self.unpinnedExtensionsKey) \(space.profileFolder.lastPathComponent)", to: nil)
+                }
+            }
         }
         extensionLists[space.id] = extensionList
         faviconCaches[space.id] = FaviconCache(profileFolder: space.profileFolder)
@@ -834,26 +846,23 @@ final class BrowserState {
         "\(asksWhereToSaveKey) \(folder.lastPathComponent)"
     }
 
-    // Extensions shown next to the address. All of them unless the user unpinned some.
+    // Extensions shown next to the address.
 
     var pinnedExtensionsInSelectedSpace: [InstalledExtension] {
-        let unpinned = unpinnedExtensions(forProfile: selectedSpace.profileFolder)
-        return extensionsInSelectedSpace.filter { !unpinned.contains($0.id) }
+        guard let list = extensionLists[selectedSpaceID] else { return [] }
+        return list.pinnedIDs.compactMap { id in list.extensions.first { $0.id == id } }
     }
 
     func isPinned(_ item: InstalledExtension) -> Bool {
-        !unpinnedExtensions(forProfile: selectedSpace.profileFolder).contains(item.id)
+        extensionLists[selectedSpaceID]?.pinnedIDs.contains(item.id) ?? false
     }
 
     func togglePin(_ item: InstalledExtension) {
-        var unpinned = unpinnedExtensions(forProfile: selectedSpace.profileFolder)
-        if unpinned.contains(item.id) { unpinned.remove(item.id) } else { unpinned.insert(item.id) }
-        saveSet(unpinned, key: Self.unpinnedExtensionsKey, profile: selectedSpace.profileFolder)
+        extensionLists[selectedSpaceID]?.setPinned(item.id, !isPinned(item))
     }
 
-    private func unpinnedExtensions(forProfile folder: URL) -> Set<String> {
-        _ = settingsRevision
-        return loadSet(key: Self.unpinnedExtensionsKey, profile: folder)
+    private static func pinnedExtensionsMigratedKey(forProfile folder: URL) -> String {
+        "\(pinnedExtensionsMigratedKey) \(folder.lastPathComponent)"
     }
 
     // Developer mode is turned on for a site, in one profile.

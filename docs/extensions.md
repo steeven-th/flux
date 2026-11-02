@@ -1,7 +1,13 @@
 # Extensions
 
-Each space has its own extensions, installed from the Chrome Web Store as in Chrome. Their icons
-show next to the address, and Flux > Extensions lists them for the current space.
+Each space has its own extensions, installed from the Chrome Web Store as in Chrome. Flux >
+Extensions lists them for the current space, and the page options show them all.
+
+## Pinning
+
+Pinned extensions show their icon next to the address. Pin one from the page options, or with
+"Pin to toolbar" on its page in Flux > Extensions: both change the same setting of the space's
+profile. As in Chrome, an extension you just installed isn't pinned.
 
 ## Installing in several spaces
 

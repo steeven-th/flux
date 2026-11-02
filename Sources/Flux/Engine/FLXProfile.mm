@@ -259,6 +259,16 @@ static NSString *_Nullable (^g_languages_provider)(NSString *) = nil;
   [self setPreference:name value:preference];
 }
 
+- (void)setPreference:(NSString *)name stringListValue:(NSArray<NSString *> *)value {
+  CefRefPtr<CefListValue> list = CefListValue::Create();
+  for (NSUInteger i = 0; i < value.count; i++) {
+    list->SetString(i, value[i].UTF8String);
+  }
+  CefRefPtr<CefValue> preference = CefValue::Create();
+  preference->SetList(list);
+  [self setPreference:name value:preference];
+}
+
 - (void)setPreference:(NSString *)name value:(CefRefPtr<CefValue>)preference {
   __weak FLXProfile *weakSelf = self;
   [self whenLoaded:^{
