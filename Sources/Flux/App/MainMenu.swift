@@ -5,12 +5,25 @@ enum MainMenu {
     /// `spacesMenuDelegate` fills in the spaces' names each time the Spaces menu opens.
     static func make(spacesMenuDelegate: NSMenuDelegate) -> NSMenu {
         let menu = NSMenu()
-        menu.addItem(submenu(title: String(localized: "Flux"), items: customizable([
+        let services = NSMenu(title: String(localized: "Services"))
+        NSApp.servicesMenu = services
+        let servicesItem = NSMenuItem(title: String(localized: "Services"), action: nil, keyEquivalent: "")
+        servicesItem.submenu = services
+        menu.addItem(submenu(title: String(localized: "Flux"), items: [
+            NSMenuItem(title: String(localized: "About Flux"), action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: ""),
+            .separator(),
+        ] + customizable([
             NSMenuItem(title: String(localized: "Settings…"), action: #selector(AppDelegate.showSettings(_:)), keyEquivalent: ","),
             .separator(),
             shifted(NSMenuItem(title: String(localized: "Extensions…"), action: #selector(AppDelegate.showExtensions(_:)), keyEquivalent: "e")),
             NSMenuItem(title: String(localized: "Passwords…"), action: #selector(AppDelegate.showPasswords(_:)), keyEquivalent: ""),
         ]) + [
+            .separator(),
+            servicesItem,
+            .separator(),
+            NSMenuItem(title: String(localized: "Hide Flux"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h"),
+            optionCommand(NSMenuItem(title: String(localized: "Hide Others"), action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")),
+            NSMenuItem(title: String(localized: "Show All"), action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: ""),
             .separator(),
             NSMenuItem(title: String(localized: "Quit Flux"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"),
         ]))
@@ -34,6 +47,9 @@ enum MainMenu {
             NSMenuItem(title: String(localized: "Cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x"),
             NSMenuItem(title: String(localized: "Copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c"),
             NSMenuItem(title: String(localized: "Paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v"),
+            // Chromium's pages answer pasteAndMatchStyle:, as in Chrome.
+            optionShiftCommand(NSMenuItem(title: String(localized: "Paste and Match Style"), action: Selector(("pasteAndMatchStyle:")), keyEquivalent: "v")),
+            NSMenuItem(title: String(localized: "Delete"), action: #selector(NSText.delete(_:)), keyEquivalent: ""),
             NSMenuItem(title: String(localized: "Select All"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"),
             .separator(),
         ] + customizable([
@@ -86,6 +102,20 @@ enum MainMenu {
             NSMenuItem(title: String(localized: "Open Tab in Chrome Window"), action: #selector(AppDelegate.openInChromeWindow(_:)), keyEquivalent: ""),
             NSMenuItem(title: String(localized: "Show Welcome Window"), action: #selector(AppDelegate.previewWelcome(_:)), keyEquivalent: ""),
         ]))
+        // AppKit lists the windows in the Window menu, and adds a search of the menus to Help.
+        let window = submenu(title: String(localized: "Window"), items: [
+            NSMenuItem(title: String(localized: "Minimize"), action: #selector(AppDelegate.minimizeWindow(_:)), keyEquivalent: "m"),
+            NSMenuItem(title: String(localized: "Zoom"), action: #selector(AppDelegate.zoomWindow(_:)), keyEquivalent: ""),
+            .separator(),
+            NSMenuItem(title: String(localized: "Bring All to Front"), action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: ""),
+        ])
+        NSApp.windowsMenu = window.submenu
+        menu.addItem(window)
+        let help = submenu(title: String(localized: "Help"), items: [
+            NSMenuItem(title: String(localized: "Keyboard Shortcuts"), action: #selector(AppDelegate.showShortcutSettings(_:)), keyEquivalent: ""),
+        ])
+        NSApp.helpMenu = help.submenu
+        menu.addItem(help)
         return menu
     }
 
@@ -153,6 +183,11 @@ enum MainMenu {
         let submenu = NSMenu(title: title)
         items.forEach(submenu.addItem)
         item.submenu = submenu
+        return item
+    }
+
+    private static func optionShiftCommand(_ item: NSMenuItem) -> NSMenuItem {
+        item.keyEquivalentModifierMask = [.command, .option, .shift]
         return item
     }
 

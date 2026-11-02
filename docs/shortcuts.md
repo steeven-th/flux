@@ -5,8 +5,9 @@ type the new one. Delete leaves the action without one, Escape keeps it as it wa
 to a changed shortcut puts the default back, and Restore Defaults does it for all of them.
 
 A shortcut needs ⌘, ⌃ or ⌥, unless it is a function key. When another action already uses it,
-Flux asks before taking it from that action. Undo, Redo, Cut, Copy, Paste, Select All and ⌘Q
-can't be changed or taken.
+Flux asks before taking it from that action. The editing commands (Undo, Cut, Copy, Paste, Paste
+and Match Style ⌥⇧⌘V...), Hide Flux ⌘H, Hide Others ⌥⌘H, Minimize ⌘M and Quit ⌘Q keep their
+shortcuts and can't be taken. Minimize acts on the window the page belongs to.
 
 ## Defaults
 

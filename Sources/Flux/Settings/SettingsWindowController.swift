@@ -16,6 +16,13 @@ final class SettingsWindowController: NSWindowController {
         NSApp.activate()
     }
 
+    static func showShortcuts(state: BrowserState) {
+        show(state: state)
+        guard let controller = shared,
+              let index = controller.tabs.tabViewItems.firstIndex(where: { $0.viewController is NSHostingController<ShortcutSettings> }) else { return }
+        controller.tabs.selectedTabViewItemIndex = index
+    }
+
     /// The developer pane, on the devices the responsive mode offers.
     static func showDevices(state: BrowserState) {
         show(state: state)

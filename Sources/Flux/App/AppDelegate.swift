@@ -398,6 +398,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state?.selectedTab?.show(.picker)
     }
 
+    /// Pages and panels are child windows, often the ones with the keyboard, so the window they
+    /// belong to is the one minimized or zoomed.
+    private var frontWindow: NSWindow? {
+        NSApp.keyWindow.map { window in sequence(first: window, next: \.parent).reduce(window) { $1 } }
+    }
+
+    @objc func minimizeWindow(_ sender: Any?) {
+        frontWindow?.miniaturize(nil)
+    }
+
+    @objc func zoomWindow(_ sender: Any?) {
+        frontWindow?.zoom(nil)
+    }
+
+    @objc func showShortcutSettings(_ sender: Any?) {
+        guard let state else { return }
+        SettingsWindowController.showShortcuts(state: state)
+    }
+
     @objc func zoomIn(_ sender: Any?) {
         zoom(.in)
     }

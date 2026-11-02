@@ -251,6 +251,16 @@
         }
       }
     },
+    "About Flux" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À propos de Flux"
+          }
+        }
+      }
+    },
     "Actual Size" : {
       "localizations" : {
         "fr" : {
@@ -527,6 +537,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Menu des marque-pages"
+          }
+        }
+      }
+    },
+    "Bring All to Front" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout ramener au premier plan"
           }
         }
       }
@@ -1531,6 +1551,16 @@
         }
       }
     },
+    "Help" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aide"
+          }
+        }
+      }
+    },
     "Hide" : {
       "localizations" : {
         "fr" : {
@@ -1561,12 +1591,32 @@
         }
       }
     },
+    "Hide Flux" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masquer Flux"
+          }
+        }
+      }
+    },
     "Hide from Flux" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Masquer dans Flux"
+          }
+        }
+      }
+    },
+    "Hide Others" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masquer les autres"
           }
         }
       }
@@ -1771,6 +1821,16 @@
         }
       }
     },
+    "Keyboard Shortcuts" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raccourcis clavier"
+          }
+        }
+      }
+    },
     "Language" : {
       "localizations" : {
         "fr" : {
@@ -1907,6 +1967,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mémoire"
+          }
+        }
+      }
+    },
+    "Minimize" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Placer dans le Dock"
           }
         }
       }
@@ -2537,6 +2607,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Coller"
+          }
+        }
+      }
+    },
+    "Paste and Match Style" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coller et adapter le style"
           }
         }
       }
@@ -3191,6 +3271,16 @@
         }
       }
     },
+    "Services" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Services"
+          }
+        }
+      }
+    },
     "Settings" : {
       "localizations" : {
         "fr" : {
@@ -3227,6 +3317,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Raccourcis"
+          }
+        }
+      }
+    },
+    "Show All" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout afficher"
           }
         }
       }
@@ -3911,6 +4011,16 @@
         }
       }
     },
+    "Window" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fenêtre"
+          }
+        }
+      }
+    },
     "Works. %@ of %@ characters used this month." : {
       "localizations" : {
         "fr" : {
@@ -3997,6 +4107,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vos onglets vivent dans une barre latérale. Les espaces séparent vos connexions, mots de passe et extensions, et les extensions Chrome que vous utilisez fonctionnent aussi ici."
+          }
+        }
+      }
+    },
+    "Zoom" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réduire/agrandir"
           }
         }
       }
