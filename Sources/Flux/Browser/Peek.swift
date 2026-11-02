@@ -45,4 +45,8 @@ extension Peek: FLXBrowserViewDelegate {
     func browserViewDidClose(_ browserView: FLXBrowserView) {
         onClose?()
     }
+
+    func browserViewDidOpenOnlyDownload(_ browserView: FLXBrowserView) {
+        onClose?()
+    }
 }

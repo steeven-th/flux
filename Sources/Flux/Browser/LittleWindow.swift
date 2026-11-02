@@ -71,6 +71,10 @@ extension LittleWindowModel: FLXBrowserViewDelegate {
         onClose?()
     }
 
+    func browserViewDidOpenOnlyDownload(_ browserView: FLXBrowserView) {
+        onClose?()
+    }
+
     func browserViewDidFinishLoading(_ browserView: FLXBrowserView) {
         finder.pageDidLoad()
         onFinishLoading?(browserView)

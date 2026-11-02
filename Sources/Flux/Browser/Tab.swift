@@ -38,6 +38,8 @@ final class Tab: NSObject, Identifiable {
     @ObservationIgnored var onChange: ((Tab) -> Void)?
     /// Called when the page opens a link in a new tab or window, with the new page.
     @ObservationIgnored var onOpenPage: ((Tab, FLXBrowserView, FLXOpenDisposition) -> Void)?
+    /// Called when the page was opened only to download a file, and is left empty.
+    @ObservationIgnored var onDownloadOnly: ((Tab) -> Void)?
     @ObservationIgnored private let profile: FLXProfile
     @ObservationIgnored private let favicons: FaviconCache
     @ObservationIgnored private var loadedView: FLXBrowserView?
@@ -549,6 +551,10 @@ extension Tab: FLXBrowserViewDelegate {
 
     func browserViewDidCloseDevTools(_ browserView: FLXBrowserView) {
         devTools = nil
+    }
+
+    func browserViewDidOpenOnlyDownload(_ browserView: FLXBrowserView) {
+        onDownloadOnly?(self)
     }
 
     func browserViewDidChangeNavigationState(_ browserView: FLXBrowserView) {

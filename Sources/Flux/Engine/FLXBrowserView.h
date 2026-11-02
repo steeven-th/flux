@@ -65,6 +65,9 @@ NS_SWIFT_UI_ACTOR
                               point:(NSPoint)point;
 /// Sent when the page closes itself, with window.close() for example.
 - (void)browserViewDidClose:(FLXBrowserView *)browserView;
+/// Sent when a page opened only to download a file, a link to it in a new tab for example, has
+/// nothing left to show. The download has started or was canceled.
+- (void)browserViewDidOpenOnlyDownload:(FLXBrowserView *)browserView;
 @end
 
 /// A view showing one web page, in the given profile.

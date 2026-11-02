@@ -319,6 +319,11 @@ final class BrowserState {
             guard let store, let window = store.windows.first(where: { $0.shownTabs.contains { $0 === opener } }) ?? store.windows.first else { return }
             window.open(page, from: opener.spaceID, disposition: disposition)
         }
+        // A pinned tab or a favorite pointing at a file stays, to download it again.
+        tab.onDownloadOnly = { [weak store] tab in
+            guard !tab.isKept else { return }
+            store?.windows.first?.discard(tab)
+        }
         return tab
     }
 
@@ -606,19 +611,24 @@ final class BrowserState {
         close(tab, removing: true)
     }
 
+    /// Takes out a tab that never showed a page, without archiving it.
+    func discard(_ tab: Tab) {
+        close(tab, removing: true, archiving: false)
+    }
+
     /// Frees the page's memory. The tab stays in the sidebar and loads again when shown.
     func unload(_ tab: Tab) {
         close(tab, removing: false)
     }
 
-    private func close(_ tab: Tab, removing: Bool) {
+    private func close(_ tab: Tab, removing: Bool, archiving: Bool = true) {
         let showing = store.windows.filter { $0.selectedTab === tab }
         let split = split(of: tab)
         let otherPanes = split.map(panes(of:))?.filter { $0 !== tab } ?? []
         if !removing {
             tab.unload()
         } else {
-            if tab.node.section == .today {
+            if archiving, tab.node.section == .today {
                 archive(tab)
             }
             tabs.removeAll { $0 === tab }

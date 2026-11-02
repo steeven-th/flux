@@ -331,6 +331,7 @@ class BrowserClient : public CefClient,
     NSURL *downloads = [NSFileManager.defaultManager URLsForDirectory:NSDownloadsDirectory
                                                             inDomains:NSUserDomainMask].firstObject;
     NSString *path = AvailablePath([downloads URLByAppendingPathComponent:ToNSString(suggested_name)].path);
+    if (IsOwnPage(browser) && ShowsNothing(browser)) download_closing_page_ = download_item->GetId();
     callback->Continue(path.UTF8String, profile_.asksWhereToSaveDownloads);
     return true;
   }
@@ -340,6 +341,16 @@ class BrowserClient : public CefClient,
                          CefRefPtr<CefDownloadItemCallback> callback) override {
     if (download_item->GetMimeType() == "application/x-chrome-extension") return;
     if (profile_.downloadHandler) profile_.downloadHandler([[FLXDownload alloc] initWithItem:download_item]);
+    // Not before the file has a place: the save panel, when Flux asks where to save, belongs to
+    // the page.
+    if (download_item->GetId() == download_closing_page_ &&
+        (!download_item->GetFullPath().empty() || !download_item->IsInProgress())) {
+      download_closing_page_ = 0;
+      FLXBrowserView *owner = owner_;
+      if ([owner.delegate respondsToSelector:@selector(browserViewDidOpenOnlyDownload:)]) {
+        [owner.delegate browserViewDidOpenOnlyDownload:owner];
+      }
+    }
   }
 
   // "name (1).ext", "name (2).ext"… next to a file of the same name, as Chrome does.
@@ -391,6 +402,14 @@ class BrowserClient : public CefClient,
 
   bool IsOwnPage(CefRefPtr<CefBrowser> browser) const { return browser->GetIdentifier() == page_id_; }
 
+  // A navigation that turns into a download never commits, so a page opened for one still has
+  // the empty document it started with.
+  static bool ShowsNothing(CefRefPtr<CefBrowser> browser) {
+    if (browser->CanGoBack() || browser->CanGoForward()) return false;
+    std::string url = browser->GetMainFrame()->GetURL();
+    return url.empty() || url == "about:blank";
+  }
+
   __weak FLXBrowserView *owner_;
   std::string menu_text_;
   /// Frames of the page playing sound, as FluxHelper reports them.
@@ -400,6 +419,7 @@ class BrowserClient : public CefClient,
   FLXProfile *profile_;
   const bool opened_by_page_;
   int page_id_ = 0;
+  uint32_t download_closing_page_ = 0;
   IMPLEMENT_REFCOUNTING(BrowserClient);
 };
 
