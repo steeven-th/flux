@@ -42,9 +42,22 @@ checkout() {
     # automate-git.py changes from one CEF branch to the next.
     curl --fail --silent --show-error --location --output automate-git.py \
         "https://raw.githubusercontent.com/chromiumembedded/cef/$CEF_BRANCH/tools/automate/automate-git.py"
-    python3 automate-git.py --download-dir="$BUILD_DIR" --depot-tools-dir="$BUILD_DIR/depot_tools" \
-        --branch="$CEF_BRANCH" --checkout="$CEF_COMMIT" --arm64-build --no-chromium-history \
-        --no-depot-tools-update --with-pgo-profiles --no-debug-build --no-build --no-distrib
+    local attempt
+    for attempt in 1 2 3; do
+        if python3 automate-git.py --download-dir="$BUILD_DIR" --depot-tools-dir="$BUILD_DIR/depot_tools" \
+            --branch="$CEF_BRANCH" --checkout="$CEF_COMMIT" --arm64-build --no-chromium-history \
+            --no-depot-tools-update --with-pgo-profiles --no-debug-build --no-build --no-distrib; then
+            break
+        fi
+        if (( attempt == 3 )); then
+            exit 1
+        fi
+        # chromium.googlesource.com sometimes answers HTTP 500 for minutes. Without history,
+        # automate-git.py does not complete a checkout that failed halfway, so start over.
+        echo "Checkout failed, retrying in 2 minutes" >&2
+        rm -rf "$BUILD_DIR/chromium"
+        sleep 120
+    done
     cd "$SRC/cef"
     python3 tools/gclient_hook.py
 }
