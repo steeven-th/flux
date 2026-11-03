@@ -62,8 +62,9 @@ jobs:
         run: |
           scripts/build-cef.sh checkout
           # The sources never change after this, so they are archived once and later jobs only
-          # download them.
-          tar -C "$CEF_BUILD_DIR" --exclude chromium/src/out -cf - . | zstd -3 -T0 -o "$RUNNER_TEMP/src.tar.zst"
+          # download them. The pax format keeps sub-second mtimes, without which siso finds every
+          # file changed and rebuilds everything.
+          tar -C "$CEF_BUILD_DIR" --exclude chromium/src/out -c --format=pax -f - . | zstd -3 -T0 -o "$RUNNER_TEMP/src.tar.zst"
           df -h /
 
       - uses: actions/upload-artifact@v7
@@ -123,7 +124,7 @@ jobs:
 
       # Also kept once the build is done, so that a failed packaging does not cost a full build.
       - name: Archive the build output
-        run: tar -C "$CEF_BUILD_DIR/chromium/src" -cf - out | zstd -3 -T0 -o "$RUNNER_TEMP/out.tar.zst"
+        run: tar -C "$CEF_BUILD_DIR/chromium/src" -c --format=pax -f - out | zstd -3 -T0 -o "$RUNNER_TEMP/out.tar.zst"
 
       - uses: actions/upload-artifact@v7
         with:
