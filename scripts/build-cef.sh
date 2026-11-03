@@ -19,17 +19,37 @@ OUT="out/Release_GN_arm64"
 
 # The version names the CEF commit and the Chromium branch it belongs to:
 # 156.0.14+g4fa4ab5+chromium-156.0.8078.48 is commit 4fa4ab5 on branch 8078.
-if [[ ! "$CEF_VERSION" =~ \+g([0-9a-f]+)\+chromium-[0-9]+\.[0-9]+\.([0-9]+)\. ]]; then
+if [[ ! "$CEF_VERSION" =~ \+g([0-9a-f]+)\+chromium-([0-9]+\.[0-9]+\.([0-9]+)\.[0-9]+)$ ]]; then
     echo "Unexpected CEF_VERSION: $CEF_VERSION" >&2
     exit 1
 fi
 CEF_COMMIT="${BASH_REMATCH[1]}"
-CEF_BRANCH="${BASH_REMATCH[2]}"
+CHROMIUM_VERSION="${BASH_REMATCH[2]}"
+CEF_BRANCH="${BASH_REMATCH[3]}"
 
 export PATH="$BUILD_DIR/depot_tools:$PATH"
 export DEPOT_TOOLS_UPDATE=0
 export GN_DEFINES="is_official_build=true proprietary_codecs=true ffmpeg_branding=Chrome \
 symbol_level=0 blink_symbol_level=0 v8_symbol_level=0 enable_dsyms=false"
+
+# automate-git.py keeps an existing .gclient, which is the only way to leave out a dependency.
+# The commit Chromium 156 pins for third_party/clang-format/script is gone from its mirror, so
+# fetching it fails with HTTP 500. The build does not need it: the clang-format binary comes
+# from buildtools.
+write_gclient() {
+    mkdir -p "$BUILD_DIR/chromium"
+    cat > "$BUILD_DIR/chromium/.gclient" <<EOF
+solutions = [{
+    "name": "src",
+    "url": "https://chromium.googlesource.com/chromium/src.git@$CHROMIUM_VERSION",
+    "managed": False,
+    "deps_file": "DEPS",
+    "custom_vars": {"checkout_pgo_profiles": True, "source_tarball": False, "siso_version": "latest"},
+    "custom_deps": {"src/third_party/clang-format/script": None},
+    "safesync_url": "",
+}]
+EOF
+}
 
 checkout() {
     mkdir -p "$BUILD_DIR"
@@ -44,6 +64,7 @@ checkout() {
         "https://raw.githubusercontent.com/chromiumembedded/cef/$CEF_BRANCH/tools/automate/automate-git.py"
     local attempt
     for attempt in 1 2 3; do
+        write_gclient
         if python3 automate-git.py --download-dir="$BUILD_DIR" --depot-tools-dir="$BUILD_DIR/depot_tools" \
             --branch="$CEF_BRANCH" --checkout="$CEF_COMMIT" --arm64-build --no-chromium-history \
             --no-depot-tools-update --with-pgo-profiles --no-debug-build --no-build --no-distrib; then
