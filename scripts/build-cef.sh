@@ -32,11 +32,19 @@ export DEPOT_TOOLS_UPDATE=0
 export GN_DEFINES="is_official_build=true proprietary_codecs=true ffmpeg_branding=Chrome \
 symbol_level=0 blink_symbol_level=0 v8_symbol_level=0 enable_dsyms=false"
 
+# The commits Chromium 156 pins for these dependencies are gone from their chromium.googlesource.com
+# mirrors, so gclient sync fails on them with HTTP 500. They come from the official source tarball
+# instead.
+TARBALL_DEPS=(third_party/search_engines_data/resources)
+
 # automate-git.py keeps an existing .gclient, which is the only way to leave out a dependency.
-# The commit Chromium 156 pins for third_party/clang-format/script is gone from its mirror, so
-# fetching it fails with HTTP 500. The build does not need it: the clang-format binary comes
-# from buildtools.
+# clang-format/script is gone as well, and the build does not need it: the clang-format binary
+# comes from buildtools.
 write_gclient() {
+    local dep custom_deps='"src/third_party/clang-format/script": None,'
+    for dep in "${TARBALL_DEPS[@]}"; do
+        custom_deps+=" \"src/$dep\": None,"
+    done
     mkdir -p "$BUILD_DIR/chromium"
     cat > "$BUILD_DIR/chromium/.gclient" <<EOF
 solutions = [{
@@ -45,10 +53,25 @@ solutions = [{
     "managed": False,
     "deps_file": "DEPS",
     "custom_vars": {"checkout_pgo_profiles": True, "source_tarball": False, "siso_version": "latest"},
-    "custom_deps": {"src/third_party/clang-format/script": None},
+    "custom_deps": {$custom_deps},
     "safesync_url": "",
 }]
 EOF
+}
+
+extract_tarball_deps() {
+    local name="chromium-$CHROMIUM_VERSION.tar.xz"
+    local url="https://commondatastorage.googleapis.com/chromium-browser-official/$name"
+    local expected
+    expected="$(curl --fail --silent --show-error --location "$url.hashes" | awk '$1 == "sha256" { print $2 }')"
+    curl --fail --silent --show-error --location --output "$BUILD_DIR/$name" "$url"
+    if ! echo "$expected  $BUILD_DIR/$name" | shasum -a 256 -c --status; then
+        echo "Checksum mismatch for $name" >&2
+        exit 1
+    fi
+    tar -xJf "$BUILD_DIR/$name" -C "$SRC" --strip-components 1 \
+        "${TARBALL_DEPS[@]/#/chromium-$CHROMIUM_VERSION/}"
+    rm "$BUILD_DIR/$name"
 }
 
 checkout() {
@@ -79,6 +102,7 @@ checkout() {
         rm -rf "$BUILD_DIR/chromium"
         sleep 120
     done
+    extract_tarball_deps
     cd "$SRC/cef"
     python3 tools/gclient_hook.py
 }
