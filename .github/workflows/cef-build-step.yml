@@ -1,0 +1,155 @@
+name: CEF build step
+
+# One job of the CEF build: compiles until its time is nearly up, then hands the build output to
+# the next job, or packages the distribution once the build is done.
+on:
+  workflow_call:
+    inputs:
+      first:
+        description: Checks out the sources instead of restoring them.
+        type: boolean
+        default: false
+      src-run:
+        description: Run holding the cef-src archive, this run when empty.
+        type: string
+        default: ""
+      out-run:
+        description: Run holding the cef-out archive, this run when empty.
+        type: string
+        default: ""
+      last:
+        description: Fails when the build is still not done, so that re-running the job resumes it.
+        type: boolean
+        default: false
+    outputs:
+      finished:
+        value: ${{ jobs.build.outputs.finished }}
+
+env:
+  CEF_BUILD_DIR: /Users/runner/cef-build
+  # Chromium 156 is built against the macOS 26.5 SDK.
+  XCODE: /Applications/Xcode_26.5.app
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 350
+    outputs:
+      finished: ${{ steps.compile.outputs.finished }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Prepare the runner
+        run: |
+          echo "JOB_START=$(date +%s)" >> "$GITHUB_ENV"
+          sudo mdutil -a -i off || true
+          sudo xcode-select -s "$XCODE"
+          # The other Xcodes, the simulators and the Android SDK take about 170 GB.
+          for x in /Applications/Xcode*.app; do
+            [[ "$(readlink -f "$x")" == "$XCODE" ]] || sudo rm -rf "$x"
+          done
+          xcrun simctl delete all || true
+          xcrun simctl runtime delete all || true
+          sudo rm -rf "${ANDROID_HOME:-/nonexistent}" ~/Library/Android /Users/runner/hostedtoolcache \
+            ~/.dotnet /usr/local/share/dotnet ~/.ghcup || true
+          df -h /
+          brew install coreutils zstd
+          # Xcode 26 no longer bundles the Metal compiler, which Chromium needs for its shaders.
+          xcrun metal --version > /dev/null 2>&1 || xcodebuild -downloadComponent MetalToolchain
+
+      - name: Check out Chromium and CEF
+        if: inputs.first
+        run: |
+          scripts/build-cef.sh checkout
+          # The sources never change after this, so they are archived once and later jobs only
+          # download them.
+          tar -C "$CEF_BUILD_DIR" --exclude chromium/src/out -cf - . | zstd -3 -T0 -o "$RUNNER_TEMP/src.tar.zst"
+          df -h /
+
+      - uses: actions/upload-artifact@v7
+        if: inputs.first
+        with:
+          name: cef-src
+          path: ${{ runner.temp }}/src.tar.zst
+          compression-level: 0
+          retention-days: 3
+
+      - name: Free the source archive
+        if: inputs.first
+        run: rm "$RUNNER_TEMP/src.tar.zst"
+
+      - uses: actions/download-artifact@v8
+        if: ${{ !inputs.first }}
+        with:
+          name: cef-src
+          path: ${{ runner.temp }}/src
+          run-id: ${{ inputs.src-run || github.run_id }}
+          github-token: ${{ github.token }}
+
+      - uses: actions/download-artifact@v8
+        if: ${{ !inputs.first }}
+        with:
+          name: cef-out
+          path: ${{ runner.temp }}/out
+          run-id: ${{ inputs.out-run || github.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Restore the build folder
+        if: ${{ !inputs.first }}
+        run: |
+          mkdir -p "$CEF_BUILD_DIR"
+          zstd -dc "$RUNNER_TEMP/src/src.tar.zst" | tar -C "$CEF_BUILD_DIR" -xf -
+          rm -rf "$RUNNER_TEMP/src"
+          zstd -dc "$RUNNER_TEMP/out/out.tar.zst" | tar -C "$CEF_BUILD_DIR/chromium/src" -xf -
+          rm -rf "$RUNNER_TEMP/out"
+          df -h /
+
+      - name: Compile
+        id: compile
+        run: |
+          # Leaves 50 minutes to archive and upload the build output, or to package the
+          # distribution, before the 6 hour limit.
+          budget=$(( JOB_START + 300 * 60 - $(date +%s) ))
+          echo "Compiling for $(( budget / 60 )) minutes"
+          set +e
+          scripts/build-cef.sh build "$(( budget > 60 ? budget : 60 ))"
+          status=$?
+          set -e
+          case $status in
+            0) echo "finished=true" >> "$GITHUB_OUTPUT" ;;
+            124) echo "finished=false" >> "$GITHUB_OUTPUT" ;;
+            *) exit $status ;;
+          esac
+
+      # Also kept once the build is done, so that a failed packaging does not cost a full build.
+      - name: Archive the build output
+        run: tar -C "$CEF_BUILD_DIR/chromium/src" -cf - out | zstd -3 -T0 -o "$RUNNER_TEMP/out.tar.zst"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cef-out
+          path: ${{ runner.temp }}/out.tar.zst
+          compression-level: 0
+          overwrite: true
+          retention-days: 3
+
+      - name: Package
+        if: steps.compile.outputs.finished == 'true'
+        run: |
+          archive="$(scripts/build-cef.sh package)"
+          mkdir -p "$RUNNER_TEMP/distrib"
+          mv "$archive" "$RUNNER_TEMP/distrib/"
+
+      - uses: actions/upload-artifact@v7
+        if: steps.compile.outputs.finished == 'true'
+        with:
+          name: cef-distrib
+          path: ${{ runner.temp }}/distrib/
+          compression-level: 0
+          retention-days: 7
+
+      - name: Stop when no job is left
+        if: inputs.last && steps.compile.outputs.finished == 'false'
+        run: |
+          echo "::error::The build is not done. Re-run this job to resume it."
+          exit 1
