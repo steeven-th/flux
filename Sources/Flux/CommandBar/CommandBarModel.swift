@@ -89,7 +89,11 @@ final class CommandBarModel {
     private func open(_ url: String, inBackground background: Bool) {
         switch target {
         case .selectedTab:
-            state.selectedTab?.load(url)
+            if let tab = state.selectedTab {
+                tab.load(url)
+            } else {
+                state.newTab(url: url, selecting: !background)
+            }
         case .splitPane(let after):
             state.addToSplit(state.newTab(url: url, selecting: false), after: after)
         case .newTab:

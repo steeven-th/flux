@@ -77,6 +77,7 @@ struct SidebarOutline: NSViewRepresentable {
         private var shownRevision = -1
         private var shownSpaceID: UUID?
         private var isSyncingSelection = false
+        private var revealedTabID: UUID?
 
         init(state: BrowserState, onNewTab: @escaping () -> Void) {
             self.state = state
@@ -119,13 +120,38 @@ struct SidebarOutline: NSViewRepresentable {
             isSyncingSelection = true
             defer { isSyncingSelection = false }
             if let tab = state.selectedTab {
-                let row = outline.row(forItem: state.split(of: tab) ?? tab)
+                let item: NSObject = state.split(of: tab) ?? tab
+                // Only when the selection changes, so that a folder closed over the selected tab
+                // stays closed.
+                let isNewSelection = tab.id != revealedTabID
+                if isNewSelection {
+                    revealedTabID = tab.id
+                    reveal(item)
+                }
+                let row = outline.row(forItem: item)
                 if row >= 0 {
                     outline.selectRowIndexes([row], byExtendingSelection: false)
+                    if isNewSelection { outline.scrollRowToVisible(row) }
                     return
                 }
             }
             outline.deselectAll(nil)
+        }
+
+        /// Opens the section and the folders around a tab chosen from elsewhere, the command bar
+        /// for one, which would otherwise show without a row in the sidebar.
+        private func reveal(_ item: NSObject) {
+            guard let outline, let node = (item as? Tab)?.node ?? (item as? Split)?.node,
+                  let section = sections.first(where: { $0.section == node.section }) else { return }
+            var containers: [NSObject] = []
+            var parentID = node.parentID
+            while let id = parentID, let folder = state.folders.first(where: { $0.id == id }) {
+                containers.insert(folder, at: 0)
+                parentID = folder.node.parentID
+            }
+            for container in [section] + containers where !outline.isItemExpanded(container) {
+                outline.expandItem(container)
+            }
         }
 
 
