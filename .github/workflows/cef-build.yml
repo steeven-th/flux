@@ -1,0 +1,100 @@
+name: CEF build
+
+# Builds the CEF version pinned in scripts/cef.env with H.264/AAC and publishes it as a
+# pre-release, which scripts/fetch-cef.sh downloads. A full build takes longer than the 6 hours a
+# job may run on a free macOS runner, so it goes through a chain of jobs, each resuming where the
+# previous one stopped. A full build usually needs three or four of them.
+on:
+  workflow_dispatch:
+    inputs:
+      resume_from:
+        description: >-
+          ID of an earlier run to continue from its last build output, for example after fixing
+          this workflow. Its archives are kept 3 days.
+        type: string
+        default: ""
+  push:
+    branches: [feat/cef-build]
+
+permissions:
+  contents: read
+  # Downloads the archives of an earlier run.
+  actions: read
+
+concurrency:
+  group: cef-build
+
+jobs:
+  start:
+    uses: ./.github/workflows/cef-build-step.yml
+    with:
+      first: ${{ !inputs.resume_from }}
+      src-run: ${{ inputs.resume_from }}
+      out-run: ${{ inputs.resume_from }}
+
+  resume-1:
+    needs: start
+    if: needs.start.outputs.finished != 'true'
+    uses: ./.github/workflows/cef-build-step.yml
+    with:
+      src-run: ${{ inputs.resume_from }}
+
+  resume-2:
+    needs: resume-1
+    if: needs.resume-1.outputs.finished != 'true'
+    uses: ./.github/workflows/cef-build-step.yml
+    with:
+      src-run: ${{ inputs.resume_from }}
+
+  resume-3:
+    needs: resume-2
+    if: needs.resume-2.outputs.finished != 'true'
+    uses: ./.github/workflows/cef-build-step.yml
+    with:
+      src-run: ${{ inputs.resume_from }}
+
+  resume-4:
+    needs: resume-3
+    if: needs.resume-3.outputs.finished != 'true'
+    uses: ./.github/workflows/cef-build-step.yml
+    with:
+      src-run: ${{ inputs.resume_from }}
+
+  resume-5:
+    needs: resume-4
+    if: needs.resume-4.outputs.finished != 'true'
+    uses: ./.github/workflows/cef-build-step.yml
+    with:
+      src-run: ${{ inputs.resume_from }}
+      last: true
+
+  publish:
+    needs: [start, resume-1, resume-2, resume-3, resume-4, resume-5]
+    if: ${{ !cancelled() && contains(needs.*.outputs.finished, 'true') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: cef-distrib
+          path: distrib
+
+      - name: Publish the pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source scripts/cef.env
+          archive="cef_binary_${CEF_VERSION}_macosarm64_minimal.tar.bz2"
+          tag="cef-${CEF_VERSION%%+*}-$CEF_BUILD"
+          cd distrib
+          shasum -a 256 "$archive" > "$archive.sha256"
+          cat "$archive.sha256"
+          # Not the latest release, which stays the newest Flux.
+          gh release create "$tag" "$archive" "$archive.sha256" --prerelease --latest=false \
+            --target "$GITHUB_SHA" --title "CEF ${CEF_VERSION%%+*} with H.264/AAC" --notes "\
+          CEF \`$CEF_VERSION\` built from source with \`proprietary_codecs=true ffmpeg_branding=Chrome\` \
+          by [this run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID). \
+          \`scripts/fetch-cef.sh\` downloads it. Not a Flux release."

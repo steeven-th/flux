@@ -3,11 +3,11 @@
 # Safe to run again: nothing is downloaded or rebuilt when the pinned version is already there.
 set -euo pipefail
 
-CEF_VERSION="156.0.14+g4fa4ab5+chromium-156.0.8078.48"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/scripts/cef.env"
 CEF_SHA1="7359a9d293dd5c480bec3f18b762731b483b0e13"
 CEF_PLATFORM="macosarm64"
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VENDOR="$ROOT/vendor"
 CEF_DIR="$VENDOR/cef"
 ARCHIVE_NAME="cef_binary_${CEF_VERSION}_${CEF_PLATFORM}_minimal.tar.bz2"
