@@ -18,6 +18,10 @@ go through the site's own actions too when it has some, otherwise straight to th
 Previous and next are only enabled when the site registered them, as on most music and video sites
 but rarely on radios.
 
+A media element only counts once it plays sound, with an audio track, for at least 5 seconds of
+content, as for Chromium's own media sessions. Muted autoplay videos, notification sounds and
+calls don't bring up the player.
+
 The script runs in the page's own context only. Extensions' content scripts have contexts of their
 own in the same frame, which see the page's media events but not its objects.
 

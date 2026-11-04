@@ -76,6 +76,10 @@ constexpr char kAudioMessage[] = "FluxAudio";
 // previous and next track actions to navigator.mediaSession, which offers no way to call them from
 // outside, so the script keeps them as the site sets them. Without them, play, pause and volume go
 // to the media elements. Nothing is reported until something has played in the frame.
+//
+// Like Chromium's own media sessions, which CEF doesn't expose, a media element only counts once it
+// plays sound for at least 5 seconds of content: muted autoplay videos, notification sounds and
+// calls stay out of the mini player.
 constexpr char kMediaWatcher[] = R"(
 ((report) => {
   const handlers = new Map();
@@ -102,7 +106,12 @@ constexpr char kMediaWatcher[] = R"(
     lastState = state;
     report(state);
   };
+  const isContent = (element) => !(element.srcObject instanceof MediaStream) && element.duration >= 5;
+  // Chromium counts the audio it decodes, which stays at zero for a video without a sound track.
+  const isAudible = (element) => !element.muted && element.volume > 0
+    && (element.webkitAudioDecodedByteCount ?? 1) > 0;
   const note = (element) => {
+    if (!elements.has(element) && (element.paused || !isContent(element) || !isAudible(element))) return;
     elements.delete(element);
     elements.add(element);
     if (!element.paused) hasPlayed = true;
@@ -134,7 +143,8 @@ constexpr char kMediaWatcher[] = R"(
     }
   }
 
-  const types = ['play', 'playing', 'pause', 'ended', 'emptied', 'volumechange'];
+  // timeupdate catches the decoded audio, which only shows once playback has started.
+  const types = ['play', 'playing', 'pause', 'ended', 'emptied', 'volumechange', 'timeupdate'];
   for (const type of types) {
     document.addEventListener(type, (event) => {
       if (event.target instanceof HTMLMediaElement) note(event.target);
