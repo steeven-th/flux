@@ -7,17 +7,29 @@ Flux runs on its own build of CEF, made with H.264 and AAC, which the standard C
 `scripts/fetch-cef.sh` downloads that archive from the release `cef-<version>-<build>` of this
 repository and unpacks it into `vendor/cef`.
 
-## Making a new build
+## New CEF versions
 
-1. In `scripts/cef.env`, change `CEF_VERSION` to the new version, as the CEF build server names it,
-   for example `156.0.15+gcf671c0+chromium-156.0.8078.80`. To rebuild the same version, for example
-   after changing the build flags in `scripts/build-cef.sh`, change `CEF_BUILD` instead.
-2. Push it to `main` and run the CEF build workflow from the Actions tab. It takes most of a day.
-3. When the pre-release is published, copy the SHA-256 from its `.sha256` file into `CEF_SHA256`.
-4. Build Flux and check that video plays, for example on Twitch. Then commit `scripts/cef.env`.
+Chromium security fixes reach Flux through new CEF versions. Every morning, the CEF watch workflow
+compares `scripts/cef.env` with the latest stable version on the CEF build server. When a newer one
+is out, it opens an issue labelled `cef-update`, or updates the open one, and starts the CEF build
+for it. When the pre-release is published:
+
+1. `scripts/bump-cef.sh <version>` pins the version and the SHA-256 of its build in
+   `scripts/cef.env`.
+2. `scripts/build.sh --run`, then check that video plays, for example on Twitch.
+3. Commit `scripts/cef.env` and close the issue.
+
+To build a version by hand, run the CEF build workflow from the Actions tab with `cef_version`
+set. To rebuild the same version, for example after changing the build flags in
+`scripts/build-cef.sh`, change `CEF_BUILD` in `scripts/cef.env`, push it to `main`, run the
+workflow without `cef_version`, then run `scripts/bump-cef.sh` with the current version to pick up
+the new SHA-256.
+
+GitHub turns off scheduled workflows after 60 days without activity in the repository. It says so
+by email, and the watch can then be turned back on from the Actions tab.
 
 If a job fails, fix the cause and run the workflow again with `resume_from` set to the ID of the
-failed run. It picks up from that run's last build folder, kept 3 days. A job cancelled because no
+failed run, and the same `cef_version`. It picks up from that run's last build folder, kept 3 days. A job cancelled because no
 macOS runner was available can simply be re-run.
 
 ## When the checkout fails

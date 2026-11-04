@@ -1,12 +1,19 @@
 name: CEF build
+run-name: CEF build ${{ inputs.cef_version }}
 
-# Builds the CEF version pinned in scripts/cef.env with H.264/AAC and publishes it as a
+# Builds the CEF version pinned in scripts/cef.env, or the one given, with H.264/AAC and publishes it as a
 # pre-release, which scripts/fetch-cef.sh downloads. A full build takes longer than the 6 hours a
 # job may run on a free macOS runner, so it goes through a chain of jobs, each resuming where the
 # previous one stopped. A full build usually needs three or four of them.
 on:
   workflow_dispatch:
     inputs:
+      cef_version:
+        description: >-
+          CEF version to build instead of the one in scripts/cef.env, as the CEF build server
+          names it. The CEF watch workflow sets it when a new version comes out.
+        type: string
+        default: ""
       resume_from:
         description: >-
           ID of an earlier run to continue from its last build output, for example after fixing
@@ -26,6 +33,7 @@ jobs:
   start:
     uses: ./.github/workflows/cef-build-step.yml
     with:
+      cef-version: ${{ inputs.cef_version }}
       first: ${{ !inputs.resume_from }}
       src-run: ${{ inputs.resume_from }}
       out-run: ${{ inputs.resume_from }}
@@ -35,6 +43,7 @@ jobs:
     if: needs.start.outputs.finished != 'true'
     uses: ./.github/workflows/cef-build-step.yml
     with:
+      cef-version: ${{ inputs.cef_version }}
       src-run: ${{ inputs.resume_from }}
 
   resume-2:
@@ -42,6 +51,7 @@ jobs:
     if: needs.resume-1.outputs.finished != 'true'
     uses: ./.github/workflows/cef-build-step.yml
     with:
+      cef-version: ${{ inputs.cef_version }}
       src-run: ${{ inputs.resume_from }}
 
   resume-3:
@@ -49,6 +59,7 @@ jobs:
     if: needs.resume-2.outputs.finished != 'true'
     uses: ./.github/workflows/cef-build-step.yml
     with:
+      cef-version: ${{ inputs.cef_version }}
       src-run: ${{ inputs.resume_from }}
 
   resume-4:
@@ -56,6 +67,7 @@ jobs:
     if: needs.resume-3.outputs.finished != 'true'
     uses: ./.github/workflows/cef-build-step.yml
     with:
+      cef-version: ${{ inputs.cef_version }}
       src-run: ${{ inputs.resume_from }}
 
   resume-5:
@@ -63,6 +75,7 @@ jobs:
     if: needs.resume-4.outputs.finished != 'true'
     uses: ./.github/workflows/cef-build-step.yml
     with:
+      cef-version: ${{ inputs.cef_version }}
       src-run: ${{ inputs.resume_from }}
       last: true
 
@@ -74,6 +87,12 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
+
+      - name: Use the requested CEF version
+        if: inputs.cef_version
+        env:
+          CEF_VERSION: ${{ inputs.cef_version }}
+        run: scripts/bump-cef.sh "$CEF_VERSION"
 
       - uses: actions/download-artifact@v8
         with:

@@ -5,6 +5,10 @@ name: CEF build step
 on:
   workflow_call:
     inputs:
+      cef-version:
+        description: CEF version to build, the one in scripts/cef.env when empty.
+        type: string
+        default: ""
       first:
         description: Checks out the sources instead of restoring them.
         type: boolean
@@ -38,6 +42,12 @@ jobs:
       finished: ${{ steps.compile.outputs.finished }}
     steps:
       - uses: actions/checkout@v7
+
+      - name: Use the requested CEF version
+        if: inputs.cef-version
+        env:
+          CEF_VERSION: ${{ inputs.cef-version }}
+        run: scripts/bump-cef.sh "$CEF_VERSION"
 
       - name: Prepare the runner
         run: |
