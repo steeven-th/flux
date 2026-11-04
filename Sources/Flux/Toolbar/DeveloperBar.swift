@@ -28,11 +28,7 @@ struct DeveloperBar: View {
             Image(systemName: URL(string: tab.url)?.scheme == "https" ? "lock.fill" : "lock.open.fill")
                 .font(.system(size: 11))
                 .padding(.trailing, 4)
-            Text(tab.url)
-                .font(.system(size: 12, design: .monospaced))
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .textSelection(.enabled)
+            DeveloperAddressField(state: state, tab: tab)
             Spacer(minLength: 12)
             CopyLinkButton(url: tab.url).modifier(BarHighlight())
             BarDivider()
@@ -87,6 +83,55 @@ struct DeveloperBar: View {
             UnevenRoundedRectangle(topLeadingRadius: FLXPageCornerRadius, topTrailingRadius: FLXPageCornerRadius, style: .circular)
                 .fill(barColor)
         )
+    }
+}
+
+/// The full address, edited in place as in Arc's developer mode, where changing a parameter of
+/// the address is common.
+private struct DeveloperAddressField: View {
+    let state: BrowserState
+    let tab: Tab
+    @State private var text = ""
+    @State private var editor: (view: NSTextView, attributes: [NSAttributedString.Key: Any])?
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        TextField("", text: $text)
+            .textFieldStyle(.plain)
+            .font(.system(size: 12, design: .monospaced))
+            .lineLimit(1)
+            .focused($isFocused)
+            .onAppear { text = tab.url }
+            .onChange(of: tab.url) { if !isFocused { text = tab.url } }
+            .onChange(of: isFocused) {
+                if isFocused {
+                    DispatchQueue.main.async {
+                        // A click puts the caret where it lands. The whole address is selected
+                        // instead, as in the address bars of browsers.
+                        NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+                        // The bar's white tint makes the selection white, under white text. The
+                        // window shares this editor with its other fields, so it gets its colors
+                        // back afterwards.
+                        guard let view = NSApp.keyWindow?.firstResponder as? NSTextView else { return }
+                        editor = (view, view.selectedTextAttributes)
+                        view.selectedTextAttributes = [.backgroundColor: NSColor.white, .foregroundColor: NSColor.black]
+                    }
+                } else {
+                    text = tab.url
+                    if let editor { editor.view.selectedTextAttributes = editor.attributes }
+                    editor = nil
+                }
+            }
+            .onSubmit {
+                let input = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !input.isEmpty else { return }
+                tab.load(BrowserState.looksLikeURL(input) ? BrowserState.normalizedURL(input) : state.searchEngine.url(for: input))
+                tab.browserView.focus()
+            }
+            .onExitCommand {
+                text = tab.url
+                tab.browserView.focus()
+            }
     }
 }
 
