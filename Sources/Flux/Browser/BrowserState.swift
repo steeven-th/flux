@@ -332,6 +332,11 @@ final class BrowserState {
             guard let store, let window = store.windows.first(where: { $0.shownTabs.contains { $0 === opener } }) ?? store.windows.first else { return }
             window.open(page, from: opener.spaceID, disposition: disposition)
         }
+        tab.onRequestShow = { [weak store] tab in
+            guard let window = store?.windows.first else { return }
+            window.show(tab)
+            window.onShowWindow?()
+        }
         // A pinned tab or a favorite pointing at a file stays, to download it again.
         tab.onDownloadOnly = { [weak store] tab in
             guard !tab.isKept else { return }

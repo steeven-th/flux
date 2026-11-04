@@ -46,6 +46,8 @@ final class Tab: NSObject, Identifiable {
     @ObservationIgnored var onChange: ((Tab) -> Void)?
     /// Called when the page opens a link in a new tab or window, with the new page.
     @ObservationIgnored var onOpenPage: ((Tab, FLXBrowserView, FLXOpenDisposition) -> Void)?
+    /// Chromium brought the page forward while it wasn't shown.
+    @ObservationIgnored var onRequestShow: ((Tab) -> Void)?
     /// Called when the page was opened only to download a file, and is left empty.
     @ObservationIgnored var onDownloadOnly: ((Tab) -> Void)?
     @ObservationIgnored private let profile: FLXProfile
@@ -540,6 +542,41 @@ final class Tab: NSObject, Identifiable {
         }
     }
 
+    /// Set while the page's video is in the picture-in-picture window Flux asked for.
+    @ObservationIgnored private var isInPictureInPicture = false
+
+    /// Moves the video playing with sound to Chromium's picture-in-picture window, when the tab
+    /// is left. Chromium's own automatic picture-in-picture follows its tab strip, where each of
+    /// Flux's pages stays the active tab of a window of its own, so it never sees the tab left.
+    func enterPictureInPicture() {
+        guard let loadedView else { return }
+        let script = """
+            (async () => {
+              if (document.pictureInPictureElement) return false;
+              const video = [...document.querySelectorAll('video')]
+                .filter((video) => !video.paused && !video.ended && !video.muted && video.volume > 0
+                  && video.duration >= 5 && video.readyState > 2 && !video.disablePictureInPicture)
+                .sort((a, b) => b.offsetWidth * b.offsetHeight - a.offsetWidth * a.offsetHeight)[0];
+              if (!video) return false;
+              await video.requestPictureInPicture();
+              return true;
+            })()
+            """
+        // Picture-in-picture needs a user gesture, which DevTools can make the script count as.
+        loadedView.sendDevToolsMethod("Runtime.evaluate", params: [
+            "expression": script, "userGesture": true, "awaitPromise": true, "returnByValue": true,
+        ]) { [weak self] result in
+            if (result?["result"] as? [String: Any])?["value"] as? Bool == true { self?.isInPictureInPicture = true }
+        }
+    }
+
+    /// Puts the video back in the page when the tab shows again.
+    func exitPictureInPicture() {
+        guard isInPictureInPicture, let loadedView else { return }
+        isInPictureInPicture = false
+        loadedView.evaluateJavaScript("document.pictureInPictureElement && document.exitPictureInPicture()") { _ in }
+    }
+
     func close() {
         loadedView?.close()
     }
@@ -644,6 +681,10 @@ extension Tab: FLXBrowserViewDelegate {
 
     func browserView(_ browserView: FLXBrowserView, didFindMatches count: Int, activeMatch: Int) {
         finder.update(matchCount: count, activeMatch: activeMatch)
+    }
+
+    func browserViewDidRequestShow(_ browserView: FLXBrowserView) {
+        onRequestShow?(self)
     }
 
     func browserViewDidFinishLoading(_ browserView: FLXBrowserView) {

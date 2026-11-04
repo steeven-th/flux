@@ -320,10 +320,13 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
     private func showPanes() {
         let tabs = state.shownTabs
         for (id, pane) in panes where !tabs.contains(where: { $0.id == id }) {
+            // Not for a tab being closed.
+            if state.tabs.contains(where: { $0 === pane.tab }) { pane.tab.enterPictureInPicture() }
             pane.removeFromSuperview()
             panes[id] = nil
         }
         for tab in tabs {
+            tab.exitPictureInPicture()
             let pane = panes[tab.id] ?? PaneView(tab: tab, state: state)
             panes[tab.id] = pane
             pane.isInSplit = tabs.count > 1

@@ -810,7 +810,22 @@ const CGFloat FLXPageCornerRadius = 18;
   // continuous corners don't match any path AppKit or SwiftUI draws.
   rootView.layer.cornerCurve = kCACornerCurveCircular;
   rootView.layer.masksToBounds = YES;
+  [NSNotificationCenter.defaultCenter addObserver:self
+                                         selector:@selector(pageWindowDidBecomeKey)
+                                             name:NSWindowDidBecomeKeyNotification
+                                           object:_pageNSWindow];
   [self updatePageWindow];
+}
+
+// Chromium brings a page's window forward itself, for one when the back to tab button of its
+// picture-in-picture window is clicked. A page Flux doesn't show then asks for its tab instead.
+- (void)pageWindowDidBecomeKey {
+  if (!self.window || self.isHiddenOrHasHiddenAncestor) {
+    [self updatePageWindow];
+    if ([self.delegate respondsToSelector:@selector(browserViewDidRequestShow:)]) {
+      [self.delegate browserViewDidRequestShow:self];
+    }
+  }
 }
 
 - (CACornerMask)roundedCorners {
@@ -843,6 +858,9 @@ const CGFloat FLXPageCornerRadius = 18;
 }
 
 - (void)pageWindowDestroyed {
+  [NSNotificationCenter.defaultCenter removeObserver:self
+                                                name:NSWindowDidBecomeKeyNotification
+                                              object:_pageNSWindow];
   [_pageNSWindow.parentWindow removeChildWindow:_pageNSWindow];
   _pageWindow = nullptr;
   _pageNSWindow = nil;

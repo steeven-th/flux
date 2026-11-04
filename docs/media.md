@@ -6,6 +6,10 @@ tab. Hovering it shows the title, a slider for the page's volume and a button th
 closes the player. Clicking the icon goes back to the tab. The player follows the tab that last
 started playing.
 
+When you leave a tab whose video plays with sound, the video moves to Chromium's
+picture-in-picture window, which floats above other windows and can be resized. Going back to the
+tab, or clicking the window's back to tab button, puts it back in the page.
+
 ## How it works
 
 FluxHelper runs a small script in every frame of a page, cross-origin frames included, before the
@@ -25,6 +29,11 @@ calls don't bring up the player.
 The script runs in the page's own context only. Extensions' content scripts have contexts of their
 own in the same frame, which see the page's media events but not its objects.
 
+Chromium has an automatic picture-in-picture of its own, but it follows its tab strip, where each
+of Flux's pages stays the active tab of a window of its own. Flux asks for picture-in-picture
+itself when the tab is left, through the DevTools protocol, which can make the request count as a
+user gesture.
+
 ## Known limits
 
-Sound made with the Web Audio API, without an audio or video element, isn't followed.
+Sound made with the Web Audio API, without an audio or video element, isn't followed. Picture-in-picture only takes videos of the page itself, not those in frames from other sites.
