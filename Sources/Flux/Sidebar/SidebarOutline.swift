@@ -367,6 +367,7 @@ struct SidebarOutline: NSViewRepresentable {
                 let split = MenuAction.item("Open in Split View") { [weak self] in self?.state.addToSplit(tab) }
                 split.isEnabled = state.canSplit(with: tab)
                 menu.addItem(split)
+                menu.addItem(MenuAction.item("Duplicate") { [weak self] in self?.state.duplicate(tab) })
                 menu.addItem(.separator())
                 if tab.isKept {
                     menu.addItem(MenuAction.item("Unload Tab") { [weak self] in self?.state.close(tab) })

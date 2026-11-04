@@ -591,20 +591,29 @@ final class BrowserState {
         saveWindows()
     }
 
+    /// A tab of Today, or its split, can have the new tab right below it.
     @discardableResult
     func newTab(
-        url: String, in spaceID: UUID? = nil, page: FLXBrowserView? = nil, selecting: Bool = true
+        url: String, in spaceID: UUID? = nil, page: FLXBrowserView? = nil, selecting: Bool = true,
+        below neighbour: Tab? = nil
     ) -> Tab {
         let spaceID = spaceID ?? selectedSpaceID
         // Without a stored selection the last tab shows, which the new one is about to become.
         if !selecting, selectedTabIDs[spaceID].flatMap({ id in tabs.first { $0.id == id } }) == nil {
             selectedTabIDs[spaceID] = tabs.last { $0.spaceID == spaceID }?.id
         }
-        // New tabs go to the top of Today, as in Arc.
-        let first = entries(in: .today, parentID: nil, spaceID: spaceID).first?.node.position
+        let siblings = entries(in: .today, parentID: nil, spaceID: spaceID)
+        let above = neighbour.map { split(of: $0)?.node ?? $0.node }
+            .flatMap { node in siblings.firstIndex { $0.id == node.id } }
+        // Otherwise new tabs go to the top of Today, as in Arc.
+        let position = if let above {
+            FractionalIndex.between(siblings[above].node.position, siblings.dropFirst(above + 1).first?.node.position)
+        } else {
+            FractionalIndex.between(nil, siblings.first?.node.position)
+        }
         let node = SidebarNode(
             id: UUID(), spaceID: spaceID, parentID: nil, kind: .tab, section: .today,
-            position: FractionalIndex.between(nil, first), title: "", url: url, originalURL: nil,
+            position: position, title: "", url: url, originalURL: nil,
             isExpanded: true, lastActiveAt: Date(), createdAt: Date()
         )
         save { try profileDatabases[spaceID]?.save(node) }
@@ -1196,8 +1205,10 @@ final class BrowserState {
         restore(archived)
     }
 
+    /// The copy is a tab of Today, below the original when it is one too. Chromium keeps the
+    /// back and forward history to itself, so only the address is copied.
     func duplicate(_ tab: Tab) {
-        newTab(url: tab.url, in: tab.spaceID)
+        newTab(url: tab.url, in: tab.spaceID, below: tab)
     }
 
     /// The pinned tabs shown as icons at the top of the sidebar.

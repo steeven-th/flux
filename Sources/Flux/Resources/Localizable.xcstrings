@@ -1191,6 +1191,16 @@
         }
       }
     },
+    "Duplicate" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dupliquer"
+          }
+        }
+      }
+    },
     "Duplicate Tab" : {
       "localizations" : {
         "fr" : {
