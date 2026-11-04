@@ -34,13 +34,28 @@ struct NewTabRow: View {
     }
 }
 
-/// A loaded tab shows a button that unloads it. Once unloaded, the button closes it.
+/// A loaded tab shows a button that unloads it. Once unloaded, the button closes it. The tab
+/// heading a group shows the group's cross instead, while the group is under the mouse.
 struct TabRow: View {
     let tab: Tab
-    let onUnload: () -> Void
-    let onClose: () -> Void
+    var onUnload: () -> Void = {}
+    var onClose: () -> Void = {}
+    var groupHover: GroupHover?
+    var onCloseGroup: (() -> Void)?
 
     @State private var isHovered = false
+
+    init(tab: Tab, onUnload: @escaping () -> Void, onClose: @escaping () -> Void) {
+        self.tab = tab
+        self.onUnload = onUnload
+        self.onClose = onClose
+    }
+
+    init(tab: Tab, groupHover: GroupHover, onCloseGroup: @escaping () -> Void) {
+        self.tab = tab
+        self.groupHover = groupHover
+        self.onCloseGroup = onCloseGroup
+    }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -64,7 +79,18 @@ struct TabRow: View {
 
             Spacer(minLength: 0)
 
-            if isHovered {
+            if let onCloseGroup {
+                if groupHover?.headID == tab.id {
+                    Button(action: onCloseGroup) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .semibold))
+                            .frame(width: 18, height: 18)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Close Group")
+                }
+            } else if isHovered {
                 Button(action: tab.isLoaded ? onUnload : onClose) {
                     Image(systemName: tab.isLoaded ? "minus" : "xmark")
                         .font(.system(size: 10, weight: .semibold))

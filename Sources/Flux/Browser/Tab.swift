@@ -499,6 +499,11 @@ final class Tab: NSObject, Identifiable {
         onChange?(self)
     }
 
+    /// For a tab heading a group.
+    func setExpanded(_ isExpanded: Bool) {
+        node.isExpanded = isExpanded
+    }
+
     func place(section: SidebarNode.Section, parentID: UUID?, position: String) {
         if section == .today {
             node.originalURL = nil

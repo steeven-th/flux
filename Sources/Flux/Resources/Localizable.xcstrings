@@ -811,6 +811,16 @@
         }
       }
     },
+    "Close Group" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermer le groupe"
+          }
+        }
+      }
+    },
     "Close Tab" : {
       "localizations" : {
         "fr" : {

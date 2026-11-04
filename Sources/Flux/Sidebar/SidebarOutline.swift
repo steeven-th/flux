@@ -78,6 +78,7 @@ struct SidebarOutline: NSViewRepresentable {
         private var shownSpaceID: UUID?
         private var isSyncingSelection = false
         private var revealedTabID: UUID?
+        let groupHover = GroupHover()
 
         init(state: BrowserState, onNewTab: @escaping () -> Void) {
             self.state = state
@@ -104,6 +105,10 @@ struct SidebarOutline: NSViewRepresentable {
                 outline.expandItem(section)
             }
             expandFolders(in: nil)
+            for entry in state.entries(in: .today, parentID: nil) {
+                guard case .tab(let tab) = entry, tab.node.isExpanded, state.isGroupHead(tab) else { continue }
+                outline.expandItem(tab)
+            }
             syncSelection()
         }
 
@@ -145,9 +150,16 @@ struct SidebarOutline: NSViewRepresentable {
                   let section = sections.first(where: { $0.section == node.section }) else { return }
             var containers: [NSObject] = []
             var parentID = node.parentID
-            while let id = parentID, let folder = state.folders.first(where: { $0.id == id }) {
-                containers.insert(folder, at: 0)
-                parentID = folder.node.parentID
+            while let id = parentID {
+                if let folder = state.folders.first(where: { $0.id == id }) {
+                    containers.insert(folder, at: 0)
+                    parentID = folder.node.parentID
+                } else if let head = state.tabs.first(where: { $0.id == id }) {
+                    containers.insert(head, at: 0)
+                    parentID = nil
+                } else {
+                    break
+                }
             }
             for container in [section] + containers where !outline.isItemExpanded(container) {
                 outline.expandItem(container)
@@ -164,7 +176,7 @@ struct SidebarOutline: NSViewRepresentable {
         }
 
         func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
-            item is SectionItem || item is Folder
+            item is SectionItem || item is Folder || (item as? Tab).map(state.isGroupHead) == true
         }
 
         private func children(of item: Any?) -> [NSObject] {
@@ -176,6 +188,8 @@ struct SidebarOutline: NSViewRepresentable {
                 return section.section == .today ? [newTab] + entries : entries
             case let folder as Folder:
                 return state.entries(in: .favorites, parentID: folder.id).map(\.object)
+            case let head as Tab:
+                return state.members(of: head)
             default:
                 return []
             }
@@ -190,6 +204,16 @@ struct SidebarOutline: NSViewRepresentable {
             switch item {
             case is SectionItem: nil
             case is SeparatorItem: SeparatorRowView()
+            case let tab as Tab:
+                if let head = state.groupHead(of: tab) ?? (state.isGroupHead(tab) ? tab : nil) {
+                    GroupRowView(headID: head.id, hover: groupHover) { [weak self, weak head] in
+                        guard let self, let head, let outline = self.outline else { return .single }
+                        if tab === head { return outline.isItemExpanded(head) ? .top : .single }
+                        return self.state.members(of: head).last === tab ? .bottom : .middle
+                    }
+                } else {
+                    HoverRowView()
+                }
             default: HoverRowView()
             }
         }
@@ -205,6 +229,12 @@ struct SidebarOutline: NSViewRepresentable {
                 row = AnyView(SectionHeaderRow(section: section.section))
             case is NewTabItem:
                 row = AnyView(NewTabRow())
+            case let tab as Tab where state.isGroupHead(tab):
+                // As in Dia, the group's cross closes all of it, and its first tab has none of
+                // its own.
+                row = AnyView(TabRow(tab: tab, groupHover: groupHover, onCloseGroup: { [weak self] in
+                    self?.state.closeGroup(tab)
+                }))
             case let tab as Tab:
                 row = AnyView(TabRow(tab: tab) { [weak self] in
                     self?.state.unload(tab)
@@ -315,6 +345,8 @@ struct SidebarOutline: NSViewRepresentable {
                 state.setExpanded(folder, isExpanded)
             case let section as SectionItem:
                 state.setCollapsed(section.section, !isExpanded)
+            case let head as Tab:
+                state.setExpanded(head, isExpanded)
             default:
                 break
             }
@@ -368,6 +400,8 @@ struct SidebarOutline: NSViewRepresentable {
                 return (section.section, nil, childIndex.map { max($0 - offset, 0) })
             case let folder as Folder:
                 return (.favorites, folder.id, childIndex)
+            case let head as Tab where state.isGroupHead(head):
+                return (.today, head.id, childIndex)
             default:
                 return nil
             }
@@ -395,6 +429,9 @@ struct SidebarOutline: NSViewRepresentable {
                 menu.addItem(split)
                 menu.addItem(MenuAction.item("Duplicate") { [weak self] in self?.state.duplicate(tab) })
                 menu.addItem(.separator())
+                if state.isGroupHead(tab) {
+                    menu.addItem(MenuAction.item("Close Group") { [weak self] in self?.state.closeGroup(tab) })
+                }
                 if tab.isKept {
                     menu.addItem(MenuAction.item("Unload Tab") { [weak self] in self?.state.close(tab) })
                     menu.addItem(MenuAction.item("Remove from Favorites…") { [weak self] in
@@ -493,7 +530,7 @@ private final class SeparatorRowView: NSTableRowView {
 
 /// Shows a background under the mouse, where the selection would show. The page window usually has
 /// the keyboard, so the row follows the mouse whichever window is key.
-private final class HoverRowView: NSTableRowView {
+private class HoverRowView: NSTableRowView {
     private var trackingArea: NSTrackingArea?
     private var isHovered = false {
         didSet { if isHovered != oldValue { needsDisplay = true } }
@@ -520,5 +557,82 @@ private final class HoverRowView: NSTableRowView {
         guard isHovered, !isSelected else { return }
         NSColor.labelColor.withAlphaComponent(0.06).setFill()
         NSBezierPath(roundedRect: bounds.insetBy(dx: 10, dy: 0), xRadius: 6, yRadius: 6).fill()
+    }
+}
+
+/// The group under the mouse, which shows a frame around its rows and its cross.
+@Observable
+final class GroupHover {
+    var headID: UUID?
+}
+
+/// A row of a group, which draws its part of the frame around the group under the mouse.
+private final class GroupRowView: HoverRowView {
+    enum Part { case single, top, middle, bottom }
+
+    private let headID: UUID
+    private let hover: GroupHover
+    private let part: () -> Part
+
+    init(headID: UUID, hover: GroupHover, part: @escaping () -> Part) {
+        self.headID = headID
+        self.hover = hover
+        self.part = part
+        super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not available")
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        super.mouseEntered(with: event)
+        setGroupHovered(true)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        if hover.headID == headID { setGroupHovered(false) }
+    }
+
+    private func setGroupHovered(_ isHovered: Bool) {
+        hover.headID = isHovered ? headID : nil
+        // The other rows of the group draw their part of the frame too.
+        (superview as? NSTableView)?.enumerateAvailableRowViews { rowView, _ in
+            if rowView is GroupRowView { rowView.needsDisplay = true }
+        }
+    }
+
+    override func drawBackground(in dirtyRect: NSRect) {
+        super.drawBackground(in: dirtyRect)
+        guard hover.headID == headID else { return }
+        let rect = bounds.insetBy(dx: 6.5, dy: 0)
+        let radius: CGFloat = 8
+        let top = rect.minY + 1.5
+        let bottom = rect.maxY - 1.5
+        let path = NSBezierPath()
+        switch part() {
+        case .single:
+            path.appendRoundedRect(NSRect(x: rect.minX, y: top, width: rect.width, height: bottom - top), xRadius: radius, yRadius: radius)
+        case .top:
+            path.move(to: NSPoint(x: rect.minX, y: rect.maxY))
+            path.appendArc(from: NSPoint(x: rect.minX, y: top), to: NSPoint(x: rect.maxX, y: top), radius: radius)
+            path.appendArc(from: NSPoint(x: rect.maxX, y: top), to: NSPoint(x: rect.maxX, y: rect.maxY), radius: radius)
+            path.line(to: NSPoint(x: rect.maxX, y: rect.maxY))
+        case .middle:
+            path.move(to: NSPoint(x: rect.minX, y: rect.minY))
+            path.line(to: NSPoint(x: rect.minX, y: rect.maxY))
+            path.move(to: NSPoint(x: rect.maxX, y: rect.minY))
+            path.line(to: NSPoint(x: rect.maxX, y: rect.maxY))
+        case .bottom:
+            path.move(to: NSPoint(x: rect.minX, y: rect.minY))
+            path.appendArc(from: NSPoint(x: rect.minX, y: bottom), to: NSPoint(x: rect.maxX, y: bottom), radius: radius)
+            path.appendArc(from: NSPoint(x: rect.maxX, y: bottom), to: NSPoint(x: rect.maxX, y: rect.minY), radius: radius)
+            path.line(to: NSPoint(x: rect.maxX, y: rect.minY))
+        }
+        NSColor.labelColor.withAlphaComponent(0.18).setStroke()
+        path.lineWidth = 1
+        path.stroke()
     }
 }

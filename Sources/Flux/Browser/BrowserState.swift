@@ -330,7 +330,7 @@ final class BrowserState {
         }
         tab.onOpenPage = { [weak store] opener, page, disposition in
             guard let store, let window = store.windows.first(where: { $0.shownTabs.contains { $0 === opener } }) ?? store.windows.first else { return }
-            window.open(page, from: opener.spaceID, disposition: disposition)
+            window.open(page, from: opener, disposition: disposition)
         }
         tab.onRequestShow = { [weak store] tab in
             guard let window = store?.windows.first else { return }
@@ -596,29 +596,23 @@ final class BrowserState {
         saveWindows()
     }
 
-    /// A tab of Today, or its split, can have the new tab right below it.
+    /// The new tab can go right below a tab of Today, or at the end of the group of a tab it was
+    /// opened from. Otherwise it goes to the top of Today, as in Arc.
     @discardableResult
     func newTab(
         url: String, in spaceID: UUID? = nil, page: FLXBrowserView? = nil, selecting: Bool = true,
-        below neighbour: Tab? = nil
+        below neighbour: Tab? = nil, openedFrom opener: Tab? = nil
     ) -> Tab {
         let spaceID = spaceID ?? selectedSpaceID
         // Without a stored selection the last tab shows, which the new one is about to become.
         if !selecting, selectedTabIDs[spaceID].flatMap({ id in tabs.first { $0.id == id } }) == nil {
             selectedTabIDs[spaceID] = tabs.last { $0.spaceID == spaceID }?.id
         }
-        let siblings = entries(in: .today, parentID: nil, spaceID: spaceID)
-        let above = neighbour.map { split(of: $0)?.node ?? $0.node }
-            .flatMap { node in siblings.firstIndex { $0.id == node.id } }
-        // Otherwise new tabs go to the top of Today, as in Arc.
-        let position = if let above {
-            FractionalIndex.between(siblings[above].node.position, siblings.dropFirst(above + 1).first?.node.position)
-        } else {
-            FractionalIndex.between(nil, siblings.first?.node.position)
-        }
+        let place = neighbour.flatMap(placement(below:)) ?? opener.flatMap(placement(inGroupOf:))
+        let first = entries(in: .today, parentID: nil, spaceID: spaceID).first?.node.position
         let node = SidebarNode(
-            id: UUID(), spaceID: spaceID, parentID: nil, kind: .tab, section: .today,
-            position: position, title: "", url: url, originalURL: nil,
+            id: UUID(), spaceID: spaceID, parentID: place?.parentID, kind: .tab, section: .today,
+            position: place?.position ?? FractionalIndex.between(nil, first), title: "", url: url, originalURL: nil,
             isExpanded: true, lastActiveAt: Date(), createdAt: Date()
         )
         save { try profileDatabases[spaceID]?.save(node) }
@@ -659,6 +653,8 @@ final class BrowserState {
             if archiving, tab.node.section == .today {
                 archive(tab)
             }
+            // Deleting the node would delete its group's with it.
+            dissolveGroup(of: tab)
             tabs.removeAll { $0 === tab }
             tab.close()
             save { try profileDatabases[tab.spaceID]?.delete(nodeID: tab.id) }
@@ -754,14 +750,15 @@ final class BrowserState {
     }
 
     /// A page opened by another one goes to a Peek, or to a tab of the same space.
-    private func open(_ page: FLXBrowserView, from spaceID: UUID, disposition: FLXOpenDisposition) {
+    private func open(_ page: FLXBrowserView, from opener: Tab, disposition: FLXOpenDisposition) {
+        let spaceID = opener.spaceID
         let peeks = switch disposition {
         case .linkTarget: linkTargetsOpenPeek
         case .shiftClick: shiftClickOpensPeek
         default: false
         }
         guard peeks, spaceID == selectedSpaceID else {
-            newTab(url: page.currentURL, in: spaceID, page: page, selecting: disposition != .backgroundTab)
+            newTab(url: page.currentURL, in: spaceID, page: page, selecting: disposition != .backgroundTab, openedFrom: opener)
             return
         }
         closePeek()
@@ -1181,7 +1178,7 @@ final class BrowserState {
         func tabs(in section: SidebarNode.Section, parentID: UUID?) -> [Tab] {
             entries(in: section, parentID: parentID, spaceID: spaceID).flatMap { entry -> [Tab] in
                 switch entry {
-                case .tab(let tab): [tab]
+                case .tab(let tab): [tab] + (tab.node.isExpanded ? tabs(in: section, parentID: tab.id) : [])
                 case .folder(let folder): folder.node.isExpanded ? tabs(in: section, parentID: folder.id) : []
                 case .split(let split): tabs(in: section, parentID: split.id)
                 }
@@ -1246,6 +1243,11 @@ final class BrowserState {
     static let maxPinnedTabs = 12
 
     func canMove(_ entry: SidebarEntry, to section: SidebarNode.Section, parentID: UUID?) -> Bool {
+        if section == .today, let parentID {
+            // Into a group, one level deep: a tab heading a group can't join another.
+            guard case .tab(let tab) = entry, let head = tabs.first(where: { $0.id == parentID }) else { return false }
+            return isGroupHead(head) && tab !== head && members(of: tab).isEmpty
+        }
         guard section == .favorites || parentID == nil else { return false }
         if section == .pinned, case .folder = entry { return false }
         if section == .pinned, case .split = entry { return false }
@@ -1295,6 +1297,7 @@ final class BrowserState {
         switch entry {
         case .tab(let tab):
             let split = split(of: tab)
+            if section != .today || parentID != nil { dissolveGroup(of: tab) }
             tab.place(section: section, parentID: parentID, position: position)
             save { try profileDatabases[tab.spaceID]?.save(tab.node) }
             if let split { dissolveIfNeeded(split) }
@@ -1399,6 +1402,76 @@ final class BrowserState {
         sidebarRevision += 1
     }
 
+    // Groups: tabs opened from a tab of Today go below it, as its children, like in Dia. One level
+    // deep: a link opened from a tab of a group goes to the end of the same group.
+
+    /// The tab heading the tab's group, when it is in one.
+    func groupHead(of tab: Tab) -> Tab? {
+        guard let parentID = tab.node.parentID else { return nil }
+        return tabs.first { $0.id == parentID }
+    }
+
+    func members(of head: Tab) -> [Tab] {
+        tabs.filter { $0.node.parentID == head.id }.sorted { $0.node.position < $1.node.position }
+    }
+
+    func isGroupHead(_ tab: Tab) -> Bool {
+        tabs.contains { $0.node.parentID == tab.id }
+    }
+
+    func setExpanded(_ head: Tab, _ isExpanded: Bool) {
+        guard head.node.isExpanded != isExpanded else { return }
+        head.setExpanded(isExpanded)
+        save { try profileDatabases[head.spaceID]?.save(head.node) }
+    }
+
+    /// The cross of a group closes all of its tabs.
+    func closeGroup(_ head: Tab) {
+        members(of: head).forEach(close)
+        close(head)
+    }
+
+    private func placement(below tab: Tab) -> (parentID: UUID?, position: String)? {
+        let node = split(of: tab)?.node ?? tab.node
+        guard node.section == .today, node.parentID == nil || groupHead(of: tab) != nil else { return nil }
+        let siblings = entries(in: .today, parentID: node.parentID, spaceID: tab.spaceID)
+        let next = siblings.first { $0.node.position > node.position }?.node.position
+        return (node.parentID, FractionalIndex.between(node.position, next))
+    }
+
+    private func placement(inGroupOf opener: Tab) -> (parentID: UUID?, position: String)? {
+        let head = groupHead(of: opener) ?? opener
+        guard head.node.section == .today, head.node.parentID == nil else { return nil }
+        return (head.id, FractionalIndex.between(members(of: head).last?.node.position, nil))
+    }
+
+    /// The group's tabs take the head's place, in order, and the head stays as a tab of its own.
+    private func dissolveGroup(of head: Tab) {
+        let members = members(of: head)
+        guard !members.isEmpty else { return }
+        let siblings = entries(in: .today, parentID: nil, spaceID: head.spaceID)
+        var before = head.node.position
+        let after = siblings.first { $0.node.position > head.node.position }?.node.position
+        for member in members {
+            let position = FractionalIndex.between(before, after)
+            before = position
+            member.place(section: .today, parentID: nil, position: position)
+        }
+        save { try profileDatabases[head.spaceID]?.save(members.map(\.node)) }
+        sidebarRevision += 1
+    }
+
+    /// A tab of a group goes right after it, and a tab heading one leaves the others in its place.
+    private func leaveGroup(_ tab: Tab) {
+        dissolveGroup(of: tab)
+        guard let head = groupHead(of: tab) else { return }
+        let siblings = entries(in: .today, parentID: nil, spaceID: head.spaceID)
+        let after = siblings.first { $0.node.position > head.node.position }?.node.position
+        tab.place(section: .today, parentID: nil, position: FractionalIndex.between(head.node.position, after))
+        save { try profileDatabases[tab.spaceID]?.save(tab.node) }
+        sidebarRevision += 1
+    }
+
     // Split view.
 
     static let maxSplitPanes = 4
@@ -1456,6 +1529,9 @@ final class BrowserState {
     /// The new pane goes right after the selected one, or right before it.
     func addToSplit(_ tab: Tab, after: Bool = true) {
         guard canSplit(with: tab), let selected = selectedTab else { return }
+        // A split takes its tabs out of their groups.
+        leaveGroup(tab)
+        leaveGroup(selected)
         let previousSplit = split(of: tab)
         let split: Split
         if let selectedSplit {
@@ -1529,6 +1605,7 @@ final class BrowserState {
     /// The tab takes the pane's place, and the pane's tab leaves the split.
     func replacePane(_ pane: Tab, with tab: Tab) {
         guard let split = split(of: pane) else { return }
+        leaveGroup(tab)
         let previousSplit = self.split(of: tab)
         tab.place(section: split.node.section, parentID: split.id, position: pane.node.position)
         tab.setShare(pane.node.share)
