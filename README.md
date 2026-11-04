@@ -32,6 +32,7 @@ The first run downloads about 135 MB and builds CEF's C++ wrapper. Browsing data
 ## Documentation
 
 Architecture decisions are recorded in [docs/decisions](docs/decisions).
+[docs/cef.md](docs/cef.md) explains where CEF comes from and how to update it.
 [docs/translation.md](docs/translation.md) explains how to set up page translation.
 [docs/import.md](docs/import.md) tells what comes over from each browser.
 [docs/extensions.md](docs/extensions.md) covers popups, side panels and their limits.

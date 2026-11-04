@@ -13,8 +13,6 @@ on:
           this workflow. Its archives are kept 3 days.
         type: string
         default: ""
-  push:
-    branches: [feat/cef-build]
 
 permissions:
   contents: read

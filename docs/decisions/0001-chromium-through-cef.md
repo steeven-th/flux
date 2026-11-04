@@ -13,8 +13,9 @@ lives in the `//chrome` layer of Chromium, above the `//content` rendering layer
 
 ## Decision
 
-Use Chromium through the Chromium Embedded Framework (CEF). Start with the standard binary builds
-published on the CEF build server and pin the version in the repository.
+Use Chromium through the Chromium Embedded Framework (CEF), at a version pinned in the repository.
+Flux started with the standard binary builds published on the CEF build server, and now builds
+the same version itself with proprietary codecs (see [0013](0013-cef-built-with-proprietary-codecs.md)).
 
 CEF always runs on the Chrome bootstrap, so profiles, saved passwords and installed extensions are
 Chrome's own. Each browser then uses one of two styles:
@@ -65,8 +66,8 @@ their pages as tabs and keeps those windows off screen.
 - Anything drawn over a page (overlays, previews) has to be a window above the page's window.
 - Updates follow CEF releases. The pinned version has to be bumped quickly after Chromium security
   releases.
-- Standard CEF builds don't ship proprietary codecs (H.264, AAC). Some videos won't play until we
-  decide whether to build CEF ourselves.
+- Standard CEF builds don't ship proprietary codecs (H.264, AAC), so Flux builds CEF itself
+  (see [0013](0013-cef-built-with-proprietary-codecs.md)).
 - Google services tied to Chrome (Sync, Google Translate, Google Password Manager sync) are not
   available. Translation will use Apple's on-device Translation framework.
 - CEF's API is C++, so the app needs an Objective-C++ bridge.
