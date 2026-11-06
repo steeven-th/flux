@@ -32,7 +32,8 @@ own in the same frame, which see the page's media events but not its objects.
 Chromium has an automatic picture-in-picture of its own, but it follows its tab strip, where each
 of Flux's pages stays the active tab of a window of its own. Flux asks for picture-in-picture
 itself when the tab is left, through the DevTools protocol, which can make the request count as a
-user gesture. It takes the largest video that plays, muted or not, so that a stream you muted
+user gesture. The page stays shown until the video is in the window, as some sites, Twitch among
+them, stop a muted stream as soon as the page is hidden. It takes the largest video that plays, muted or not, so that a stream you muted
 still follows you. Videos that loop or are muted in the page's HTML, as animated backgrounds are,
 and those under 320 pixels wide stay in the page.
 

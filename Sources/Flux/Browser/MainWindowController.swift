@@ -320,10 +320,23 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
     private func showPanes() {
         let tabs = state.shownTabs
         for (id, pane) in panes where !tabs.contains(where: { $0.id == id }) {
-            // Not for a tab being closed.
-            if state.tabs.contains(where: { $0 === pane.tab }) { pane.tab.enterPictureInPicture() }
-            pane.removeFromSuperview()
             panes[id] = nil
+            // Not for a tab being closed.
+            guard state.tabs.contains(where: { $0 === pane.tab }) else {
+                pane.removeFromSuperview()
+                continue
+            }
+            // Some sites, Twitch among them, stop a muted stream as soon as the page is hidden. The
+            // page stays shown under the new one until its video is in picture-in-picture, as in
+            // Chrome, where picture-in-picture starts before the tab is hidden.
+            var isRemoved = false
+            let remove = { [weak self, weak pane] in
+                guard !isRemoved, let pane else { return }
+                isRemoved = true
+                if self?.panes.values.contains(pane) != true { pane.removeFromSuperview() }
+            }
+            pane.tab.enterPictureInPicture(completion: remove)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1, execute: remove)
         }
         for tab in tabs {
             tab.exitPictureInPicture()

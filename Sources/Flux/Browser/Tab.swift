@@ -553,8 +553,8 @@ final class Tab: NSObject, Identifiable {
     /// Moves the playing video to Chromium's picture-in-picture window, when the tab is left.
     /// Chromium's own automatic picture-in-picture follows its tab strip, where each of Flux's pages
     /// stays the active tab of a window of its own, so it never sees the tab left.
-    func enterPictureInPicture() {
-        guard let loadedView else { return }
+    func enterPictureInPicture(completion: @escaping () -> Void = {}) {
+        guard let loadedView else { return completion() }
         let script = """
             (async () => {
               if (document.pictureInPictureElement) return false;
@@ -575,6 +575,7 @@ final class Tab: NSObject, Identifiable {
             "expression": script, "userGesture": true, "awaitPromise": true, "returnByValue": true,
         ]) { [weak self] result in
             if (result?["result"] as? [String: Any])?["value"] as? Bool == true { self?.isInPictureInPicture = true }
+            completion()
         }
     }
 
