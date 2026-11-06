@@ -48,20 +48,29 @@ struct SidebarView: View {
                 SidebarOutline(state: state) { showCommandBar(.newTab) }
                 PasswordExportCard(state: state)
                 ImportedExtensionsCard(state: state)
-            }
-            // The latest files rise over the bottom of the tabs, above the space bar.
-            .overlay(alignment: .bottom) {
-                if recentFiles.isShown {
-                    RecentFilesCard(state: state, presenter: recentFiles)
+
+                if let tab = state.miniPlayerTab {
+                    MiniPlayer(state: state, tab: tab)
+                        .opacity(recentFiles.isShown ? 0 : 1)
+                        .allowsHitTesting(!recentFiles.isShown)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .animation(.easeOut(duration: 0.18), value: recentFiles.isShown)
-
-            if let tab = state.miniPlayerTab {
-                MiniPlayer(state: state, tab: tab)
+            // The latest files rise over the bottom of the tabs, right above the space bar, and push
+            // the player up. Between them, the player would grow under the pointer on its way to
+            // the files.
+            .overlay(alignment: .bottom) {
+                if recentFiles.isShown {
+                    VStack(spacing: 12) {
+                        if let tab = state.miniPlayerTab {
+                            MiniPlayer(state: state, tab: tab)
+                        }
+                        RecentFilesCard(state: state, presenter: recentFiles)
+                    }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
+            .animation(.easeOut(duration: 0.18), value: recentFiles.isShown)
 
             SpaceBar(state: state, recentFiles: recentFiles)
         }
