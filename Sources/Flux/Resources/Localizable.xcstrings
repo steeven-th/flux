@@ -601,6 +601,16 @@
         }
       }
     },
+    "Cancel Download" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annuler le téléchargement"
+          }
+        }
+      }
+    },
     "Capture an Area" : {
       "localizations" : {
         "fr" : {
@@ -1637,6 +1647,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aide"
+          }
+        }
+      }
+    },
+    "Hidden from Flux, the file stays on your Mac. Moved to the Trash, it is gone from both." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masqué dans Flux, le fichier reste sur votre Mac. Placé dans la corbeille, il disparaît des deux."
           }
         }
       }
@@ -3107,6 +3127,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Retirer des favoris…"
+          }
+        }
+      }
+    },
+    "Remove “%@”?" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer « %@ » ?"
           }
         }
       }

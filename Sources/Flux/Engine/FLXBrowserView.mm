@@ -327,6 +327,13 @@ class BrowserClient : public CefClient,
     PendingPages().erase(popup_id);
   }
 
+  // CEF stops reporting a page's downloads once the page is closed, and they would never finish
+  // in Flux. A page closed with downloads running stays open, out of sight, until they end.
+  bool ClosesAfterDownloads() {
+    closes_after_downloads_ = !downloads_.empty();
+    return closes_after_downloads_;
+  }
+
   bool DoClose(CefRefPtr<CefBrowser> browser) override {
     if (!IsOwnPage(browser)) return false;
     FLXBrowserView *owner = owner_;
@@ -388,7 +395,15 @@ class BrowserClient : public CefClient,
                          CefRefPtr<CefDownloadItem> download_item,
                          CefRefPtr<CefDownloadItemCallback> callback) override {
     if (download_item->GetMimeType() == "application/x-chrome-extension") return;
-    if (profile_.downloadHandler) profile_.downloadHandler([[FLXDownload alloc] initWithItem:download_item]);
+    if (profile_.downloadHandler) {
+      profile_.downloadHandler([[FLXDownload alloc] initWithItem:download_item callback:callback]);
+    }
+    if (download_item->IsInProgress()) {
+      downloads_.insert(download_item->GetId());
+    } else {
+      downloads_.erase(download_item->GetId());
+      if (closes_after_downloads_ && downloads_.empty()) browser->GetHost()->CloseBrowser(true);
+    }
     // Not before the file has a place: the save panel, when Flux asks where to save, belongs to
     // the page.
     if (download_item->GetId() == download_closing_page_ &&
@@ -501,6 +516,8 @@ class BrowserClient : public CefClient,
   const bool opened_by_page_;
   int page_id_ = 0;
   uint32_t download_closing_page_ = 0;
+  std::set<uint32_t> downloads_;
+  bool closes_after_downloads_ = false;
   IMPLEMENT_REFCOUNTING(BrowserClient);
 };
 
@@ -1124,7 +1141,7 @@ const CGFloat FLXPageCornerRadius = 18;
 }
 
 - (void)close {
-  if (_browser) _browser->GetHost()->CloseBrowser(true);
+  if (_browser && !_client->ClosesAfterDownloads()) _browser->GetHost()->CloseBrowser(true);
 }
 
 @end

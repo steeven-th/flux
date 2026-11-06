@@ -21,6 +21,7 @@ NS_SWIFT_UI_ACTOR
 /// -1 when the server didn't tell.
 @property (nonatomic, readonly) int64_t totalBytes;
 @property (nonatomic, readonly) FLXDownloadState state;
+- (void)cancel;
 - (instancetype)init NS_UNAVAILABLE;
 @end
 

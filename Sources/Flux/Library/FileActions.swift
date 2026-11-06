@@ -67,6 +67,28 @@ struct FileActions: ViewModifier {
     }
 
     private func moveToTrash() {
+        FileRemoval.moveToTrash(url, onHide: onHide)
+    }
+}
+
+/// Removing a file from the latest files: hidden from Flux only, or put in the Trash as well.
+@MainActor
+enum FileRemoval {
+    static func confirm(_ url: URL, onHide: @escaping () -> Void) {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Remove “\(url.lastPathComponent)”?")
+        alert.informativeText = String(localized: "Hidden from Flux, the file stays on your Mac. Moved to the Trash, it is gone from both.")
+        alert.addButton(withTitle: String(localized: "Move to Trash"))
+        alert.addButton(withTitle: String(localized: "Hide from Flux"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: moveToTrash(url, onHide: onHide)
+        case .alertSecondButtonReturn: onHide()
+        default: break
+        }
+    }
+
+    static func moveToTrash(_ url: URL, onHide: (() -> Void)?) {
         guard (try? FileManager.default.trashItem(at: url, resultingItemURL: nil)) != nil else { return }
         onHide?()
     }

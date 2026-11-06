@@ -40,6 +40,12 @@ final class DownloadList {
         finished.removeAll { $0.id == record.id }
     }
 
+    /// Also takes the download off the list at once, should Chromium not report it again.
+    func cancel(_ download: FLXDownload) {
+        download.cancel()
+        inProgress.removeAll { $0.identifier == download.identifier }
+    }
+
     private func update(_ download: FLXDownload) {
         inProgress.removeAll { $0.identifier == download.identifier }
         switch download.state {

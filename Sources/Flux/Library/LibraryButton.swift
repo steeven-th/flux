@@ -112,13 +112,13 @@ private struct RecentFiles: View {
                     .padding(8)
             }
             ForEach(recent.reversed()) { item in
-                RecentRow(url: item.url) {
+                RecentRow(url: item.url, onHide: item.hide) {
                     Text(item.date, format: .relative(presentation: .named)) + Text(Self.size(of: item.url))
                 }
                 .fileActions(item.url, onHide: item.hide)
             }
             ForEach(running, id: \.identifier) { download in
-                RunningRow(download: download)
+                RunningRow(download: download) { state.downloadsOfSelectedSpace?.cancel(download) }
             }
         }
         .padding(6)
@@ -144,6 +144,7 @@ private struct RecentFiles: View {
 
 private struct RecentRow<Details: View>: View {
     let url: URL
+    let onHide: () -> Void
     @ViewBuilder let details: () -> Details
 
     @State private var isHovered = false
@@ -164,6 +165,15 @@ private struct RecentRow<Details: View>: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
+            if isHovered {
+                Button { FileRemoval.confirm(url, onHide: onHide) } label: {
+                    Image(systemName: "trash")
+                        .frame(width: 22, height: 22)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .help("Remove")
+            }
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
@@ -174,6 +184,7 @@ private struct RecentRow<Details: View>: View {
 
 private struct RunningRow: View {
     let download: FLXDownload
+    let onCancel: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -192,6 +203,14 @@ private struct RunningRow: View {
                 }
                 Text(progress).font(.callout).foregroundStyle(.secondary).lineLimit(1)
             }
+            Button(action: onCancel) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .help("Cancel Download")
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)

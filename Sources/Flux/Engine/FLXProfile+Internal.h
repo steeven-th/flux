@@ -17,10 +17,12 @@
 
 @end
 
+#include "include/cef_download_handler.h"
 #include "include/cef_download_item.h"
 
 @interface FLXDownload ()
-- (instancetype)initWithItem:(CefRefPtr<CefDownloadItem>)item;
+- (instancetype)initWithItem:(CefRefPtr<CefDownloadItem>)item
+                    callback:(CefRefPtr<CefDownloadItemCallback>)callback;
 @end
 
 /// Drops every profile's request context. Called right before the engine shuts down.

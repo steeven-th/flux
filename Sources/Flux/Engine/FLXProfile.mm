@@ -329,10 +329,15 @@ void FLXProfileReleaseAll() {
   [g_profiles removeAllObjects];
 }
 
-@implementation FLXDownload
+@implementation FLXDownload {
+  // Still works once the page that started the download is closed.
+  CefRefPtr<CefDownloadItemCallback> _callback;
+}
 
-- (instancetype)initWithItem:(CefRefPtr<CefDownloadItem>)item {
+- (instancetype)initWithItem:(CefRefPtr<CefDownloadItem>)item
+                    callback:(CefRefPtr<CefDownloadItemCallback>)callback {
   self = [super init];
+  _callback = callback;
   _identifier = item->GetId();
   _url = [NSString stringWithUTF8String:item->GetOriginalUrl().ToString().c_str()];
   _path = [NSString stringWithUTF8String:item->GetFullPath().ToString().c_str()];
@@ -347,6 +352,10 @@ void FLXProfileReleaseAll() {
     _state = FLXDownloadStateInProgress;
   }
   return self;
+}
+
+- (void)cancel {
+  if (_callback) _callback->Cancel();
 }
 
 @end
