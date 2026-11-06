@@ -70,6 +70,14 @@ private struct SuggestionRow: View {
             Text(title)
                 .lineLimit(1)
                 .truncationMode(.tail)
+                .layoutPriority(1)
+            // Sites often give all their pages the same title.
+            if let address, address != title {
+                Text(address)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .foregroundStyle(.secondary)
+            }
             Spacer(minLength: 12)
             Text(action)
                 .font(.callout)
@@ -97,7 +105,7 @@ private struct SuggestionRow: View {
             } else {
                 Image(systemName: "clock").foregroundStyle(.secondary)
             }
-        case .url:
+        case .site, .url:
             Image(systemName: "globe").foregroundStyle(.secondary)
         case .search:
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
@@ -107,16 +115,24 @@ private struct SuggestionRow: View {
     private var title: String {
         switch suggestion {
         case .tab(let tab): tab.displayTitle
-        case .page(let page): page.title.isEmpty ? page.url : page.title
+        case .page(let page), .site(let page): page.title.isEmpty ? ChromiumHistory.shortAddress(of: page.url) : page.title
         case .url(let url): url
         case .search(let query): query
+        }
+    }
+
+    private var address: String? {
+        switch suggestion {
+        case .tab(let tab): ChromiumHistory.shortAddress(of: tab.url)
+        case .page(let page), .site(let page): ChromiumHistory.shortAddress(of: page.url)
+        case .url, .search: nil
         }
     }
 
     private var action: String {
         switch suggestion {
         case .tab: String(localized: "Switch to Tab")
-        case .page, .url: String(localized: "Open")
+        case .page, .site, .url: String(localized: "Open")
         case .search: String(localized: "Search \(searchEngineName)")
         }
     }

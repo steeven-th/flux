@@ -18,6 +18,8 @@ final class CommandBarModel {
     enum Suggestion: Identifiable {
         case tab(Tab)
         case page(ChromiumHistory.Page)
+        /// The home page of a site whose domain starts with the text.
+        case site(ChromiumHistory.Page)
         case url(String)
         case search(String)
 
@@ -25,6 +27,7 @@ final class CommandBarModel {
             switch self {
             case .tab(let tab): "tab:\(tab.id)"
             case .page(let page): "page:\(page.url)"
+            case .site(let page): "site:\(page.url)"
             case .url(let url): "url:\(url)"
             case .search(let query): "search:\(query)"
             }
@@ -76,7 +79,7 @@ final class CommandBarModel {
             } else {
                 state.select(tab)
             }
-        case .page(let page):
+        case .page(let page), .site(let page):
             open(page.url, inBackground: background)
         case .url(let url):
             open(url, inBackground: background)
@@ -111,15 +114,16 @@ final class CommandBarModel {
         guard !text.isEmpty, let history = state.historyOfSelectedSpace else { return }
         historySearch = Task { [weak self, query] in
             let pages = await history.search(text, limit: Self.maximumSuggestions)
+            let site = await history.site(startingWith: text)
             guard let self, !Task.isCancelled, self.query == query else { return }
             let selected = self.suggestions.indices.contains(self.selectedIndex) ? self.suggestions[self.selectedIndex].id : nil
-            self.suggestions = self.suggestions(for: query, pages: pages)
+            self.suggestions = self.suggestions(for: query, pages: pages, site: site)
             // Keeps the row picked with the arrow keys while the search ran.
             self.selectedIndex = self.suggestions.firstIndex { $0.id == selected } ?? 0
         }
     }
 
-    private func suggestions(for query: String, pages: [ChromiumHistory.Page]) -> [Suggestion] {
+    private func suggestions(for query: String, pages: [ChromiumHistory.Page], site: ChromiumHistory.Page? = nil) -> [Suggestion] {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let tabs = state.tabsInSelectedSpace.filter { $0 !== state.selectedTab }
 
@@ -128,7 +132,6 @@ final class CommandBarModel {
             return recent.prefix(Self.maximumSuggestions).map(Suggestion.tab)
         }
 
-        let typed: Suggestion = BrowserState.looksLikeURL(text) ? .url(BrowserState.normalizedURL(text)) : .search(text)
         let matches = tabs.filter { $0.title.localizedStandardContains(text) || $0.url.localizedStandardContains(text) }
         // A tab whose title or site starts with the text is most likely the one wanted, as in Arc.
         let best = matches.first { tab in
@@ -136,16 +139,30 @@ final class CommandBarModel {
                 || (URL(string: tab.url)?.host() ?? "").replacingOccurrences(of: "www.", with: "")
                     .range(of: text, options: [.anchored, .caseInsensitive]) != nil
         }
-        let openURLs = Set(state.tabsInSelectedSpace.map(\.url))
-        let newPages = pages.filter { !openURLs.contains($0.url) }
+        let openKeys = Set(state.tabsInSelectedSpace.map { ChromiumHistory.pageKey($0.url) })
+        let isOpen = { (page: ChromiumHistory.Page) in openKeys.contains(ChromiumHistory.pageKey(page.url)) }
+        // The home page of a site whose domain starts with the text comes first, as in Chromium's
+        // address bar.
+        let home = site.flatMap { isOpen($0) ? nil : $0 }
+        let newPages = pages.filter { !isOpen($0) && ChromiumHistory.pageKey($0.url) != home.map { ChromiumHistory.pageKey($0.url) } }
         // A history page only goes before the typed text when its site or title starts with it,
         // so typing a search and pressing return still searches.
-        let bestPage = best == nil ? newPages.first { ChromiumHistory.startsMatch($0, text: text) } : nil
+        let bestPage = best == nil ? home ?? newPages.first { ChromiumHistory.startsMatch($0, text: text) } : nil
+
+        var typed: [Suggestion] = [.search(text)]
+        if BrowserState.looksLikeURL(text) {
+            let url = BrowserState.normalizedURL(text)
+            // Typing a domain in full gives its home page above, which already opens it.
+            let isHome = [bestPage, home].contains { page in
+                page.map { ChromiumHistory.site(of: $0.url) == ChromiumHistory.site(of: url) } == true
+            }
+            if !isHome { typed.insert(.url(url), at: 0) }
+        }
 
         var list: [Suggestion] = []
         if let best { list.append(.tab(best)) }
-        if let bestPage { list.append(.page(bestPage)) }
-        list.append(typed)
+        if let bestPage { list.append(bestPage == home ? .site(bestPage) : .page(bestPage)) }
+        list += typed
         list += matches.filter { $0 !== best }.map(Suggestion.tab)
         list += newPages.filter { $0 != bestPage }.map(Suggestion.page)
         return Array(list.prefix(Self.maximumSuggestions))

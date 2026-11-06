@@ -40,11 +40,70 @@ actor ChromiumHistory {
         guard let database else { return [] }
         let pages = (try? database.read { db in try Self.candidates(matching: words, in: db) }) ?? []
         let now = Date()
+        var seen = Set<String>()
         return pages
             .map { page in (page, Self.score(page, text: words.joined(separator: " "), now: now)) }
             .sorted { $0.1 > $1.1 }
-            .prefix(limit)
             .map(\.0)
+            .filter { seen.insert(Self.pageKey($0.url)).inserted }
+            .prefix(limit)
+            .map { $0 }
+    }
+
+    /// The home page of the most visited site whose domain starts with `text`, as if the domain had
+    /// been typed in full. Its title is the home page's, when it was visited.
+    func site(startingWith text: String) -> Page? {
+        var prefix = text.lowercased().folding(options: .diacriticInsensitive, locale: nil)
+        for scheme in ["https://", "http://"] where prefix.hasPrefix(scheme) { prefix.removeFirst(scheme.count) }
+        if prefix.hasPrefix("www.") { prefix.removeFirst(4) }
+        if prefix.hasSuffix("/") { prefix.removeLast() }
+        guard prefix.count >= 2, !prefix.contains(where: { $0.isWhitespace || $0 == "/" }) else { return nil }
+        refreshCopy()
+        guard let database else { return nil }
+        let pages = (try? database.read { db in try Self.candidates(onSitesStartingWith: prefix, in: db) }) ?? []
+        let sites = Dictionary(grouping: pages) { URL(string: $0.url)?.host() ?? "" }
+        guard let (host, visits) = sites.max(by: { Self.weight($0.value) < Self.weight($1.value) }),
+              Self.weight(visits) >= 2,
+              let scheme = visits.first.flatMap({ URL(string: $0.url)?.scheme })
+        else { return nil }
+        let home = visits.first { page in
+            guard let url = URL(string: page.url) else { return false }
+            return (url.path() == "/" || url.path().isEmpty) && url.query() == nil
+        }
+        return Page(
+            url: home?.url ?? "\(scheme)://\(host)/",
+            title: home?.title ?? "",
+            visitCount: visits.map(\.visitCount).reduce(0, +),
+            typedCount: visits.map(\.typedCount).reduce(0, +),
+            lastVisit: visits.map(\.lastVisit).max() ?? .distantPast
+        )
+    }
+
+    private static func weight(_ pages: [Page]) -> Int {
+        pages.map { $0.visitCount + 2 * $0.typedCount }.reduce(0, +)
+    }
+
+    static func site(of url: String) -> String {
+        let host = URL(string: url)?.host() ?? ""
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+    }
+
+    /// The domain and path, shorter to read than the address.
+    static func shortAddress(of url: String) -> String {
+        guard let address = URL(string: url) else { return url }
+        let path = address.path()
+        return site(of: url) + (path == "/" ? "" : path)
+    }
+
+    /// Addresses that only differ by their fragment or by tracking parameters are the same page.
+    static func pageKey(_ url: String) -> String {
+        guard var components = URLComponents(string: url) else { return url }
+        components.fragment = nil
+        components.queryItems = components.queryItems?.filter { item in
+            !item.name.hasPrefix("utm_") && !["fbclid", "gclid", "msclkid"].contains(item.name)
+        }
+        if components.queryItems?.isEmpty == true { components.queryItems = nil }
+        return components.string ?? url
     }
 
     private func refreshCopy() {
@@ -76,6 +135,37 @@ actor ChromiumHistory {
         }
     }
 
+    private static func candidates(onSitesStartingWith prefix: String, in db: Database) throws -> [Page] {
+        let pattern = escapedForLike(prefix) + "%"
+        let sql = """
+            SELECT url, title, visit_count, typed_count, last_visit_time FROM urls
+            WHERE hidden = 0 AND (url LIKE 'https://' || ? ESCAPE '\\' OR url LIKE 'http://' || ? ESCAPE '\\'
+                OR url LIKE 'https://www.' || ? ESCAPE '\\' OR url LIKE 'http://www.' || ? ESCAPE '\\')
+            ORDER BY visit_count DESC LIMIT 500
+            """
+        return try Row.fetchAll(db, sql: sql, arguments: [pattern, pattern, pattern, pattern]).map(page)
+            // The text has to stay within the domain, not run on into the path.
+            .filter { page in
+                site(of: page.url).hasPrefix(prefix)
+            }
+    }
+
+    private static func escapedForLike(_ text: String) -> String {
+        text.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "%", with: "\\%")
+            .replacingOccurrences(of: "_", with: "\\_")
+    }
+
+    private static func page(_ row: Row) -> Page {
+        Page(
+            url: row["url"],
+            title: row["title"],
+            visitCount: row["visit_count"],
+            typedCount: row["typed_count"],
+            lastVisit: date(fromChromiumTime: row["last_visit_time"])
+        )
+    }
+
     private static func candidates(matching words: [String], in db: Database) throws -> [Page] {
         var sql = """
             SELECT url, title, visit_count, typed_count, last_visit_time FROM urls
@@ -84,21 +174,11 @@ actor ChromiumHistory {
         var arguments: [String] = []
         for word in words {
             sql += " AND (url LIKE ? ESCAPE '\\' OR title LIKE ? ESCAPE '\\')"
-            let pattern = "%" + word.replacingOccurrences(of: "\\", with: "\\\\")
-                .replacingOccurrences(of: "%", with: "\\%")
-                .replacingOccurrences(of: "_", with: "\\_") + "%"
+            let pattern = "%" + escapedForLike(word) + "%"
             arguments += [pattern, pattern]
         }
         sql += " ORDER BY last_visit_time DESC LIMIT 200"
-        return try Row.fetchAll(db, sql: sql, arguments: StatementArguments(arguments)).map { row in
-            Page(
-                url: row["url"],
-                title: row["title"],
-                visitCount: row["visit_count"],
-                typedCount: row["typed_count"],
-                lastVisit: date(fromChromiumTime: row["last_visit_time"])
-            )
-        }
+        return try Row.fetchAll(db, sql: sql, arguments: StatementArguments(arguments)).map(page)
     }
 
     /// Chromium counts microseconds since 1601.
