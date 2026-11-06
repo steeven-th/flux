@@ -58,6 +58,10 @@ jobs:
           for x in /Applications/Xcode*.app; do
             [[ "$(readlink -f "$x")" == "$XCODE" ]] || sudo rm -rf "$x"
           done
+          # Each runner image installs Xcode anew, so its files get new mtimes and siso would
+          # rebuild everything that includes the SDK when a job lands on another image than the
+          # one before. The same mtimes on every image let a build resume across them.
+          sudo find "$XCODE" -exec touch -h -t 202601010000 {} +
           xcrun simctl delete all || true
           xcrun simctl runtime delete all || true
           sudo rm -rf "${ANDROID_HOME:-/nonexistent}" ~/Library/Android /Users/runner/hostedtoolcache \

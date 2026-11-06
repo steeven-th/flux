@@ -29,8 +29,13 @@ GitHub turns off scheduled workflows after 60 days without activity in the repos
 by email, and the watch can then be turned back on from the Actions tab.
 
 If a job fails, fix the cause and run the workflow again with `resume_from` set to the ID of the
-failed run, and the same `cef_version`. It picks up from that run's last build folder, kept 3 days. A job cancelled because no
-macOS runner was available can simply be re-run.
+failed run, and the same `cef_version`. It picks up from that run's last build folder, kept 3 days.
+A job cancelled because no macOS runner was available can simply be re-run.
+
+Jobs can land on different versions of the macOS runner image while GitHub rolls out a new one.
+siso compares file mtimes, and each image installs Xcode with its own, so the workflow gives every
+Xcode file the same mtime before building. Without it, a job on another image than the one before
+recompiles most of Chromium.
 
 ## When the checkout fails
 
