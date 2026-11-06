@@ -550,17 +550,20 @@ final class Tab: NSObject, Identifiable {
     /// Set while the page's video is in the picture-in-picture window Flux asked for.
     @ObservationIgnored private var isInPictureInPicture = false
 
-    /// Moves the video playing with sound to Chromium's picture-in-picture window, when the tab
-    /// is left. Chromium's own automatic picture-in-picture follows its tab strip, where each of
-    /// Flux's pages stays the active tab of a window of its own, so it never sees the tab left.
+    /// Moves the playing video to Chromium's picture-in-picture window, when the tab is left.
+    /// Chromium's own automatic picture-in-picture follows its tab strip, where each of Flux's pages
+    /// stays the active tab of a window of its own, so it never sees the tab left.
     func enterPictureInPicture() {
         guard let loadedView else { return }
         let script = """
             (async () => {
               if (document.pictureInPictureElement) return false;
+              // A video muted later, as a stream may be, counts. Decorative ones loop or are muted
+              // in the HTML, which players aren't.
               const video = [...document.querySelectorAll('video')]
-                .filter((video) => !video.paused && !video.ended && !video.muted && video.volume > 0
-                  && video.duration >= 5 && video.readyState > 2 && !video.disablePictureInPicture)
+                .filter((video) => !video.paused && !video.ended && !video.loop && !video.defaultMuted
+                  && video.offsetWidth >= 320 && video.duration >= 5 && video.readyState > 2
+                  && !video.disablePictureInPicture)
                 .sort((a, b) => b.offsetWidth * b.offsetHeight - a.offsetWidth * a.offsetHeight)[0];
               if (!video) return false;
               await video.requestPictureInPicture();

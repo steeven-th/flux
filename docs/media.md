@@ -6,7 +6,7 @@ tab. Hovering it shows the title, a slider for the page's volume and a button th
 closes the player. Clicking the icon goes back to the tab. The player follows the tab that last
 started playing.
 
-When you leave a tab whose video plays with sound, the video moves to Chromium's
+When you leave a tab whose video plays, the video moves to Chromium's
 picture-in-picture window, which floats above other windows and can be resized. Going back to the
 tab, or clicking the window's back to tab button, puts it back in the page.
 
@@ -32,7 +32,9 @@ own in the same frame, which see the page's media events but not its objects.
 Chromium has an automatic picture-in-picture of its own, but it follows its tab strip, where each
 of Flux's pages stays the active tab of a window of its own. Flux asks for picture-in-picture
 itself when the tab is left, through the DevTools protocol, which can make the request count as a
-user gesture.
+user gesture. It takes the largest video that plays, muted or not, so that a stream you muted
+still follows you. Videos that loop or are muted in the page's HTML, as animated backgrounds are,
+and those under 320 pixels wide stay in the page.
 
 ## Known limits
 
