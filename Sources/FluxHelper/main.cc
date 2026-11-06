@@ -37,6 +37,25 @@ constexpr char kPopupShim[] = R"(
 })();
 )";
 
+// A page whose video is in picture-in-picture goes on to tell itself visible. Its tab is hidden, and
+// players such as Twitch's lower the quality of a hidden page's stream, even watched in the window.
+constexpr char kPictureInPictureShim[] = R"(
+(() => {
+  const prototype = Document.prototype;
+  for (const [name, value] of [['visibilityState', 'visible'], ['hidden', false]]) {
+    const property = Object.getOwnPropertyDescriptor(prototype, name);
+    if (!property?.get) continue;
+    Object.defineProperty(prototype, name, {
+      ...property,
+      get() { return this.pictureInPictureElement ? value : property.get.call(this); },
+    });
+  }
+  document.addEventListener('visibilitychange', (event) => {
+    if (document.pictureInPictureElement) event.stopImmediatePropagation();
+  }, true);
+})();
+)";
+
 // Chromium knows when a tab plays sound but CEF doesn't say, so each frame tells Flux itself. Media
 // events don't bubble, so they are caught on their way down to elements in the page. Players often
 // keep their element out of the page, so play() notes those too. Web Audio isn't followed.
@@ -228,14 +247,15 @@ class RendererApp : public CefApp, public CefRenderProcessHandler {
     CefRefPtr<CefV8Context> page_context = frame->GetV8Context();
     if (!page_context || !context->IsSame(page_context)) return;
     Watch(kAudioWatcher, kAudioMessage, frame, context);
+    CefRefPtr<CefV8Value> result;
+    CefRefPtr<CefV8Exception> exception;
+    context->Eval(kPictureInPictureShim, CefString(), 0, result, exception);
     std::string id = frame->GetIdentifier().ToString();
     page_contexts_[id] = context;
     CefRefPtr<CefV8Value> control = Watch(kMediaWatcher, kMediaMessage, frame, context);
     if (control && control->IsFunction()) media_controls_[id] = control;
     if (!popup_browsers_.count(browser->GetIdentifier()) || !frame->IsMain()) return;
     if (frame->GetURL().ToString().rfind("chrome-extension://", 0) != 0) return;
-    CefRefPtr<CefV8Value> result;
-    CefRefPtr<CefV8Exception> exception;
     context->Eval(kPopupShim, CefString(), 0, result, exception);
   }
 
