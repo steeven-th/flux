@@ -3,8 +3,8 @@
 When a tab plays sound and you move to another tab or space, a small player shows above the space
 bar. It has the site's icon, previous and next track, play and pause, and a button that mutes the
 tab. Hovering it shows the title, a slider for the page's volume and a button that pauses and
-closes the player. Clicking the icon goes back to the tab. The player follows the tab that last
-started playing.
+closes the player. Clicking the icon goes back to the tab. When several tabs play, their players
+stack up, the one that last started playing in front, and hovering the stack spreads them out.
 
 When you leave a tab whose video plays, the video moves to Chromium's
 picture-in-picture window, which floats above other windows and can be resized. Going back to the

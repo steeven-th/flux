@@ -49,8 +49,8 @@ struct SidebarView: View {
                 PasswordExportCard(state: state)
                 ImportedExtensionsCard(state: state)
 
-                if let tab = state.miniPlayerTab {
-                    MiniPlayer(state: state, tab: tab)
+                if !state.miniPlayerTabs.isEmpty {
+                    MiniPlayerStack(state: state)
                         .opacity(recentFiles.isShown ? 0 : 1)
                         .allowsHitTesting(!recentFiles.isShown)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -62,8 +62,8 @@ struct SidebarView: View {
             .overlay(alignment: .bottom) {
                 if recentFiles.isShown {
                     VStack(spacing: 12) {
-                        if let tab = state.miniPlayerTab {
-                            MiniPlayer(state: state, tab: tab)
+                        if !state.miniPlayerTabs.isEmpty {
+                            MiniPlayerStack(state: state)
                         }
                         RecentFilesCard(state: state, presenter: recentFiles)
                     }
@@ -74,7 +74,7 @@ struct SidebarView: View {
 
             SpaceBar(state: state, recentFiles: recentFiles)
         }
-        .animation(.easeOut(duration: 0.2), value: state.miniPlayerTab?.id)
+        .animation(.easeOut(duration: 0.2), value: state.miniPlayerTabs.isEmpty)
     }
 }
 

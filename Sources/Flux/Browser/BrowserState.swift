@@ -1495,13 +1495,12 @@ final class BrowserState {
         return selectedTab.map { [$0] } ?? []
     }
 
-    /// The tab the mini player controls: the one that last started playing, while it isn't shown.
-    var miniPlayerTab: Tab? {
-        let latest = tabs
-            .filter { $0.media != nil && !$0.isMediaDismissed }
-            .max { ($0.mediaStartedAt ?? .distantPast) < ($1.mediaStartedAt ?? .distantPast) }
-        guard let latest, !shownTabs.contains(where: { $0 === latest }) else { return nil }
-        return latest
+    /// The tabs with a mini player, the one that last started playing first. Shown tabs have none.
+    var miniPlayerTabs: [Tab] {
+        let shown = shownTabs
+        return tabs
+            .filter { tab in tab.media != nil && !tab.isMediaDismissed && !shown.contains { $0 === tab } }
+            .sorted { ($0.mediaStartedAt ?? .distantPast) > ($1.mediaStartedAt ?? .distantPast) }
     }
 
     /// Shows a tab of any space.
