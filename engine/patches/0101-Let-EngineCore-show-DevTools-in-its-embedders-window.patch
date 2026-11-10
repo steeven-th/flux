@@ -1,0 +1,78 @@
+Subject: [PATCH] Let EngineCore show DevTools in its embedder's window
+
+Chrome docks DevTools only next to a tab of its own browser windows. In
+any other web contents they open undocked, in a window of their own, and
+their frontend leaves out what needs docking, device mode among them.
+EngineCore's pages have no browser, so ToggleDevToolsWindow, which every
+way of opening DevTools for a web contents goes through, asks EngineCore
+first. EngineCore then hosts the frontend itself, docked in its
+embedder's window.
+---
+diff --git a/chrome/browser/devtools/devtools_window.cc b/chrome/browser/devtools/devtools_window.cc
+index 7613579..ad2d894 100644
+--- a/chrome/browser/devtools/devtools_window.cc
++++ b/chrome/browser/devtools/devtools_window.cc
+@@ -139,6 +139,8 @@ using content::WebContents;
+ 
+ namespace {
+ 
++DevToolsWindow::EmbedderToggleCallback* g_embedder_toggle_callback = nullptr;
++
+ typedef std::vector<DevToolsWindow*> DevToolsWindows;
+ DevToolsWindows& GetDevToolsWindowInstances() {
+   static base::NoDestructor<DevToolsWindows> instances;
+@@ -874,6 +876,11 @@ void DevToolsWindow::ToggleDevToolsWindow(
+     const std::string& settings,
+     DevToolsOpenedByAction toggled_by,
+     const content::DevToolsManagerDelegate::DevToolsOptions& devtools_options) {
++  if (g_embedder_toggle_callback &&
++      g_embedder_toggle_callback->Run(inspected_web_contents, force_open,
++                                      action)) {
++    return;
++  }
+   scoped_refptr<DevToolsAgentHost> agent(
+       DevToolsAgentHost::GetOrCreateForTab(inspected_web_contents));
+   DevToolsWindow* window = FindDevToolsWindow(agent.get());
+@@ -949,6 +956,12 @@ void DevToolsWindow::ToggleDevToolsWindow(
+   }
+ }
+ 
++// static
++void DevToolsWindow::SetEmbedderToggleCallback(
++    EmbedderToggleCallback callback) {
++  g_embedder_toggle_callback = new EmbedderToggleCallback(std::move(callback));
++}
++
+ // static
+ void DevToolsWindow::InspectElement(
+     content::RenderFrameHost* inspected_frame_host,
+diff --git a/chrome/browser/devtools/devtools_window.h b/chrome/browser/devtools/devtools_window.h
+index e44b0c3..03d94c4 100644
+--- a/chrome/browser/devtools/devtools_window.h
++++ b/chrome/browser/devtools/devtools_window.h
+@@ -9,6 +9,7 @@
+ #include <string>
+ 
+ #include "base/callback_list.h"
++#include "base/functional/callback.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/memory/weak_ptr.h"
+ #include "base/scoped_observation.h"
+@@ -203,6 +204,17 @@ class DevToolsWindow : public DevToolsUIBindings::Delegate,
+                              int x,
+                              int y);
+ 
++  // Lets EngineCore (//engine_core) show the DevTools of its pages in its
++  // embedder's window, which has no browser to dock them in. Every way of
++  // opening DevTools for a web contents goes through ToggleDevToolsWindow,
++  // which asks the callback first. It returns true when it handled
++  // `inspected_web_contents`.
++  using EmbedderToggleCallback =
++      base::RepeatingCallback<bool(content::WebContents* inspected_web_contents,
++                                   bool force_open,
++                                   const DevToolsToggleAction& action)>;
++  static void SetEmbedderToggleCallback(EmbedderToggleCallback callback);
++
+   static void LogDevToolsOpenedByAction(DevToolsOpenedByAction opened_by);
+ 
+   // Logs UKM event when DevTools is opened.

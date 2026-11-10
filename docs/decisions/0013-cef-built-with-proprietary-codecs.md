@@ -1,6 +1,6 @@
 # 13. CEF built with proprietary codecs
 
-Status: Accepted
+Status: Replaced by [0014](0014-chrome-framework-instead-of-cef.md)
 
 ## Context
 

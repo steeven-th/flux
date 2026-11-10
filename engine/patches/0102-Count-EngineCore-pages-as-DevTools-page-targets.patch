@@ -1,0 +1,72 @@
+Subject: [PATCH] Count EngineCore's pages as DevTools page targets
+
+The DevTools protocol lists a web contents as a "page" target only when
+it is a tab of Chrome's tab strips, and as "other" otherwise. EngineCore's
+pages are in no tab strip, so clients looking for pages, the DevTools
+frontend and Target.getTargets among them, passed them over. EngineCore
+tells Chrome which web contents are its pages.
+---
+diff --git a/chrome/browser/devtools/chrome_devtools_manager_delegate.cc b/chrome/browser/devtools/chrome_devtools_manager_delegate.cc
+index 37a8337..dc0c46e 100644
+--- a/chrome/browser/devtools/chrome_devtools_manager_delegate.cc
++++ b/chrome/browser/devtools/chrome_devtools_manager_delegate.cc
+@@ -86,6 +86,9 @@ const char ChromeDevToolsManagerDelegate::kTypePage[] = "page";
+ 
+ namespace {
+ 
++ChromeDevToolsManagerDelegate::IsEmbedderPageCallback*
++    g_is_embedder_page_callback = nullptr;
++
+ // LINT.IfChange(DevToolsRemoteDebuggingConnectionPermission)
+ // This enum is used for UMA histograms and should not be renumbered.
+ enum class DevToolsRemoteDebuggingConnectionPermission {
+@@ -302,6 +305,12 @@ void ChromeDevToolsManagerDelegate::HandleCommand(
+   it->second->HandleCommand(message, std::move(callback));
+ }
+ 
++// static
++void ChromeDevToolsManagerDelegate::SetIsEmbedderPageCallback(
++    IsEmbedderPageCallback callback) {
++  g_is_embedder_page_callback = new IsEmbedderPageCallback(std::move(callback));
++}
++
+ std::string ChromeDevToolsManagerDelegate::GetTargetType(
+     content::WebContents* web_contents) {
+   if (webui_browser::IsBrowserUIWebContents(web_contents)) {
+@@ -316,6 +325,11 @@ std::string ChromeDevToolsManagerDelegate::GetTargetType(
+     return DevToolsAgentHost::kTypePage;
+   }
+ 
++  if (g_is_embedder_page_callback &&
++      g_is_embedder_page_callback->Run(web_contents)) {
++    return DevToolsAgentHost::kTypePage;
++  }
++
+   std::string extension_name;
+   std::string extension_type;
+   if (GetExtensionInfo(web_contents, &extension_name, &extension_type)) {
+diff --git a/chrome/browser/devtools/chrome_devtools_manager_delegate.h b/chrome/browser/devtools/chrome_devtools_manager_delegate.h
+index 5a1fb50..e810c98 100644
+--- a/chrome/browser/devtools/chrome_devtools_manager_delegate.h
++++ b/chrome/browser/devtools/chrome_devtools_manager_delegate.h
+@@ -10,6 +10,7 @@
+ #include <set>
+ #include <string>
+ 
++#include "base/functional/callback.h"
+ #include "base/gtest_prod_util.h"
+ #include "chrome/browser/devtools/device/devtools_device_discovery.h"
+ #include "chrome/browser/devtools/global_confirm_info_bar.h"
+@@ -58,6 +59,12 @@ class ChromeDevToolsManagerDelegate : public content::DevToolsManagerDelegate,
+   // Release browser keep alive allowing browser to close.
+   static void AllowBrowserToClose();
+ 
++  // Lets EngineCore (//engine_core) report its pages, which are in no tab
++  // strip, as pages rather than "other" targets, as Chrome's tabs are.
++  using IsEmbedderPageCallback =
++      base::RepeatingCallback<bool(content::WebContents* web_contents)>;
++  static void SetIsEmbedderPageCallback(IsEmbedderPageCallback callback);
++
+  private:
+   friend class DevToolsManagerDelegateTest;
+   FRIEND_TEST_ALL_PREFIXES(DevToolsRemoteServerInfobarBrowserTest,
