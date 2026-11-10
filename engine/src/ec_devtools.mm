@@ -167,6 +167,7 @@ void RegisterDevToolsHost() {
   std::unique_ptr<content::WebContents> _frontend;
   std::unique_ptr<FrontendDelegate> _frontendDelegate;
   std::unique_ptr<DevToolsToggleAction> _pendingAction;
+  NSString* _pendingPanel;
   BOOL _loaded;
   NSView* _view;
 }
@@ -261,8 +262,25 @@ void RegisterDevToolsHost() {
   }
 }
 
+- (void)showPanel:(NSString*)panel {
+  if (!_loaded) {
+    _pendingPanel = [panel copy];
+    return;
+  }
+  DevToolsUIBindings* bindings =
+      _frontend ? DevToolsUIBindings::ForWebContents(_frontend.get()) : nullptr;
+  if (bindings) {
+    bindings->CallClientMethod("DevToolsAPI", "showPanel",
+                               base::Value(base::SysNSStringToUTF8(panel)));
+  }
+}
+
 - (void)frontendDidLoad {
   _loaded = YES;
+  if (_pendingPanel) {
+    [self showPanel:_pendingPanel];
+    _pendingPanel = nil;
+  }
   if (!_pendingAction) {
     return;
   }

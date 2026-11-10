@@ -436,6 +436,8 @@ EC_EXPORT
 // Empty until DevTools have laid out.
 @property(readonly) NSRect inspectedPageBounds;
 @property(weak, nullable) id<ECDevToolsDelegate> delegate;
+// A panel by its DevTools name: "console", "network", "sources"...
+- (void)showPanel:(NSString*)panel;
 @end
 
 @protocol ECWebContentsDelegate <NSObject>
