@@ -301,7 +301,9 @@ final class BrowserState {
         histories[space.id] = ChromiumHistory(profileFolder: space.profileFolder)
         passwordManagers[space.id] = ChromiumPasswordManager(profile: profile)
         if downloadLists[profile.path] == nil {
-            downloadLists[profile.path] = DownloadList(profile: profile, database: database)
+            let list = DownloadList(profile: profile, database: database)
+            list.onRemove = { [weak self] url in self?.mediaLibrary.hide(url) }
+            downloadLists[profile.path] = list
         }
         profile.asksWhereToSaveDownloads = asksWhereToSaveDownloads(forProfile: space.profileFolder)
         // Chromium's translation needs Google keys Flux doesn't have, so its offers would lead
@@ -833,6 +835,13 @@ final class BrowserState {
 
     var downloadsOfSelectedSpace: DownloadList? {
         profiles[selectedSpaceID].flatMap { downloadLists[$0.path] }
+    }
+
+    /// Files of the Downloads folder that no space downloaded, such as mail attachments. They show
+    /// in every space, as each space's own downloads stay in it.
+    var otherDownloads: [MediaLibrary.Item] {
+        let known = Set(downloadLists.values.flatMap { list in list.finished.map(\.path) + list.inProgress.map(\.path) })
+        return mediaLibrary.downloadsFolderFiles.filter { !known.contains($0.url.path) }
     }
 
     /// Created on first use: reading the Downloads folder makes macOS ask for access.

@@ -133,7 +133,12 @@ private struct RecentFiles: View {
         let screenshots = media.items.filter(\.isScreenshot).prefix(5).map { item in
             Recent(url: item.url, date: item.date) { media.hide(item.url) }
         }
-        return Array((downloads + screenshots).sorted { $0.date > $1.date }.prefix(5))
+        let others = state.otherDownloads.prefix(5).map { item in
+            Recent(url: item.url, date: item.date) { media.hide(item.url) }
+        }
+        var seen = Set<URL>()
+        return Array((downloads + screenshots + others).sorted { $0.date > $1.date }
+            .filter { seen.insert($0.url).inserted }.prefix(5))
     }
 
     private static func size(of url: URL) -> String {

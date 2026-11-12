@@ -2,7 +2,8 @@ import AppKit
 import Observation
 import UniformTypeIdentifiers
 
-/// Screenshots, wherever macOS saves them, and the images and videos of the Downloads folder.
+/// Screenshots, wherever macOS saves them, and the files of the Downloads folder, whichever app put
+/// them there.
 @MainActor
 @Observable
 final class MediaLibrary {
@@ -15,6 +16,8 @@ final class MediaLibrary {
     }
 
     private(set) var items: [Item] = []
+    /// Every file of the Downloads folder, the latest first.
+    private(set) var downloadsFolderFiles: [Item] = []
 
     /// Files hidden from the library, which stay where they are.
     private static let hiddenKey = "hiddenMedia"
@@ -22,6 +25,9 @@ final class MediaLibrary {
 
     @ObservationIgnored private let screenshotQuery = NSMetadataQuery()
     @ObservationIgnored private var downloadsFolderItems: [Item] = []
+    @ObservationIgnored private var folderWatch: DispatchSourceFileSystemObject?
+    /// Partial files of downloads still running, in Chromium, Safari and Firefox.
+    private static let partialExtensions: Set<String> = ["crdownload", "download", "part"]
 
     init() {
         // Spotlight knows screenshots by this attribute. Only those of the folder macOS saves them
@@ -37,6 +43,25 @@ final class MediaLibrary {
         }
         screenshotQuery.start()
         refresh()
+        watchDownloadsFolder()
+    }
+
+    private static var downloadsFolder: URL? {
+        FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+    }
+
+    /// Files saved there by other apps, such as a mail attachment, show without waiting.
+    private func watchDownloadsFolder() {
+        guard let folder = Self.downloadsFolder else { return }
+        let descriptor = open(folder.path, O_EVTONLY)
+        guard descriptor >= 0 else { return }
+        let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: descriptor, eventMask: .write, queue: .main)
+        source.setEventHandler { [weak self] in
+            MainActor.assumeIsolated { self?.refresh() }
+        }
+        source.setCancelHandler { close(descriptor) }
+        source.resume()
+        folderWatch = source
     }
 
     /// Set in the Screenshot app's options, the Desktop otherwise.
@@ -47,18 +72,20 @@ final class MediaLibrary {
         return FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask)[0]
     }
 
-    /// The Downloads folder has no live query, so it is read again when the library shows.
     func refresh() {
-        guard let folder = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first else { return }
-        let keys: [URLResourceKey] = [.contentTypeKey, .creationDateKey]
+        guard let folder = Self.downloadsFolder else { return }
+        let keys: [URLResourceKey] = [.contentTypeKey, .addedToDirectoryDateKey, .creationDateKey, .isRegularFileKey]
         let urls = (try? FileManager.default.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles]
         )) ?? []
-        downloadsFolderItems = urls.compactMap { url in
-            guard let values = try? url.resourceValues(forKeys: Set(keys)), let type = values.contentType,
-                  type.conforms(to: .image) || type.conforms(to: .movie) else { return nil }
-            return Item(url: url, date: values.creationDate ?? .distantPast, isScreenshot: false)
+        var files: [(item: Item, type: UTType?)] = []
+        for url in urls where !Self.partialExtensions.contains(url.pathExtension.lowercased()) {
+            guard let values = try? url.resourceValues(forKeys: Set(keys)), values.isRegularFile == true else { continue }
+            let date = values.addedToDirectoryDate ?? values.creationDate ?? .distantPast
+            files.append((Item(url: url, date: date, isScreenshot: false), values.contentType))
         }
+        downloadsFolderFiles = files.map(\.item).filter { !hidden.contains($0.url.path) }.sorted { $0.date > $1.date }
+        downloadsFolderItems = files.filter { $0.type?.conforms(to: .image) == true || $0.type?.conforms(to: .movie) == true }.map(\.item)
         merge()
     }
 
@@ -81,5 +108,6 @@ final class MediaLibrary {
         hidden.insert(url.path)
         UserDefaults.standard.set(Array(hidden), forKey: Self.hiddenKey)
         items.removeAll { $0.url == url }
+        downloadsFolderFiles.removeAll { $0.url == url }
     }
 }

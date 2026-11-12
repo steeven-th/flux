@@ -9,6 +9,9 @@ final class DownloadList {
     private(set) var inProgress: [FLXDownload] = []
 
     @ObservationIgnored private let database: ProfileDatabase
+    /// Keeps a removed download's file, which is still in the Downloads folder, out of the files
+    /// put there by other apps.
+    @ObservationIgnored var onRemove: (URL) -> Void = { _ in }
 
     init(profile: FLXProfile, database: ProfileDatabase) {
         self.database = database
@@ -38,6 +41,7 @@ final class DownloadList {
     func remove(_ record: DownloadRecord) {
         try? database.deleteDownload(id: record.id)
         finished.removeAll { $0.id == record.id }
+        onRemove(record.fileURL)
     }
 
     /// Also takes the download off the list at once, should Chromium not report it again.

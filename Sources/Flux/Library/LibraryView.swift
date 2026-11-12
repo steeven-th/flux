@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Downloads and media, in place of the sidebar.
 struct LibraryView: View {
@@ -46,25 +47,34 @@ private struct DownloadsSection: View {
     let state: BrowserState
     let search: String
 
+    /// A download of the space, or a file another app put in the Downloads folder.
+    private struct Entry: Identifiable {
+        let url: URL
+        let date: Date
+        let details: String
+        let hide: () -> Void
+        var id: URL { url }
+    }
+
     var body: some View {
-        let records = filtered
-        if records.isEmpty {
+        let entries = filtered
+        if entries.isEmpty {
             Text(search.isEmpty ? "No downloads in this space" : "No results")
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List {
-                ForEach(periods(of: records), id: \.title) { period in
+                ForEach(periods(of: entries), id: \.title) { period in
                     SwiftUI.Section(period.title) {
-                        ForEach(period.records) { record in
+                        ForEach(period.entries) { entry in
                             HStack(spacing: 10) {
-                                FileThumbnail(url: record.fileURL, size: 32)
+                                FileThumbnail(url: entry.url, size: 32)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(record.fileURL.lastPathComponent).lineLimit(1).truncationMode(.middle)
-                                    Text(record.details).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                    Text(entry.url.lastPathComponent).lineLimit(1).truncationMode(.middle)
+                                    Text(entry.details).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                                 }
                             }
-                            .fileActions(record.fileURL, onHide: { state.downloadsOfSelectedSpace?.remove(record) })
+                            .fileActions(entry.url, onHide: entry.hide)
                         }
                     }
                 }
@@ -74,28 +84,40 @@ private struct DownloadsSection: View {
         }
     }
 
-    private var filtered: [DownloadRecord] {
-        let all = state.downloadsOfSelectedSpace?.finished ?? []
+    private var filtered: [Entry] {
+        let list = state.downloadsOfSelectedSpace
+        let downloads = (list?.finished ?? []).map { record in
+            Entry(url: record.fileURL, date: record.finishedAt, details: record.details) { list?.remove(record) }
+        }
+        let media = state.mediaLibrary
+        let others = state.otherDownloads.map { item in
+            Entry(url: item.url, date: item.date, details: Self.kind(of: item.url)) { media.hide(item.url) }
+        }
+        let all = (downloads + others).sorted { $0.date > $1.date }
         guard !search.isEmpty else { return all }
-        return all.filter { $0.fileURL.lastPathComponent.localizedStandardContains(search) || $0.url.localizedStandardContains(search) }
+        return all.filter { $0.url.lastPathComponent.localizedStandardContains(search) || $0.details.localizedStandardContains(search) }
+    }
+
+    private static func kind(of url: URL) -> String {
+        UTType(filenameExtension: url.pathExtension)?.localizedDescription ?? ""
     }
 
     /// Grouped by how long ago, in the words of the system: "today", "3 days ago", "1 week ago".
-    private func periods(of records: [DownloadRecord]) -> [(title: String, records: [DownloadRecord])] {
+    private func periods(of entries: [Entry]) -> [(title: String, entries: [Entry])] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         let formatter = RelativeDateTimeFormatter()
         formatter.dateTimeStyle = .named
         formatter.unitsStyle = .full
-        var periods: [(title: String, records: [DownloadRecord])] = []
-        for record in records {
-            let day = calendar.startOfDay(for: record.finishedAt)
+        var periods: [(title: String, entries: [Entry])] = []
+        for entry in entries {
+            let day = calendar.startOfDay(for: entry.date)
             let words = formatter.localizedString(for: day, relativeTo: today)
             let title = words.prefix(1).uppercased() + words.dropFirst()
             if periods.last?.title == title {
-                periods[periods.count - 1].records.append(record)
+                periods[periods.count - 1].entries.append(entry)
             } else {
-                periods.append((title, [record]))
+                periods.append((title, [entry]))
             }
         }
         return periods
