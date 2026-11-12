@@ -24,7 +24,8 @@ Flux is at an early stage and not usable yet.
     scripts/build.sh release  # release build
 
 When an Apple Development certificate is installed, builds are signed with it, so macOS doesn't
-ask again for Flux's keychain items after each build.
+ask again for Flux's keychain items after each build. The app goes to
+`~/Library/Developer/Xcode/DerivedData/Flux`, or to the folder in `FLUX_DERIVED_DATA` when it is set.
 
 The first run downloads about 190 MB. Browsing data goes to
 `~/Library/Application Support/Flux`.

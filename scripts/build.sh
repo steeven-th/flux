@@ -14,8 +14,9 @@ for ARG in "$@"; do
 done
 
 # Outside the source folder: when it sits in ~/Documents, macOS asks for access to Documents on
-# every launch, because the app reads its own bundle from there.
-DERIVED_DATA="$HOME/Library/Developer/Xcode/DerivedData/Flux"
+# every launch, because the app reads its own bundle from there. FLUX_DERIVED_DATA keeps the build
+# of another branch apart from the Flux in daily use.
+DERIVED_DATA="${FLUX_DERIVED_DATA:-$HOME/Library/Developer/Xcode/DerivedData/Flux}"
 
 "$ROOT/scripts/fetch-engine.sh"
 cd "$ROOT"
