@@ -47,7 +47,7 @@ final class Shortcuts {
             changes = saved
         }
         actions.forEach(apply)
-        (NSApp as? FLXApplication)?.keyDownHandler = { [weak self] event in
+        FLXApplication.keyDownHandler = { [weak self] event in
             self?.handle(event) ?? false
         }
     }
@@ -119,8 +119,7 @@ final class Shortcuts {
     }
 
     /// Chromium handles these itself and never hands them to the menu: ⌘1 to ⌘9 select its own
-    /// tabs, ⇧⌘C, ⌥⌘I, ⌥⌘J and ⌥⌘C open its DevTools, in a window of their own, and ⌘. is Escape
-    /// on the Mac.
+    /// tabs, ⇧⌘C, ⌥⌘I, ⌥⌘J and ⌥⌘C open its DevTools, and ⌘. is Escape on the Mac.
     private static let keptByChromium: Set<KeyShortcut> = [
         KeyShortcut(key: "c", modifiers: [.command, .shift]),
         KeyShortcut(key: "i", modifiers: [.command, .option]),

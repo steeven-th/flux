@@ -25,8 +25,10 @@ final class Tab: NSObject, Identifiable {
     private(set) var permissionRequest: FLXPermissionRequest?
     /// 1 at the default size. Chromium keeps it per site, so it changes as the page does.
     private(set) var zoomFactor = 1.0
-    /// The page's DevTools while open, shown next to it.
-    private(set) var devTools: FLXBrowserView?
+    /// The page's DevTools while open, shown in its place with the page laid over them.
+    private(set) var devTools: FLXPageDevTools?
+    /// Where DevTools put the page, from their top left corner.
+    private(set) var devToolsPageFrame = CGRect.zero
     /// An extension's side panel, between the page and its DevTools.
     private(set) var sidePanel: FLXBrowserView?
     /// What the responsive mode shows the page as, while it is on.
@@ -55,7 +57,6 @@ final class Tab: NSObject, Identifiable {
     @ObservationIgnored private var loadedView: FLXBrowserView?
     /// Where the page was scrolled before Flux quit or the tab was unloaded, until it has loaded.
     @ObservationIgnored private var scrollToRestore: Double?
-    @ObservationIgnored private var pendingDevToolsScript: String?
     @ObservationIgnored private var emulationScale: Double?
     @ObservationIgnored private var appliedEmulation: Emulation?
     @ObservationIgnored private var menuItems: [PageMenuItem] = []
@@ -247,31 +248,12 @@ final class Tab: NSObject, Identifiable {
         canGoForward = chromiumCanGoForward || !outsideHistory.forward.isEmpty
     }
 
-    /// Shows a tool of the page's DevTools, opening them on it if they are closed. DevTools are
-    /// driven through InspectorFrontendAPI, the interface Chrome itself uses to drive them.
+    /// Shows a tool of the page's DevTools, opening them on it if they are closed.
     func show(_ tool: DevTool) {
-        let script = tool == .picker
-            ? "InspectorFrontendAPI.showPanel('elements'); InspectorFrontendAPI.enterInspectElementMode(); true"
-            : "InspectorFrontendAPI.showPanel('\(tool.panel)'); true"
-        if let devTools {
-            devTools.evaluateJavaScript(script) { _ in }
+        if tool == .picker {
+            browserView.showElementPicker()
         } else {
-            pendingDevToolsScript = tool == .picker ? script : nil
             browserView.showDevTools(onPanel: tool.panel)
-        }
-    }
-
-    /// The frontend takes a moment to load after DevTools open, so the script is tried until it runs.
-    private func runPendingDevToolsScript(on devTools: FLXBrowserView, attempts: Int = 20) {
-        guard let script = pendingDevToolsScript, attempts > 0 else { return }
-        devTools.evaluateJavaScript("typeof InspectorFrontendAPI === 'undefined' ? false : (\(script))") { [weak self] value in
-            if value as? Bool == true {
-                self?.pendingDevToolsScript = nil
-            } else {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                    self?.runPendingDevToolsScript(on: devTools, attempts: attempts - 1)
-                }
-            }
         }
     }
 
@@ -621,13 +603,18 @@ extension Tab: FLXBrowserViewDelegate {
         onOpenPage?(self, page, disposition)
     }
 
-    func browserView(_ browserView: FLXBrowserView, didOpenDevTools devTools: FLXBrowserView) {
+    func browserView(_ browserView: FLXBrowserView, didOpen devTools: FLXPageDevTools) {
+        devToolsPageFrame = devTools.pageFrame
+        devTools.onPageFrameChange = { [weak self, weak devTools] in
+            guard let devTools else { return }
+            self?.devToolsPageFrame = devTools.pageFrame
+        }
         self.devTools = devTools
-        runPendingDevToolsScript(on: devTools)
     }
 
     func browserViewDidCloseDevTools(_ browserView: FLXBrowserView) {
         devTools = nil
+        devToolsPageFrame = .zero
     }
 
     func browserViewDidOpenOnlyDownload(_ browserView: FLXBrowserView) {

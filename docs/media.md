@@ -12,7 +12,7 @@ tab, or clicking the window's back to tab button, puts it back in the page.
 
 ## How it works
 
-FluxHelper runs a small script in every frame of a page, cross-origin frames included, before the
+Flux runs a small script in every frame of a page, cross-origin frames included, before the
 page's own scripts. It watches the page's audio and video elements and reports what plays to Flux.
 
 Sites give their previous and next track actions, and the title they show, to the Media Session

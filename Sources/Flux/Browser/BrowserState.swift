@@ -20,7 +20,6 @@ final class BrowserState {
     private static let pinnedExtensionsMigratedKey = "pinnedExtensionsMigrated"
     private static let collapsedSectionsKey = "collapsedSections"
     private static let developerSitesKey = "developerSites"
-    private static let devToolsWidthKey = "devToolsWidth"
     private static let devToolsOrderKey = "devToolsOrder"
     private static let devToolsShownKey = "devToolsShown"
     private static let responsiveBackdropKey = "responsiveBackdrop"
@@ -273,6 +272,9 @@ final class BrowserState {
         let space = Space(record: record)
         let database = try ProfileDatabase(profileFolder: space.profileFolder)
         let profile = FLXProfile(atPath: space.profileFolder.path)
+        profile.actionChangeHandler = {
+            NotificationCenter.default.post(name: ExtensionButton.actionsDidChange, object: nil)
+        }
         spaces.append(space)
         spaceRecords[space.id] = record
         selectedTabIDs[space.id] = record.selectedTabID
@@ -924,11 +926,6 @@ final class BrowserState {
     var devToolsInBar: [DevTool] {
         let shown = shownDevTools
         return devToolsOrder.filter { shown.contains($0) }
-    }
-
-    var devToolsWidth: CGFloat {
-        get { (try? appDatabase.setting(Self.devToolsWidthKey)).flatMap { Double($0) }.map { CGFloat($0) } ?? 480 }
-        set { save { try appDatabase.setSetting(Self.devToolsWidthKey, to: String(Double(newValue))) } }
     }
 
     var responsiveBackdrop: ResponsiveBackdrop {

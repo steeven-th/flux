@@ -45,7 +45,7 @@ struct SidebarHeader: View {
 
     private var sidebarButton: some View {
         HeaderButton(symbol: "sidebar.left", help: "Hide Sidebar (⌘S)") {
-            NSApp.sendAction(#selector(AppDelegate.showOrHideSidebar(_:)), to: nil, from: nil)
+            AppDelegate.shared?.showOrHideSidebar(nil)
         }
     }
 

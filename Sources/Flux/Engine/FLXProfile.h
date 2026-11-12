@@ -25,6 +25,21 @@ NS_SWIFT_UI_ACTOR
 - (instancetype)init NS_UNAVAILABLE;
 @end
 
+@class FLXBrowserView;
+
+/// An extension's popup, open under its button until it closes.
+NS_SWIFT_UI_ACTOR
+@interface FLXExtensionPopup : NSObject
+@property (nonatomic, readonly) NSView *view;
+/// The size the page laid itself out at.
+@property (nonatomic, readonly) NSSize size;
+@property (nonatomic, copy, nullable) void (^onResize)(NSSize size);
+/// Called when the page closes itself.
+@property (nonatomic, copy, nullable) void (^onClose)(void);
+- (void)close;
+- (instancetype)init NS_UNAVAILABLE;
+@end
+
 /// A Chromium profile: cookies, storage, saved passwords, extensions and site settings kept in
 /// one folder, apart from every other profile.
 NS_SWIFT_UI_ACTOR
@@ -68,6 +83,17 @@ NS_SWIFT_UI_ACTOR
 
 /// Nil until the profile has loaded, or when the preference isn't a string.
 - (nullable NSString *)stringPreference:(NSString *)name;
+
+/// Runs an extension's toolbar action on a page, as a click on its button in Chrome does. Returns
+/// the action's popup, if it has one.
+- (nullable FLXExtensionPopup *)runActionForExtension:(NSString *)identifier onPage:(FLXBrowserView *)page;
+
+/// The badge an extension shows on its button for a page, such as a count. Nil for none.
+- (nullable NSString *)badgeTextForExtension:(NSString *)identifier onPage:(FLXBrowserView *)page;
+- (nullable NSColor *)badgeColorForExtension:(NSString *)identifier onPage:(FLXBrowserView *)page;
+
+/// Called when an extension changes its button, its badge for one.
+@property (nonatomic, copy, nullable) void (^actionChangeHandler)(void);
 
 /// Opens Chromium's extension manager for this profile in a window of its own.
 - (void)showExtensionsWindowWithTitle:(NSString *)title;

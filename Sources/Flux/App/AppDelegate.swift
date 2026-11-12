@@ -30,8 +30,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.database = database
     }
 
+    static private(set) weak var shared: AppDelegate?
+
+    /// Chrome's own app delegate runs the app, so Flux takes the events it needs from the engine.
+    func start() {
+        Self.shared = self
+        FLXEngine.terminationHandler = { [weak self] in
+            self?.applicationShouldTerminate(NSApp) ?? .terminateNow
+        }
+        FLXEngine.openURLsHandler = { [weak self] urls in
+            self?.application(NSApp, open: urls)
+        }
+        NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.applicationDidResignActive(Notification(name: NSApplication.didResignActiveNotification)) }
+        }
+        applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
+    }
+
+    /// Actions sent to the first responder end at the app's delegate, which is Chrome's, so Flux's
+    /// own menu items name it.
+    private func target(_ menu: NSMenu) {
+        for item in menu.items {
+            if item.target == nil, let action = item.action, responds(to: action) {
+                item.target = self
+            }
+            item.submenu.map(target)
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         let menu = MainMenu.make(spacesMenuDelegate: self)
+        target(menu)
         NSApp.mainMenu = menu
         Shortcuts.install(in: menu, database: try? database.get())
         dialogFixer = ChromiumDialogFixer()

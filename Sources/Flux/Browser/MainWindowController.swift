@@ -150,7 +150,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         // Pages are windows of their own, so a click in a pane only reaches Flux this way.
         paneClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
             if let self, let window = event.window,
-               let tab = self.state.shownTabs.first(where: { $0.browserView.pageWindow === window || $0.devTools?.pageWindow === window }),
+               let tab = self.state.shownTabs.first(where: { $0.browserView.pageWindow === window }),
                tab !== self.state.selectedTab {
                 self.state.select(tab)
             }

@@ -23,7 +23,7 @@ extension is installed. If the store page changed and the button isn't found, pr
 ## Popups and side panels
 
 Clicking an extension's icon runs it on the current page. Flux shows the extension's popup under
-the icon. An extension with a side panel gets it at the right of the page, next to the DevTools
+the icon. An extension with a side panel gets it at the right of the page, and of the DevTools
 when they are open. Clicking the icon again, or the panel's close button, closes it.
 
 Chromium only gives side panels to its own browser windows, which Flux doesn't use. So Flux asks
