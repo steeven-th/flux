@@ -12,19 +12,10 @@ final class PaneView: NSView {
     }
 
     private let state: BrowserState
-    private let pageArea = PageArea()
+    private let pageArea = NSView()
     private lazy var header: NSView = {
         let view = NSHostingView(rootView: PaneHeader(state: state, tab: tab))
         view.safeAreaRegions = []
-        view.sizingOptions = []
-        return view
-    }()
-    private let responsiveLayout = ResponsiveLayout()
-    private lazy var responsiveView: NSView = {
-        let view = NSHostingView(rootView: ResponsiveView(state: state, tab: tab, layout: responsiveLayout))
-        view.safeAreaRegions = []
-        // Its content is empty while the responsive mode is off, and its size would then pull the
-        // window down to its smallest.
         view.sizingOptions = []
         return view
     }()
@@ -51,7 +42,7 @@ final class PaneView: NSView {
                 ? NSColor(white: 0.25, alpha: 1)
                 : NSColor(white: 0.82, alpha: 1)
         }
-        for view in [responsiveView, pageArea, sidePanelHeader, sidePanelContainer, sidePanelLine, header] {
+        for view in [pageArea, sidePanelHeader, sidePanelContainer, sidePanelLine, header] {
             addSubview(view)
         }
         pageArea.addSubview(tab.browserView)
@@ -70,8 +61,6 @@ final class PaneView: NSView {
             _ = tab.devTools
             _ = tab.devToolsPageFrame
             _ = tab.sidePanel
-            _ = tab.emulation
-            _ = state.responsiveOptions
             _ = tab.finder.isShown
             _ = tab.finder.focusRequest
         } onChange: { [weak self] in
@@ -127,50 +116,23 @@ final class PaneView: NSView {
         }
         tab.sidePanel?.frame = sidePanelContainer.bounds
         tab.devTools?.view.frame = pageArea.bounds
-        responsiveView.frame = pageArea.frame
         layoutPage()
         roundCorners()
         placeWindowsOverPage()
     }
 
-    /// In responsive mode the page takes the size it is shown at, centered under the device
-    /// toolbar and shrunk to fit if needed, as in DevTools' device mode. Not in a split, where
-    /// panes are too narrow for it. DevTools have a device mode of their own and place the page
-    /// themselves.
+    /// DevTools leave room for the page among their panels.
     private func layoutPage() {
         let page = tab.browserView
         let bounds = pageArea.bounds
-        if tab.devTools != nil {
-            responsiveView.isHidden = true
-            page.autoresizingMask = []
-            let frame = tab.devToolsPageFrame
-            page.frame = frame.isEmpty ? bounds : NSRect(x: frame.minX, y: bounds.height - frame.maxY, width: frame.width, height: frame.height)
-            return
-        }
-        guard !isInSplit, let emulation = tab.emulation else {
-            responsiveView.isHidden = true
+        let frame = tab.devToolsPageFrame
+        guard tab.devTools != nil, !frame.isEmpty else {
             page.autoresizingMask = [.width, .height]
             page.frame = bounds
             return
         }
-        responsiveView.isHidden = false
-        let options = state.responsiveOptions
-        let ruler = options.contains(.rulers) ? ResponsiveView.rulerSize : 0
-        let mediaQueries = options.contains(.mediaQueries) ? ResponsiveView.mediaQueriesHeight : 0
-        let side = 20 + ruler
-        let top = ResponsiveView.toolbarHeight + 12 + ruler + mediaQueries
-        let bottom = 12 + ResponsiveView.handleSize
-        let room = NSRect(x: side, y: bottom, width: max(bounds.width - side * 2, 50), height: max(bounds.height - top - bottom, 50))
-        let fit = min(room.width / CGFloat(emulation.width), room.height / CGFloat(emulation.height))
-        // A page larger than the room would spill out of the window, so zooming in stops at the fit.
-        let scale = min(emulation.zoom.value.map { CGFloat($0) } ?? 1, fit)
-        let size = NSSize(width: (CGFloat(emulation.width) * scale).rounded(), height: (CGFloat(emulation.height) * scale).rounded())
-        let frame = NSRect(x: (room.midX - size.width / 2).rounded(), y: room.maxY - size.height, width: size.width, height: size.height)
         page.autoresizingMask = []
-        page.frame = frame
-        responsiveLayout.pageFrame = CGRect(x: frame.minX, y: bounds.height - frame.maxY, width: frame.width, height: frame.height)
-        responsiveLayout.scale = Double(scale)
-        tab.applyEmulation(scale: Double(scale))
+        page.frame = NSRect(x: frame.minX, y: bounds.height - frame.maxY, width: frame.width, height: frame.height)
     }
 
     /// Only the outer corners of the card are rounded: the page and its side panel meet the bar and
@@ -185,16 +147,12 @@ final class PaneView: NSView {
             panelCorners.subtract(top)
         }
         if tab.sidePanel != nil { page.subtract(right) }
-        // In responsive mode the background around the page takes the page's corners.
-        for view in [pageArea, responsiveView] {
-            view.wantsLayer = true
-            view.layer?.cornerRadius = FLXPageCornerRadius
-            // SwiftUI's view is flipped, so its top corners are the ones at min Y.
-            view.layer?.maskedCorners = view.isFlipped ? page.flipped : page
-            view.layer?.masksToBounds = true
-        }
+        pageArea.wantsLayer = true
+        pageArea.layer?.cornerRadius = FLXPageCornerRadius
+        pageArea.layer?.maskedCorners = page
+        pageArea.layer?.masksToBounds = true
         // Inside DevTools the page area's own corners round the card.
-        tab.browserView.roundedCorners = responsiveView.isHidden && tab.devTools == nil ? page : []
+        tab.browserView.roundedCorners = tab.devTools == nil ? page : []
         // Its header takes the top corner.
         sidePanelHeader.wantsLayer = true
         sidePanelHeader.layer?.cornerRadius = FLXPageCornerRadius
@@ -219,14 +177,5 @@ extension CACornerMask {
         if contains(.layerMinXMaxYCorner) { mask.insert(.layerMinXMinYCorner) }
         if contains(.layerMaxXMaxYCorner) { mask.insert(.layerMaxXMinYCorner) }
         return mask
-    }
-}
-
-/// The page is a view of the window, laid over the responsive mode's toolbar, rulers and handles.
-/// Around the page, clicks go through to them.
-private final class PageArea: NSView {
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        let view = super.hitTest(point)
-        return view === self ? nil : view
     }
 }

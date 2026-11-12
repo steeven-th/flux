@@ -38,15 +38,7 @@ struct DeveloperBar: View {
             if !tools.isEmpty {
                 BarDivider()
                 ForEach(tools) { tool in
-                    if tool == .responsive {
-                        // A page in a pane is too narrow to be shown as a device.
-                        ToolButton(symbol: tool.symbol, help: LocalizedStringKey(tool.name), isOn: tab.emulation != nil) {
-                            tab.toggleResponsive()
-                        }
-                        .disabled(isInSplit)
-                    } else {
-                        ToolButton(symbol: tool.symbol, help: LocalizedStringKey(tool.name)) { tab.show(tool) }
-                    }
+                    ToolButton(symbol: tool.symbol, help: LocalizedStringKey(tool.name)) { tab.show(tool) }
                 }
             }
             if !state.pinnedExtensionsInSelectedSpace.isEmpty {
@@ -77,7 +69,7 @@ struct DeveloperBar: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .foregroundStyle(.white)
         .tint(.white)
-        // Some symbols, like the responsive mode's, would fill their screens in their own preferred mode.
+        // Some symbols would fill their shapes in their own preferred mode.
         .symbolRenderingMode(.monochrome)
         .background(
             UnevenRoundedRectangle(topLeadingRadius: FLXPageCornerRadius, topTrailingRadius: FLXPageCornerRadius, style: .circular)

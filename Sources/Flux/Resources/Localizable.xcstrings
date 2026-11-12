@@ -281,16 +281,6 @@
         }
       }
     },
-    "Add a Device…" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ajouter un appareil…"
-          }
-        }
-      }
-    },
     "Add Extensions from the Chrome Web Store" : {
       "localizations" : {
         "fr" : {
@@ -541,16 +531,6 @@
         }
       }
     },
-    "Background in responsive mode:" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fond en mode responsive :"
-          }
-        }
-      }
-    },
     "Block" : {
       "localizations" : {
         "fr" : {
@@ -631,42 +611,12 @@
         }
       }
     },
-    "Capture Full Size Screenshot" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Capture en taille réelle de la page entière"
-          }
-        }
-      }
-    },
-    "Capture Screenshot" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Capture d'écran"
-          }
-        }
-      }
-    },
     "Capture the Whole Page" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Capturer toute la page"
-          }
-        }
-      }
-    },
-    "Choose the devices listed in responsive mode, or add your own." : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choisissez les appareils proposés en mode responsive, ou ajoutez les vôtres."
           }
         }
       }
@@ -797,16 +747,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fermer (⌘W)"
-          }
-        }
-      }
-    },
-    "Close Responsive Mode" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quitter le mode responsive"
           }
         }
       }
@@ -1131,16 +1071,6 @@
         }
       }
     },
-    "Desktop (Touch)" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ordinateur (tactile)"
-          }
-        }
-      }
-    },
     "Developer" : {
       "localizations" : {
         "fr" : {
@@ -1171,26 +1101,6 @@
         }
       }
     },
-    "Device pixel ratio:" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Densité de pixels :"
-          }
-        }
-      }
-    },
-    "Devices" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Appareils"
-          }
-        }
-      }
-    },
     "Don't ask again" : {
       "localizations" : {
         "fr" : {
@@ -1217,16 +1127,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Téléchargements"
-          }
-        }
-      }
-    },
-    "DPR: %@" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "DPR : %@"
           }
         }
       }
@@ -1331,16 +1231,6 @@
         }
       }
     },
-    "Edit…" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Modifier…"
-          }
-        }
-      }
-    },
     "Elements" : {
       "localizations" : {
         "fr" : {
@@ -1411,16 +1301,6 @@
         }
       }
     },
-    "Fast 4G" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "4G rapide"
-          }
-        }
-      }
-    },
     "Favorites" : {
       "localizations" : {
         "fr" : {
@@ -1481,16 +1361,6 @@
         }
       }
     },
-    "Fit to Window" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ajuster à la fenêtre"
-          }
-        }
-      }
-    },
     "Flux" : {
       "localizations" : {
         "fr" : {
@@ -1547,16 +1417,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Flux est votre navigateur par défaut"
-          }
-        }
-      }
-    },
-    "Foldables" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pliables"
           }
         }
       }
@@ -2161,36 +2021,6 @@
         }
       }
     },
-    "Mobile" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mobile"
-          }
-        }
-      }
-    },
-    "Mobile (No Touch)" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mobile (sans tactile)"
-          }
-        }
-      }
-    },
-    "Mobile, with touch" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mobile, tactile"
-          }
-        }
-      }
-    },
     "More Ways to Reload" : {
       "localizations" : {
         "fr" : {
@@ -2481,16 +2311,6 @@
         }
       }
     },
-    "No Throttling" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sans limitation"
-          }
-        }
-      }
-    },
     "No tools" : {
       "localizations" : {
         "fr" : {
@@ -2557,16 +2377,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Désactivé"
-          }
-        }
-      }
-    },
-    "Offline" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hors ligne"
           }
         }
       }
@@ -3241,16 +3051,6 @@
         }
       }
     },
-    "Reset to Defaults" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Réinitialiser"
-          }
-        }
-      }
-    },
     "Reset Zoom" : {
       "localizations" : {
         "fr" : {
@@ -3261,32 +3061,12 @@
         }
       }
     },
-    "Responsive" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Responsive"
-          }
-        }
-      }
-    },
     "Restore Defaults" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rétablir les valeurs par défaut"
-          }
-        }
-      }
-    },
-    "Rotate" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Faire pivoter"
           }
         }
       }
@@ -3701,26 +3481,6 @@
         }
       }
     },
-    "Show Device Pixel Ratio" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Afficher la densité de pixels"
-          }
-        }
-      }
-    },
-    "Show Device Type" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Afficher le type d'appareil"
-          }
-        }
-      }
-    },
     "Show DevTools" : {
       "localizations" : {
         "fr" : {
@@ -3751,16 +3511,6 @@
         }
       }
     },
-    "Show Media Queries" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Afficher les media queries"
-          }
-        }
-      }
-    },
     "Show notifications" : {
       "localizations" : {
         "fr" : {
@@ -3787,16 +3537,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Afficher l'original"
-          }
-        }
-      }
-    },
-    "Show Rulers" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Afficher les règles"
           }
         }
       }
@@ -3837,26 +3577,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Réglages du site"
-          }
-        }
-      }
-    },
-    "Slow 4G" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "4G lente"
-          }
-        }
-      }
-    },
-    "Smart Displays" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Écrans connectés"
           }
         }
       }
@@ -3997,16 +3717,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Onglet"
-          }
-        }
-      }
-    },
-    "Tablets and Computers" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tablettes et ordinateurs"
           }
         }
       }
@@ -4407,16 +4117,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Utilisé quand ce que vous tapez dans la barre de commande n'est pas une adresse. Vous pourrez le changer dans les Réglages."
-          }
-        }
-      }
-    },
-    "User agent:" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "User agent :"
           }
         }
       }
