@@ -29,41 +29,33 @@ jobs:
       first: ${{ !inputs.resume_from }}
       src-run: ${{ inputs.resume_from }}
       out-run: ${{ inputs.resume_from }}
+      carry-src: ${{ inputs.resume_from != '' }}
 
   resume-1:
     needs: start
     if: needs.start.outputs.finished != 'true'
     uses: ./.github/workflows/engine-build-step.yml
-    with:
-      src-run: ${{ inputs.resume_from }}
 
   resume-2:
     needs: resume-1
     if: needs.resume-1.outputs.finished != 'true'
     uses: ./.github/workflows/engine-build-step.yml
-    with:
-      src-run: ${{ inputs.resume_from }}
 
   resume-3:
     needs: resume-2
     if: needs.resume-2.outputs.finished != 'true'
     uses: ./.github/workflows/engine-build-step.yml
-    with:
-      src-run: ${{ inputs.resume_from }}
 
   resume-4:
     needs: resume-3
     if: needs.resume-3.outputs.finished != 'true'
     uses: ./.github/workflows/engine-build-step.yml
-    with:
-      src-run: ${{ inputs.resume_from }}
 
   resume-5:
     needs: resume-4
     if: needs.resume-4.outputs.finished != 'true'
     uses: ./.github/workflows/engine-build-step.yml
     with:
-      src-run: ${{ inputs.resume_from }}
       last: true
 
   publish:

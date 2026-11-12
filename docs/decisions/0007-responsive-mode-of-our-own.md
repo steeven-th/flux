@@ -1,6 +1,6 @@
 # 7. A responsive mode of our own
 
-Status: Proposed
+Status: Replaced by [0014](0014-chrome-framework-instead-of-cef.md), as DevTools now have their own device mode.
 
 ## Context
 

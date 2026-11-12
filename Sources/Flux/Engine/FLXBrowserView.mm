@@ -1,706 +1,294 @@
 #import "FLXBrowserView.h"
-#import "FLXEngine+Internal.h"
+#import "FLXDevTools.h"
 #import "FLXProfile+Internal.h"
 
-#import <objc/message.h>
-#import <objc/runtime.h>
-
-#include "include/cef_parser.h"
-#include "include/cef_ssl_status.h"
-#include "include/cef_x509_certificate.h"
-
-#include <map>
-#include <set>
-
-#include "include/cef_client.h"
-#include "include/cef_command_ids.h"
-#include "include/cef_devtools_message_observer.h"
-#include "include/views/cef_browser_view.h"
-#include "include/views/cef_window.h"
-
-@interface FLXBrowserView ()
-@property (nonatomic, readwrite, copy) NSString *currentURL;
-@property (nonatomic, readwrite, copy) NSString *title;
-@property (nonatomic, readonly) BOOL embedded;
-@property (nonatomic, readonly) CefRefPtr<CefClient> cefClient;
-- (instancetype)initOpenedByPageWithURL:(NSString *)url profile:(FLXProfile *)profile;
-- (void)attachBrowser:(CefRefPtr<CefBrowser>)browser;
-- (void)setCanGoBack:(BOOL)canGoBack canGoForward:(BOOL)canGoForward;
-- (void)detachBrowser;
-- (void)pageWindowCreated:(CefRefPtr<CefWindow>)window;
-- (void)pageWindowDestroyed;
-@property (nonatomic, weak) FLXBrowserView *inspectedPage;
-@property (nonatomic, readwrite, weak) FLXBrowserView *devTools;
-@end
+#import <EngineCore/EngineCore.h>
 
 namespace {
 
-NSString *ToNSString(const CefString &string) {
-  return [NSString stringWithUTF8String:string.ToString().c_str()] ?: @"";
-}
+// A page whose video is in picture-in-picture goes on to tell itself visible. Its tab is hidden, and
+// players such as Twitch's lower the quality of a hidden page's stream, even watched in the window.
+NSString *const kPictureInPictureShim = @R"(
+(() => {
+  const prototype = Document.prototype;
+  for (const [name, value] of [['visibilityState', 'visible'], ['hidden', false]]) {
+    const property = Object.getOwnPropertyDescriptor(prototype, name);
+    if (!property?.get) continue;
+    Object.defineProperty(prototype, name, {
+      ...property,
+      get() { return this.pictureInPictureElement ? value : property.get.call(this); },
+    });
+  }
+  document.addEventListener('visibilitychange', (event) => {
+    if (document.pictureInPictureElement) event.stopImmediatePropagation();
+  }, true);
+})();
+)";
 
-class FaviconCallback : public CefDownloadImageCallback {
- public:
-  explicit FaviconCallback(FLXBrowserView *owner) : owner_(owner) {}
+// What the frame plays, for the mini player: the title and artist the site gives, its previous and
+// next track actions and its volume. Chrome knows whether the page plays, but not these.
+NSString *const kMediaWatcher = @R"(
+(() => {
+  const report = (state) => globalThis.__fluxMedia?.postMessage(state);
+  const handlers = new Map();
+  const elements = new Set();
+  let hasPlayed = false;
+  let lastState = '';
+  const latest = () => [...elements].reverse().find((element) => !element.paused) ?? [...elements].pop();
+  const isPlaying = () => elements.size > 0
+    ? [...elements].some((element) => !element.paused && !element.ended)
+    : navigator.mediaSession?.playbackState === 'playing';
+  const send = () => {
+    if (!hasPlayed) return;
+    const metadata = navigator.mediaSession?.metadata;
+    const state = JSON.stringify({
+      playing: isPlaying(),
+      title: metadata?.title ?? '',
+      artist: metadata?.artist ?? '',
+      previous: handlers.has('previoustrack'),
+      next: handlers.has('nexttrack'),
+      volume: latest()?.volume ?? 1,
+    });
+    if (state === lastState) return;
+    lastState = state;
+    report(state);
+  };
+  const isContent = (element) => !(element.srcObject instanceof MediaStream) && element.duration >= 5;
+  const isAudible = (element) => !element.muted && element.volume > 0
+    && (element.webkitAudioDecodedByteCount ?? 1) > 0;
+  const note = (element) => {
+    if (!elements.has(element) && (element.paused || !isContent(element) || !isAudible(element))) return;
+    elements.delete(element);
+    elements.add(element);
+    if (!element.paused) hasPlayed = true;
+    send();
+  };
+  const prototype = navigator.mediaSession && Object.getPrototypeOf(navigator.mediaSession);
+  if (prototype) {
+    const setActionHandler = prototype.setActionHandler;
+    prototype.setActionHandler = function (action, handler) {
+      if (typeof handler === 'function') handlers.set(action, handler); else handlers.delete(action);
+      const result = setActionHandler.apply(this, arguments);
+      send();
+      return result;
+    };
+    for (const name of ['metadata', 'playbackState']) {
+      const property = Object.getOwnPropertyDescriptor(prototype, name);
+      if (!property?.set) continue;
+      Object.defineProperty(prototype, name, {
+        ...property,
+        set(value) {
+          property.set.call(this, value);
+          if (name === 'playbackState' && value === 'playing') hasPlayed = true;
+          send();
+        },
+      });
+    }
+  }
+  const types = ['play', 'playing', 'pause', 'ended', 'emptied', 'volumechange', 'timeupdate'];
+  for (const type of types) {
+    document.addEventListener(type, (event) => {
+      if (event.target instanceof HTMLMediaElement) note(event.target);
+    }, true);
+  }
+  const watched = new WeakSet();
+  const play = HTMLMediaElement.prototype.play;
+  HTMLMediaElement.prototype.play = function () {
+    if (!this.isConnected && !watched.has(this)) {
+      watched.add(this);
+      for (const type of types) this.addEventListener(type, () => note(this));
+    }
+    return play.apply(this, arguments);
+  };
+  globalThis[Symbol.for('flux.setVolume')] = (value) => {
+    elements.forEach((element) => { element.volume = value; });
+    send();
+  };
+})();
+)";
 
-  void OnDownloadImageFinished(const CefString &image_url,
-                               int http_status_code,
-                               CefRefPtr<CefImage> image) override {
-    FLXBrowserView *owner = owner_;
-    if (!image || image->IsEmpty() || ![owner.delegate respondsToSelector:@selector(browserView:didChangeFavicon:)]) {
+NSString *const kMediaObject = @"__fluxMedia";
+
+// The Chrome Web Store asks to switch to Chrome in a popup and a banner, and names Chrome on its
+// install button, which installs in Flux all the same. The popup and the banner are hidden with a
+// style sheet, which the store's own scripts don't notice. 276336 is the store's logging id for the
+// banner's button.
+NSString *const kWebStoreFixes = @R"(
+(() => {
+  if (location.hostname !== 'chromewebstore.google.com') return;
+  const style = document.createElement('style');
+  style.textContent = `
+    header [aria-labelledby="promo-header"],
+    main section div:has(> div > div > button[jslog^="276336;"]) { display: none !important; }
+  `;
+  document.documentElement.append(style);
+  const rename = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.nodeValue.replace(/\b(Google )?Chrome\b/, 'Flux');
+      if (text !== node.nodeValue) node.nodeValue = text;
       return;
     }
-    int width = 0;
-    int height = 0;
-    CefRefPtr<CefBinaryValue> png = image->GetAsPNG(2, true, width, height);
-    if (!png) return;
-    NSMutableData *data = [NSMutableData dataWithLength:png->GetSize()];
-    png->GetData(data.mutableBytes, data.length, 0);
-    NSImage *favicon = [[NSImage alloc] initWithData:data];
-    if (favicon) [owner.delegate browserView:owner didChangeFavicon:favicon];
-  }
-
- private:
-  __weak FLXBrowserView *owner_;
-  IMPLEMENT_REFCOUNTING(FaviconCallback);
-};
-
-// The result of one DevTools method sent to a page, nil if it failed.
-class MethodResultObserver : public CefDevToolsMessageObserver {
- public:
-  MethodResultObserver(int message_id, void (^completion)(NSDictionary *))
-      : message_id_(message_id), completion_([completion copy]) {}
-
-  void OnDevToolsMethodResult(CefRefPtr<CefBrowser> browser, int message_id, bool success,
-                              const void *result, size_t result_size) override {
-    if (message_id != message_id_ || !completion_) return;
-    NSDictionary *json = nil;
-    if (success) {
-      json = [NSJSONSerialization JSONObjectWithData:[NSData dataWithBytes:result length:result_size]
-                                             options:0
-                                               error:nil];
+    node.childNodes.forEach(rename);
+  };
+  new MutationObserver(() => {
+    for (const title of document.querySelectorAll('main section h1')) {
+      const section = title.parentElement?.parentElement;
+      const button = [...(section?.querySelectorAll('button') ?? [])].find((item) => item.textContent.includes('Chrome'));
+      if (button) rename(button);
     }
-    void (^completion)(NSDictionary *) = completion_;
-    completion_ = nil;
-    registration_ = nullptr;
-    completion(json);
-  }
+  }).observe(document, { childList: true, subtree: true, characterData: true });
+})();
+)";
 
-  CefRefPtr<CefRegistration> registration_;
-
- private:
-  int message_id_;
-  void (^completion_)(NSDictionary *);
-  IMPLEMENT_REFCOUNTING(MethodResultObserver);
-};
-
-// DevTools asked for by a page, until Chromium creates their view like a popup's.
-FLXBrowserView *g_devtools_pending = nil;
-
-// Pages opened in a new tab, between the request and the creation of their view, by popup id.
-std::map<int, FLXBrowserView *> &PendingPages() {
-  static std::map<int, FLXBrowserView *> pages;
-  return pages;
+FLXPermission PermissionForKey(NSString *key) {
+  static NSDictionary<NSString *, NSNumber *> *permissions = @{
+    @"media_stream_camera": @(FLXPermissionCamera),
+    @"camera_pan_tilt_zoom": @(FLXPermissionCameraPanTiltZoom),
+    @"media_stream_mic": @(FLXPermissionMicrophone),
+    @"clipboard": @(FLXPermissionClipboard),
+    @"top_level_storage_access": @(FLXPermissionTopLevelStorageAccess),
+    @"storage_access": @(FLXPermissionStorageAccess),
+    @"local_fonts": @(FLXPermissionLocalFonts),
+    @"geolocation": @(FLXPermissionGeolocation),
+    @"idle_detection": @(FLXPermissionIdleDetection),
+    @"midi_sysex": @(FLXPermissionMIDI),
+    @"midi": @(FLXPermissionMIDI),
+    @"automatic_downloads": @(FLXPermissionMultipleDownloads),
+    @"notifications": @(FLXPermissionNotifications),
+    @"keyboard_lock": @(FLXPermissionKeyboardLock),
+    @"pointer_lock": @(FLXPermissionPointerLock),
+    @"protocol_handler": @(FLXPermissionProtocolHandler),
+    @"window_management": @(FLXPermissionWindowManagement),
+    @"file_system_write_guard": @(FLXPermissionFileSystem),
+    @"local_network_access": @(FLXPermissionLocalNetwork),
+    @"sensors": @(FLXPermissionSensors),
+  };
+  return (FLXPermission)permissions[key].unsignedIntValue;
 }
 
-// The permission values are CEF's own.
-static_assert(FLXPermissionCamera == CEF_PERMISSION_TYPE_CAMERA_STREAM);
-static_assert(FLXPermissionNotifications == CEF_PERMISSION_TYPE_NOTIFICATIONS);
-static_assert(FLXPermissionSensors == CEF_PERMISSION_TYPE_SENSORS);
-
-}  // namespace
-
-@interface FLXPermissionRequest ()
-- (instancetype)initWithOrigin:(NSString *)origin
-                   permissions:(FLXPermission)permissions
-                      callback:(CefRefPtr<CefPermissionPromptCallback>)callback;
-- (void)cancel;
-@end
-
-namespace {
-
-class BrowserClient : public CefClient,
-                      public CefLifeSpanHandler,
-                      public CefDisplayHandler,
-                      public CefDownloadHandler,
-                      public CefRequestHandler,
-                      public CefLoadHandler,
-                      public CefContextMenuHandler,
-                      public CefFindHandler,
-                      public CefPermissionHandler {
- public:
-  BrowserClient(FLXBrowserView *owner, bool opened_by_page)
-      : owner_(owner), profile_(owner.profile), opened_by_page_(opened_by_page) {}
-
-  CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
-  CefRefPtr<CefDisplayHandler> GetDisplayHandler() override { return this; }
-  CefRefPtr<CefDownloadHandler> GetDownloadHandler() override { return this; }
-  CefRefPtr<CefRequestHandler> GetRequestHandler() override { return this; }
-  CefRefPtr<CefLoadHandler> GetLoadHandler() override { return this; }
-  CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override { return this; }
-  CefRefPtr<CefFindHandler> GetFindHandler() override { return this; }
-  CefRefPtr<CefPermissionHandler> GetPermissionHandler() override { return this; }
-
-  bool OnShowPermissionPrompt(CefRefPtr<CefBrowser> browser, uint64_t prompt_id, const CefString &requesting_origin,
-                              uint32_t requested_permissions,
-                              CefRefPtr<CefPermissionPromptCallback> callback) override {
-    FLXBrowserView *owner = owner_;
-    if (!IsOwnPage(browser) || ![owner.delegate respondsToSelector:@selector(browserView:didRequestPermission:)]) {
-      return false;
-    }
-    FLXPermissionRequest *request = [[FLXPermissionRequest alloc] initWithOrigin:ToNSString(requesting_origin)
-                                                                      permissions:requested_permissions
-                                                                         callback:callback];
-    permission_requests_[prompt_id] = request;
-    [owner.delegate browserView:owner didRequestPermission:request];
-    return true;
-  }
-
-  // Also called once Flux answered.
-  void OnDismissPermissionPrompt(CefRefPtr<CefBrowser> browser, uint64_t prompt_id,
-                                 cef_permission_request_result_t result) override {
-    auto request = permission_requests_.find(prompt_id);
-    if (request == permission_requests_.end()) return;
-    FLXPermissionRequest *dismissed = request->second;
-    permission_requests_.erase(request);
-    [dismissed cancel];
-  }
-
-  bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
-                                CefProcessId source_process, CefRefPtr<CefProcessMessage> message) override {
-    if (!frame) return false;
-    if (message->GetName() == "FluxMedia") {
-      if (IsOwnPage(browser)) UpdateMedia(frame->GetIdentifier().ToString(), message->GetArgumentList()->GetString(0));
-      return true;
-    }
-    if (message->GetName() != "FluxAudio") return false;
-    if (!IsOwnPage(browser)) return true;
-    bool was_audible = !audible_frames_.empty();
-    std::string id = frame->GetIdentifier().ToString();
-    if (message->GetArgumentList()->GetBool(0)) {
-      audible_frames_.insert(id);
-    } else {
-      audible_frames_.erase(id);
-    }
-    bool is_audible = !audible_frames_.empty();
-    FLXBrowserView *owner = owner_;
-    if (is_audible != was_audible && [owner.delegate respondsToSelector:@selector(browserView:didChangeAudible:)]) {
-      [owner.delegate browserView:owner didChangeAudible:is_audible];
-    }
-    return true;
-  }
-
-  void OnFindResult(CefRefPtr<CefBrowser> browser, int identifier, int count, const CefRect &selection_rect,
-                    int active_match_ordinal, bool final_update) override {
-    if (!IsOwnPage(browser)) return;
-    FLXBrowserView *owner = owner_;
-    if ([owner.delegate respondsToSelector:@selector(browserView:didFindMatches:activeMatch:)]) {
-      [owner.delegate browserView:owner didFindMatches:count activeMatch:active_match_ordinal];
-    }
-  }
-
-  // Chrome's translation needs a Google key Flux doesn't have, so its items give way to Flux's
-  // own, which translate with Apple's framework.
-  void OnBeforeContextMenu(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
-                           CefRefPtr<CefContextMenuParams> params, CefRefPtr<CefMenuModel> model) override {
-    if (!IsOwnPage(browser)) return;
-    size_t index = model->GetCount();
-    for (int command : {IDC_CONTENT_CONTEXT_TRANSLATE, IDC_CONTENT_CONTEXT_PARTIAL_TRANSLATE}) {
-      int found = model->GetIndexOf(command);
-      if (found < 0) continue;
-      index = std::min(index, static_cast<size_t>(found));
-      model->Remove(command);
-    }
-    menu_text_ = params->GetSelectionText().ToString();
-    menu_point_ = CefPoint(params->GetXCoord(), params->GetYCoord());
-    FLXBrowserView *owner = owner_;
-    if (![owner.delegate respondsToSelector:@selector(browserView:contextMenuItemsForSelectedText:)]) return;
-    NSArray<NSString *> *titles = [owner.delegate browserView:owner
-                                contextMenuItemsForSelectedText:@(menu_text_.c_str())];
-    if (titles.count == 0) return;
-    // InsertItemAt can't add at the end, where the items go when Chrome offered none of its own.
-    bool atEnd = index == model->GetCount();
-    if (atEnd) model->AddSeparator();
-    for (NSUInteger i = 0; i < titles.count && MENU_ID_USER_FIRST + i <= MENU_ID_USER_LAST; i++) {
-      int command = MENU_ID_USER_FIRST + static_cast<int>(i);
-      if (atEnd) {
-        model->AddItem(command, titles[i].UTF8String);
-      } else {
-        model->InsertItemAt(index + i, command, titles[i].UTF8String);
-      }
-    }
-  }
-
-  bool OnContextMenuCommand(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
-                            CefRefPtr<CefContextMenuParams> params, int command_id,
-                            EventFlags event_flags) override {
-    if (command_id < MENU_ID_USER_FIRST || command_id > MENU_ID_USER_LAST) return false;
-    FLXBrowserView *owner = owner_;
-    NSWindow *window = owner.pageWindow;
-    if (!window || ![owner.delegate respondsToSelector:@selector(browserView:didChooseContextMenuItemAtIndex:selectedText:point:)]) {
-      return true;
-    }
-    // The menu's point is from the page's top left corner.
-    NSPoint point = NSMakePoint(NSMinX(window.frame) + menu_point_.x, NSMaxY(window.frame) - menu_point_.y);
-    [owner.delegate browserView:owner
-        didChooseContextMenuItemAtIndex:command_id - MENU_ID_USER_FIRST
-                           selectedText:@(menu_text_.c_str())
-                                  point:point];
-    return true;
-  }
-
-  void OnLoadingStateChange(CefRefPtr<CefBrowser> browser, bool is_loading, bool can_go_back,
-                            bool can_go_forward) override {
-    if (!IsOwnPage(browser)) return;
-    FLXBrowserView *owner = owner_;
-    [owner setCanGoBack:can_go_back canGoForward:can_go_forward];
-    if (is_loading) return;
-    if ([owner.delegate respondsToSelector:@selector(browserViewDidFinishLoading:)]) {
-      [owner.delegate browserViewDidFinishLoading:owner];
-    }
-  }
-
-  void OnAfterCreated(CefRefPtr<CefBrowser> browser) override {
-    FLXEngineBrowserCreated(browser);
-    if (page_id_ == 0 && (opened_by_page_ || !browser->IsPopup())) {
-      page_id_ = browser->GetIdentifier();
-      [owner_ attachBrowser:browser];
-    }
-  }
-
-  // A link ⌘-clicked, or opened in a new tab by one of Chrome's own pages. Unlike OnBeforePopup,
-  // there is no opener to keep, so Flux loads the URL in a page of its own.
-  bool OnOpenURLFromTab(CefRefPtr<CefBrowser> browser,
-                        CefRefPtr<CefFrame> frame,
-                        const CefString &target_url,
-                        cef_window_open_disposition_t target_disposition,
-                        bool user_gesture) override {
-    if (!OpensNewTab(target_disposition)) return false;
-    FLXBrowserView *owner = owner_;
-    if (!owner) return false;
-    if (owner.embedded || ![owner.delegate respondsToSelector:@selector(browserView:didOpenPage:disposition:)]) {
-      FLXEngineOpenExternalPage(ToNSString(target_url), browser);
-      return true;
-    }
-    FLXBrowserView *page = [[FLXBrowserView alloc] initWithURL:ToNSString(target_url) profile:owner.profile];
-    [owner.delegate browserView:owner didOpenPage:page disposition:Disposition(target_disposition, false)];
-    return true;
-  }
-
-  // Links opened in a new tab become Flux tabs. Their page is still created by Chromium, as a
-  // popup, so it keeps its link to the opener, which some sign-in flows rely on. Popups asked
-  // with window features stay windows.
-  bool OnBeforePopup(CefRefPtr<CefBrowser> browser,
-                     CefRefPtr<CefFrame> frame,
-                     int popup_id,
-                     const CefString &target_url,
-                     const CefString &target_frame_name,
-                     cef_window_open_disposition_t target_disposition,
-                     bool user_gesture,
-                     const CefPopupFeatures &popup_features,
-                     CefWindowInfo &window_info,
-                     CefRefPtr<CefClient> &client,
-                     CefBrowserSettings &settings,
-                     CefRefPtr<CefDictionaryValue> &extra_info,
-                     bool *no_javascript_access) override {
-    if (!OpensNewTab(target_disposition)) return false;
-    FLXBrowserView *owner = owner_;
-    if (!owner) return false;
-    // An embedded page can't host Chrome style popups.
-    if (owner.embedded) {
-      FLXEngineOpenExternalPage(ToNSString(target_url), browser);
-      return true;
-    }
-    if (![owner.delegate respondsToSelector:@selector(browserView:didOpenPage:disposition:)]) return false;
-    FLXBrowserView *page = [[FLXBrowserView alloc] initOpenedByPageWithURL:ToNSString(target_url)
-                                                                   profile:owner.profile];
-    client = page.cefClient;
-    PendingPages()[popup_id] = page;
-    FLXOpenDisposition disposition = Disposition(target_disposition, true);
-    dispatch_async(dispatch_get_main_queue(), ^{
-      [owner.delegate browserView:owner didOpenPage:page disposition:disposition];
-    });
-    return false;
-  }
-
-  void OnBeforePopupAborted(CefRefPtr<CefBrowser> browser, int popup_id) override {
-    PendingPages().erase(popup_id);
-  }
-
-  // CEF stops reporting a page's downloads once the page is closed, and they would never finish
-  // in Flux. A page closed with downloads running stays open, out of sight, until they end.
-  bool ClosesAfterDownloads() {
-    closes_after_downloads_ = !downloads_.empty();
-    return closes_after_downloads_;
-  }
-
-  bool DoClose(CefRefPtr<CefBrowser> browser) override {
-    if (!IsOwnPage(browser)) return false;
-    FLXBrowserView *owner = owner_;
-    if ([owner.delegate respondsToSelector:@selector(browserViewDidClose:)]) {
-      [owner.delegate browserViewDidClose:owner];
-    }
-    // A page window is closed by CEF like any other window. An embedded page lives inside Flux's
-    // window, which must stay open, so its view is torn down here.
-    if (!owner.embedded) return false;
-    NSView *view = (__bridge NSView *)browser->GetHost()->GetWindowHandle();
-    [view removeFromSuperview];
-    return true;
-  }
-
-  bool OnAutoResize(CefRefPtr<CefBrowser> browser, const CefSize &new_size) override {
-    FLXBrowserView *owner = owner_;
-    if ([owner.delegate respondsToSelector:@selector(browserView:didResizeToFit:)]) {
-      [owner.delegate browserView:owner didResizeToFit:NSMakeSize(new_size.width, new_size.height)];
-    }
-    return true;
-  }
-
-  void OnBeforeClose(CefRefPtr<CefBrowser> browser) override {
-    if (IsOwnPage(browser)) [owner_ detachBrowser];
-    FLXEngineBrowserClosed(browser);
-  }
-
-  void OnAddressChange(CefRefPtr<CefBrowser> browser,
-                       CefRefPtr<CefFrame> frame,
-                       const CefString &url) override {
-    if (!IsOwnPage(browser) || !frame->IsMain()) return;
-    FLXBrowserView *owner = owner_;
-    owner.currentURL = ToNSString(url);
-    if ([owner.delegate respondsToSelector:@selector(browserView:didChangeURL:)]) {
-      [owner.delegate browserView:owner didChangeURL:owner.currentURL];
-    }
-  }
-
-  // Without this handler every download is canceled, including the extension packages that the
-  // Chrome Web Store downloads when installing.
-  bool OnBeforeDownload(CefRefPtr<CefBrowser> browser,
-                        CefRefPtr<CefDownloadItem> download_item,
-                        const CefString &suggested_name,
-                        CefRefPtr<CefBeforeDownloadCallback> callback) override {
-    if (download_item->GetMimeType() == "application/x-chrome-extension") {
-      // An empty path keeps the package in Chromium's temporary folder, where the installer reads it.
-      callback->Continue("", false);
-      return true;
-    }
-    NSURL *downloads = [NSFileManager.defaultManager URLsForDirectory:NSDownloadsDirectory
-                                                            inDomains:NSUserDomainMask].firstObject;
-    NSString *path = AvailablePath([downloads URLByAppendingPathComponent:ToNSString(suggested_name)].path);
-    if (IsOwnPage(browser) && ShowsNothing(browser)) download_closing_page_ = download_item->GetId();
-    callback->Continue(path.UTF8String, profile_.asksWhereToSaveDownloads);
-    return true;
-  }
-
-  void OnDownloadUpdated(CefRefPtr<CefBrowser> browser,
-                         CefRefPtr<CefDownloadItem> download_item,
-                         CefRefPtr<CefDownloadItemCallback> callback) override {
-    if (download_item->GetMimeType() == "application/x-chrome-extension") return;
-    if (profile_.downloadHandler) {
-      profile_.downloadHandler([[FLXDownload alloc] initWithItem:download_item callback:callback]);
-    }
-    if (download_item->IsInProgress()) {
-      downloads_.insert(download_item->GetId());
-    } else {
-      downloads_.erase(download_item->GetId());
-      if (closes_after_downloads_ && downloads_.empty()) browser->GetHost()->CloseBrowser(true);
-    }
-    // Not before the file has a place: the save panel, when Flux asks where to save, belongs to
-    // the page.
-    if (download_item->GetId() == download_closing_page_ &&
-        (!download_item->GetFullPath().empty() || !download_item->IsInProgress())) {
-      download_closing_page_ = 0;
-      FLXBrowserView *owner = owner_;
-      if ([owner.delegate respondsToSelector:@selector(browserViewDidOpenOnlyDownload:)]) {
-        [owner.delegate browserViewDidOpenOnlyDownload:owner];
-      }
-    }
-  }
-
-  // "name (1).ext", "name (2).ext"… next to a file of the same name, as Chrome does.
-  static NSString *AvailablePath(NSString *path) {
-    NSFileManager *files = NSFileManager.defaultManager;
-    NSString *base = path.stringByDeletingPathExtension;
-    NSString *extension = path.pathExtension;
-    NSString *candidate = path;
-    for (int number = 1; [files fileExistsAtPath:candidate]; number++) {
-      NSString *name = [NSString stringWithFormat:@"%@ (%d)", base, number];
-      candidate = extension.length ? [name stringByAppendingPathExtension:extension] : name;
-    }
-    return candidate;
-  }
-
-  void OnFaviconURLChange(CefRefPtr<CefBrowser> browser,
-                          const std::vector<CefString> &icon_urls) override {
-    if (!IsOwnPage(browser) || icon_urls.empty()) return;
-    browser->GetHost()->DownloadImage(icon_urls.front(), true, 64, false, new FaviconCallback(owner_));
-  }
-
-  void OnTitleChange(CefRefPtr<CefBrowser> browser, const CefString &title) override {
-    if (!IsOwnPage(browser)) return;
-    FLXBrowserView *owner = owner_;
-    owner.title = ToNSString(title);
-    if ([owner.delegate respondsToSelector:@selector(browserView:didChangeTitle:)]) {
-      [owner.delegate browserView:owner didChangeTitle:owner.title];
-    }
-  }
-
-  void SendMediaCommand(CefRefPtr<CefBrowser> browser, NSString *command, double value) {
-    CefRefPtr<CefFrame> frame = media_frame_.empty() ? nullptr : browser->GetFrameByIdentifier(media_frame_);
-    if (!frame) return;
-    CefRefPtr<CefProcessMessage> message = CefProcessMessage::Create("FluxMediaCommand");
-    message->GetArgumentList()->SetString(0, command.UTF8String);
-    message->GetArgumentList()->SetDouble(1, value);
-    frame->SendProcessMessage(PID_RENDERER, message);
-  }
-
- private:
-  // A foreground tab asked by the page itself, rather than by a ⌘-click, comes from a link target
-  // or window.open.
-  static FLXOpenDisposition Disposition(cef_window_open_disposition_t disposition, bool from_page) {
-    switch (disposition) {
-      case CEF_WOD_NEW_BACKGROUND_TAB:
-        return FLXOpenDispositionBackgroundTab;
-      case CEF_WOD_NEW_WINDOW:
-        return FLXOpenDispositionShiftClick;
-      default:
-        return from_page ? FLXOpenDispositionLinkTarget : FLXOpenDispositionForegroundTab;
-    }
-  }
-
-  static bool OpensNewTab(cef_window_open_disposition_t disposition) {
-    return disposition == CEF_WOD_NEW_FOREGROUND_TAB || disposition == CEF_WOD_NEW_BACKGROUND_TAB ||
-           disposition == CEF_WOD_NEW_WINDOW;
-  }
-
-  bool IsOwnPage(CefRefPtr<CefBrowser> browser) const { return browser->GetIdentifier() == page_id_; }
-
-  // The page's media is the frame that last started playing, or else any frame that played.
-  void UpdateMedia(const std::string &frame, const std::string &state) {
-    if (state.empty()) {
-      media_states_.erase(frame);
-    } else {
-      media_states_[frame] = state;
-      if (state.find("\"playing\":true") != std::string::npos) media_frame_ = frame;
-    }
-    if (!media_states_.count(media_frame_)) media_frame_ = media_states_.empty() ? "" : media_states_.begin()->first;
-    std::string shown = media_frame_.empty() ? "" : media_states_[media_frame_];
-    if (shown == shown_media_) return;
-    shown_media_ = shown;
-    FLXBrowserView *owner = owner_;
-    if (![owner.delegate respondsToSelector:@selector(browserView:didChangeMedia:)]) return;
-    NSData *data = [ToNSString(shown) dataUsingEncoding:NSUTF8StringEncoding];
-    id media = data.length ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
-    [owner.delegate browserView:owner didChangeMedia:[media isKindOfClass:NSDictionary.class] ? media : nil];
-  }
-
-  // A navigation that turns into a download never commits, so a page opened for one still has
-  // the empty document it started with.
-  static bool ShowsNothing(CefRefPtr<CefBrowser> browser) {
-    if (browser->CanGoBack() || browser->CanGoForward()) return false;
-    std::string url = browser->GetMainFrame()->GetURL();
-    return url.empty() || url == "about:blank";
-  }
-
-  __weak FLXBrowserView *owner_;
-  std::string menu_text_;
-  /// Frames of the page playing sound, as FluxHelper reports them.
-  std::set<std::string> audible_frames_;
-  std::map<uint64_t, FLXPermissionRequest *> permission_requests_;
-  /// What each frame that played something reports, as JSON, by frame identifier.
-  std::map<std::string, std::string> media_states_;
-  std::string media_frame_;
-  std::string shown_media_;
-  CefPoint menu_point_;
-  // Kept for downloads that outlive their tab.
-  FLXProfile *profile_;
-  const bool opened_by_page_;
-  int page_id_ = 0;
-  uint32_t download_closing_page_ = 0;
-  std::set<uint32_t> downloads_;
-  bool closes_after_downloads_ = false;
-  IMPLEMENT_REFCOUNTING(BrowserClient);
-};
-
-class PageWindowDelegate : public CefWindowDelegate {
- public:
-  PageWindowDelegate(CefRefPtr<CefBrowserView> browser_view, FLXBrowserView *owner)
-      : browser_view_(browser_view), owner_(owner) {}
-
-  void OnWindowCreated(CefRefPtr<CefWindow> window) override {
-    window->AddChildView(browser_view_);
-    if (CefRefPtr<CefView> toolbar = browser_view_->GetChromeToolbar()) toolbar->SetVisible(false);
-    [owner_ pageWindowCreated:window];
-  }
-
-  void OnWindowDestroyed(CefRefPtr<CefWindow> window) override {
-    browser_view_ = nullptr;
-    [owner_ pageWindowDestroyed];
-  }
-
-  cef_runtime_style_t GetWindowRuntimeStyle() override { return CEF_RUNTIME_STYLE_CHROME; }
-  bool IsFrameless(CefRefPtr<CefWindow> window) override { return true; }
-  // Flux sizes the window. A resizable one would also grab drags just outside its edges.
-  bool CanResize(CefRefPtr<CefWindow> window) override { return false; }
-  bool CanMinimize(CefRefPtr<CefWindow> window) override { return false; }
-  bool CanMaximize(CefRefPtr<CefWindow> window) override { return false; }
-  CefRect GetInitialBounds(CefRefPtr<CefWindow> window) override { return CefRect(-10000, -10000, 800, 600); }
-
-  bool CanClose(CefRefPtr<CefWindow> window) override {
-    CefRefPtr<CefBrowser> browser = browser_view_ ? browser_view_->GetBrowser() : nullptr;
-    return !browser || browser->GetHost()->TryCloseBrowser();
-  }
-
- private:
-  CefRefPtr<CefBrowserView> browser_view_;
-  __weak FLXBrowserView *owner_;
-  IMPLEMENT_REFCOUNTING(PageWindowDelegate);
-};
-
-class PageViewDelegate : public CefBrowserViewDelegate {
- public:
-  PageViewDelegate() = default;
-  explicit PageViewDelegate(FLXBrowserView *opened_page) : opened_page_(opened_page) {}
-
-  cef_runtime_style_t GetBrowserRuntimeStyle() override { return CEF_RUNTIME_STYLE_CHROME; }
-  // Chrome anchors extension popups to its toolbar's extension area, and running an extension's
-  // action fails without one. The toolbar exists but stays hidden, Flux has its own.
-  ChromeToolbarType GetChromeToolbarType(CefRefPtr<CefBrowserView> browser_view) override {
-    return CEF_CTT_NORMAL;
-  }
-
-  CefRefPtr<CefBrowserViewDelegate> GetDelegateForPopupBrowserView(CefRefPtr<CefBrowserView> browser_view,
-                                                                   const CefBrowserSettings &settings,
-                                                                   CefRefPtr<CefClient> client,
-                                                                   bool is_devtools) override {
-    if (is_devtools && g_devtools_pending && g_devtools_pending.cefClient.get() == client.get()) {
-      return new PageViewDelegate(g_devtools_pending);
-    }
-    auto &pending = PendingPages();
-    for (auto it = pending.begin(); it != pending.end(); ++it) {
-      if (it->second.cefClient.get() != client.get()) continue;
-      FLXBrowserView *page = it->second;
-      pending.erase(it);
-      return new PageViewDelegate(page);
-    }
-    return new PageViewDelegate();
-  }
-
-  // Every popup delegate comes from the method above, so the cast is safe.
-  bool OnPopupBrowserViewCreated(CefRefPtr<CefBrowserView> browser_view,
-                                 CefRefPtr<CefBrowserView> popup_browser_view,
-                                 bool is_devtools) override {
-    auto *delegate = static_cast<PageViewDelegate *>(popup_browser_view->GetDelegate().get());
-    FLXBrowserView *page = delegate ? delegate->opened_page_ : nil;
-    if (!page) return false;
-    CefWindow::CreateTopLevelWindow(new PageWindowDelegate(popup_browser_view, page));
-    if (is_devtools) {
-      g_devtools_pending = nil;
-      FLXBrowserView *inspected = page.inspectedPage;
-      inspected.devTools = page;
-      if ([inspected.delegate respondsToSelector:@selector(browserView:didOpenDevTools:)]) {
-        [inspected.delegate browserView:inspected didOpenDevTools:page];
-      }
-    }
-    return true;
-  }
-
- private:
-  FLXBrowserView *opened_page_ = nil;
-  IMPLEMENT_REFCOUNTING(PageViewDelegate);
-};
-
-// CEF gives its windows a frame of its own, rounded like a titled window's whatever their style.
-// Flux rounds pages itself, corner by corner, so a page meets the developer bar and its DevTools
-// with square corners. macOS decides that rounding through methods of the window and its frame
-// that aren't public, so their overrides are kept to this one place. Should they change, pages
-// keep macOS's corners.
 CACornerMask AllCorners() {
   return kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner | kCALayerMinXMaxYCorner | kCALayerMaxXMaxYCorner;
-}
-
-void ReplaceMethod(Class cls, NSString *name, id block, const char *types) {
-  SEL selector = NSSelectorFromString(name);
-  if (![cls instancesRespondToSelector:selector]) return;
-  class_replaceMethod(cls, selector, imp_implementationWithBlock(block), types);
-}
-
-void RemoveSystemCorners(NSWindow *window) {
-  static NSMutableSet<Class> *done = [NSMutableSet set];
-  Class windowClass = window.class;
-  Class frameClass = window.contentView.superview.class;
-  if (![done containsObject:windowClass]) {
-    [done addObject:windowClass];
-    ReplaceMethod(windowClass, @"_cornerRadius", ^CGFloat(id) { return 0; }, "d@:");
-    ReplaceMethod(windowClass, @"_cornerMask", ^id(id) { return nil; }, "@@:");
-  }
-  if (frameClass && ![done containsObject:frameClass]) {
-    [done addObject:frameClass];
-    ReplaceMethod(frameClass, @"_cornerRadius", ^CGFloat(id) { return 0; }, "d@:");
-    ReplaceMethod(frameClass, @"_shouldRoundCornersForSurface", ^BOOL(id) { return NO; }, "B@:");
-    ReplaceMethod(frameClass, @"topCornerRounded", ^BOOL(id) { return NO; }, "B@:");
-    ReplaceMethod(frameClass, @"bottomCornerRounded", ^BOOL(id) { return NO; }, "B@:");
-  }
-  SEL changed = NSSelectorFromString(@"_cornerMaskChanged");
-  if ([window respondsToSelector:changed]) ((void (*)(id, SEL))objc_msgSend)(window, changed);
 }
 
 }  // namespace
 
 const CGFloat FLXPageCornerRadius = 18;
 
+@interface FLXPermissionRequest ()
+- (instancetype)initWithOrigin:(NSString *)origin
+                   permissions:(FLXPermission)permissions
+                    completion:(void (^)(BOOL allow))completion;
+@end
+
 @implementation FLXPermissionRequest {
-  CefRefPtr<CefPermissionPromptCallback> _callback;
+  void (^_completion)(BOOL);
 }
 
 - (instancetype)initWithOrigin:(NSString *)origin
                    permissions:(FLXPermission)permissions
-                      callback:(CefRefPtr<CefPermissionPromptCallback>)callback {
+                    completion:(void (^)(BOOL))completion {
   self = [super init];
   if (!self) return nil;
   _origin = [origin copy];
   _permissions = permissions;
-  _callback = callback;
+  _completion = [completion copy];
   return self;
 }
 
 - (void)allow {
-  [self answer:CEF_PERMISSION_RESULT_ACCEPT];
+  [self answer:YES];
 }
 
 - (void)block {
-  [self answer:CEF_PERMISSION_RESULT_DENY];
+  [self answer:NO];
 }
 
 - (void)dismiss {
-  [self answer:CEF_PERMISSION_RESULT_DISMISS];
+  [self answer:NO];
 }
 
-- (void)answer:(cef_permission_request_result_t)result {
-  if (!_callback) return;
-  CefRefPtr<CefPermissionPromptCallback> callback = _callback;
-  _callback = nullptr;
-  callback->Continue(result);
-}
-
-- (void)cancel {
-  if (!_callback) return;
-  _callback = nullptr;
-  if (_onCancel) _onCancel();
+- (void)answer:(BOOL)allow {
+  void (^completion)(BOOL) = _completion;
+  _completion = nil;
+  if (completion) completion(allow);
 }
 
 @end
 
+// A context menu item that runs a block.
+@interface FLXBlockMenuItem : NSMenuItem
+@end
+
+@implementation FLXBlockMenuItem {
+  void (^_block)(void);
+}
+
+- (instancetype)initWithTitle:(NSString *)title block:(void (^)(void))block {
+  if (!(self = [super initWithTitle:title action:@selector(run:) keyEquivalent:@""])) return nil;
+  _block = [block copy];
+  self.target = self;
+  return self;
+}
+
+- (void)run:(id)sender {
+  _block();
+}
+
+@end
+
+@interface FLXPageDevTools () <ECDevToolsDelegate>
+- (instancetype)initWithDevTools:(ECDevTools *)devTools;
+@end
+
+@implementation FLXPageDevTools {
+  ECDevTools *_devTools;
+}
+
+- (instancetype)initWithDevTools:(ECDevTools *)devTools {
+  if (!(self = [super init])) return nil;
+  _devTools = devTools;
+  devTools.delegate = self;
+  return self;
+}
+
+- (NSView *)view {
+  return _devTools.view;
+}
+
+- (NSRect)pageFrame {
+  return _devTools.inspectedPageBounds;
+}
+
+- (void)showPanel:(NSString *)panel {
+  [_devTools showPanel:panel];
+}
+
+- (void)devTools:(ECDevTools *)devTools didSetInspectedPageBounds:(NSRect)bounds {
+  if (_onPageFrameChange) _onPageFrameChange();
+}
+
+@end
+
+@interface FLXBrowserView () <ECWebContentsDelegate>
+@property (nonatomic, readwrite, copy) NSString *currentURL;
+@property (nonatomic, readwrite, copy) NSString *title;
+@end
+
 @implementation FLXBrowserView {
+  ECWebContents *_contents;
   NSView *_dimView;
-  CACornerMask _roundedCorners;
-  CefRefPtr<BrowserClient> _client;
-  CefRefPtr<CefBrowser> _browser;
-  CefRefPtr<CefWindow> _pageWindow;
-  NSWindow *_pageNSWindow;
-  NSWindow *_observedWindow;
-  BOOL _fitsContent;
-  NSSize _minimumSize;
-  NSSize _maximumSize;
+  BOOL _embedded;
+  BOOL _audible;
+  BOOL _loading;
+  NSImage *_favicon;
+  NSString *_pageID;
+  NSString *_targetID;
+  NSString *_sessionID;
+  NSMutableArray<void (^)(NSString *)> *_sessionWaiters;
+  // What each frame that played something reports, as JSON.
+  NSMutableDictionary<NSString *, NSString *> *_mediaStates;
+  NSString *_shownMedia;
+  FLXPageDevTools *_devTools;
 }
 
 - (instancetype)initWithURL:(NSString *)url profile:(FLXProfile *)profile {
@@ -711,37 +299,43 @@ const CGFloat FLXPageCornerRadius = 18;
   return [self initWithURL:url profile:profile embedded:YES];
 }
 
-// Chromium creates the page itself, as a popup of the page that opened it.
-- (instancetype)initOpenedByPageWithURL:(NSString *)url profile:(FLXProfile *)profile {
-  self = [super initWithFrame:NSMakeRect(0, 0, 800, 600)];
-  if (!self) return nil;
-  _roundedCorners = AllCorners();
-  _profile = profile;
-  _currentURL = [url copy];
-  _title = @"";
-  _client = new BrowserClient(self, true);
-  return self;
-}
-
 - (instancetype)initWithURL:(NSString *)url profile:(FLXProfile *)profile embedded:(BOOL)embedded {
   self = [super initWithFrame:NSMakeRect(0, 0, 800, 600)];
   if (!self) return nil;
-  _roundedCorners = AllCorners();
-  _embedded = embedded;
   _profile = profile;
+  _embedded = embedded;
   _currentURL = [url copy];
   _title = @"";
-  _client = new BrowserClient(self, false);
-
+  _pageID = NSUUID.UUID.UUIDString;
+  _mediaStates = [NSMutableDictionary dictionary];
+  self.wantsLayer = YES;
+  self.layer.cornerRadius = FLXPageCornerRadius;
+  self.layer.cornerCurve = kCACornerCurveCircular;
+  self.layer.maskedCorners = AllCorners();
+  self.layer.masksToBounds = YES;
   __weak FLXBrowserView *weakSelf = self;
   [profile whenReady:^{
-    [weakSelf createBrowser];
+    [weakSelf createContents];
   }];
   return self;
 }
 
-- (CefRefPtr<CefClient>)cefClient {
-  return _client;
+- (void)createContents {
+  _contents = [[ECWebContents alloc] initWithBrowserContext:_profile.context];
+  _contents.delegate = self;
+  // Lets the page be found among the DevTools protocol's targets.
+  [_contents addDocumentStartScript:[NSString stringWithFormat:
+      @"Object.defineProperty(globalThis, Symbol.for('flux.page'), {value: '%@'});", _pageID]];
+  [_contents addDocumentStartScript:kPictureInPictureShim];
+  [_contents addDocumentStartScript:kWebStoreFixes];
+  [_contents addMessageObjectNamed:kMediaObject];
+  [_contents addDocumentStartScript:kMediaWatcher];
+  NSView *view = _contents.view;
+  view.frame = self.bounds;
+  view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+  [self addSubview:view positioned:NSWindowBelow relativeTo:nil];
+  if (!_embedded) [_profile addPage:self contents:_contents];
+  if (_currentURL.length) [_contents loadURL:[NSURL URLWithString:_currentURL]];
 }
 
 // In a popover, vibrancy would wash out the page's colors.
@@ -749,399 +343,574 @@ const CGFloat FLXPageCornerRadius = 18;
   return NO;
 }
 
-- (void)dealloc {
-  [NSNotificationCenter.defaultCenter removeObserver:self];
-}
-
-- (void)createBrowser {
-  CefBrowserSettings settings;
-  if (!_embedded) {
-    CefRefPtr<CefBrowserView> browser_view = CefBrowserView::CreateBrowserView(
-        _client, self.currentURL.UTF8String, settings, nullptr, self.profile.requestContext,
-        new PageViewDelegate());
-    CefWindow::CreateTopLevelWindow(new PageWindowDelegate(browser_view, self));
-    return;
-  }
-  CefWindowInfo window_info;
-  NSRect bounds = self.bounds;
-  window_info.SetAsChild((__bridge void *)self,
-                         CefRect(0, 0, (int)MAX(bounds.size.width, 1), (int)MAX(bounds.size.height, 1)));
-  CefRefPtr<CefDictionaryValue> extra_info = CefDictionaryValue::Create();
-  // Read by the renderer, in FluxHelper.
-  extra_info->SetBool("extension_popup", true);
-  CefBrowserHost::CreateBrowser(window_info, _client, self.currentURL.UTF8String, settings, extra_info,
-                                self.profile.requestContext);
-}
-
-- (void)attachBrowser:(CefRefPtr<CefBrowser>)browser {
-  _browser = browser;
-  if (!_embedded) return;
-  NSView *browserView = (__bridge NSView *)browser->GetHost()->GetWindowHandle();
-  browserView.frame = self.bounds;
-  browserView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-  if (_fitsContent) [self applyFitToContent];
-}
-
-- (void)fitToContentWithMinimumSize:(NSSize)minimumSize maximumSize:(NSSize)maximumSize {
-  _fitsContent = YES;
-  _minimumSize = minimumSize;
-  _maximumSize = maximumSize;
-  if (_browser) [self applyFitToContent];
-}
-
-- (void)applyFitToContent {
-  _browser->GetHost()->SetAutoResizeEnabled(
-      true, CefSize((int)_minimumSize.width, (int)_minimumSize.height),
-      CefSize((int)_maximumSize.width, (int)_maximumSize.height));
-}
-
-- (void)detachBrowser {
-  _browser = nullptr;
-}
-
-#pragma mark - Page window
-
-- (void)pageWindowCreated:(CefRefPtr<CefWindow>)window {
-  _pageWindow = window;
-  NSView *contentView = (__bridge NSView *)window->GetWindowHandle();
-  _pageNSWindow = contentView.window;
-  _pageNSWindow.opaque = NO;
-  _pageNSWindow.backgroundColor = NSColor.clearColor;
-  // The system gives the key window a large shadow, which would spill over the sidebar whenever
-  // the page has focus. Flux draws a light one of its own under the page.
-  _pageNSWindow.hasShadow = NO;
-  // A non-opaque window lets clicks through wherever its own backing is transparent, which is
-  // everywhere here since Chromium draws the page in a layer of its own. Setting this explicitly
-  // makes the whole window take clicks.
-  _pageNSWindow.ignoresMouseEvents = NO;
-  // Window managers such as AeroSpace move every standard window on its own, and would leave the
-  // page behind when Flux's window goes to another workspace. They leave alone windows that don't
-  // present themselves as standard windows.
-  _pageNSWindow.accessibilitySubrole = NSAccessibilityUnknownSubrole;
-  RemoveSystemCorners(_pageNSWindow);
-  NSView *rootView = _pageNSWindow.contentView;
-  rootView.wantsLayer = YES;
-  rootView.layer.maskedCorners = _roundedCorners;
-  rootView.layer.cornerRadius = FLXPageCornerRadius;
-  // Circular corners, which the shadow drawn under the page can follow exactly. Core Animation's
-  // continuous corners don't match any path AppKit or SwiftUI draws.
-  rootView.layer.cornerCurve = kCACornerCurveCircular;
-  rootView.layer.masksToBounds = YES;
-  [NSNotificationCenter.defaultCenter addObserver:self
-                                         selector:@selector(pageWindowDidBecomeKey)
-                                             name:NSWindowDidBecomeKeyNotification
-                                           object:_pageNSWindow];
-  [self updatePageWindow];
-}
-
-// Chromium brings a page's window forward itself, for one when the back to tab button of its
-// picture-in-picture window is clicked. A page Flux doesn't show then asks for its tab instead.
-- (void)pageWindowDidBecomeKey {
-  if (!self.window || self.isHiddenOrHasHiddenAncestor) {
-    [self updatePageWindow];
-    if ([self.delegate respondsToSelector:@selector(browserViewDidRequestShow:)]) {
-      [self.delegate browserViewDidRequestShow:self];
-    }
-  }
+- (void)viewDidMoveToWindow {
+  [super viewDidMoveToWindow];
+  if (self.window && _contents && !_embedded) [_profile activatePageContents:_contents];
 }
 
 - (CACornerMask)roundedCorners {
-  return _roundedCorners;
+  return self.layer.maskedCorners;
 }
 
 - (void)setRoundedCorners:(CACornerMask)roundedCorners {
-  _roundedCorners = roundedCorners;
-  _pageNSWindow.contentView.layer.maskedCorners = roundedCorners;
+  self.layer.maskedCorners = roundedCorners;
 }
 
 - (void)setDimmed:(BOOL)dimmed {
   _dimmed = dimmed;
-  NSView *rootView = _pageNSWindow.contentView;
-  if (!rootView) return;
   if (!_dimView) {
-    _dimView = [[NSView alloc] initWithFrame:rootView.bounds];
+    _dimView = [[NSView alloc] initWithFrame:self.bounds];
     _dimView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     _dimView.wantsLayer = YES;
     _dimView.layer.backgroundColor = [NSColor.blackColor colorWithAlphaComponent:0.25].CGColor;
   }
   if (dimmed) {
-    _dimView.frame = rootView.bounds;
+    _dimView.frame = self.bounds;
     _dimView.alphaValue = 0;
-    [rootView addSubview:_dimView positioned:NSWindowAbove relativeTo:nil];
+    [self addSubview:_dimView positioned:NSWindowAbove relativeTo:nil];
     _dimView.animator.alphaValue = 1;
   } else {
     [_dimView removeFromSuperview];
   }
 }
 
-- (void)pageWindowDestroyed {
-  [NSNotificationCenter.defaultCenter removeObserver:self
-                                                name:NSWindowDidBecomeKeyNotification
-                                              object:_pageNSWindow];
-  [_pageNSWindow.parentWindow removeChildWindow:_pageNSWindow];
-  _pageWindow = nullptr;
-  _pageNSWindow = nil;
-  FLXBrowserView *inspected = self.inspectedPage;
-  if ([inspected.delegate respondsToSelector:@selector(browserViewDidCloseDevTools:)]) {
-    [inspected.delegate browserViewDidCloseDevTools:inspected];
-  }
-}
-
-- (void)viewDidMoveToWindow {
-  [super viewDidMoveToWindow];
-  if (_embedded || _observedWindow == self.window) {
-    [self updatePageWindow];
-    return;
-  }
-  NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
-  NSArray<NSNotificationName> *names = @[ NSWindowDidResizeNotification, NSWindowDidMoveNotification ];
-  for (NSNotificationName name in names) {
-    if (_observedWindow) [center removeObserver:self name:name object:_observedWindow];
-  }
-  _observedWindow = self.window;
-  for (NSNotificationName name in names) {
-    if (_observedWindow) {
-      [center addObserver:self selector:@selector(updatePageWindow) name:name object:_observedWindow];
-    }
-  }
-  [self updatePageWindow];
-}
-
-- (void)setFrameSize:(NSSize)newSize {
-  [super setFrameSize:newSize];
-  [self updatePageWindow];
-}
-
-- (void)setFrameOrigin:(NSPoint)newOrigin {
-  [super setFrameOrigin:newOrigin];
-  [self updatePageWindow];
-}
-
-- (void)viewDidHide {
-  [super viewDidHide];
-  [self updatePageWindow];
-}
-
-- (void)viewDidUnhide {
-  [super viewDidUnhide];
-  [self updatePageWindow];
-}
-
-// The page window is a child of Flux's window, so it normally moves with it. Its frame is still set
-// again whenever Flux's window moves or resizes, in case something moved one without the other.
-- (void)updatePageWindow {
-  if (_embedded || !_pageWindow || !_pageNSWindow) return;
-  NSWindow *host = self.window;
-  BOOL visible = host && !self.isHiddenOrHasHiddenAncestor && self.bounds.size.width > 0;
-  if (!visible) {
-    [_pageNSWindow.parentWindow removeChildWindow:_pageNSWindow];
-    if (_pageNSWindow.isVisible) _pageWindow->Hide();
-    return;
-  }
-  NSRect frame = [host convertRectToScreen:[self convertRect:self.bounds toView:nil]];
-  if (_pageNSWindow.parentWindow != host) {
-    [_pageNSWindow.parentWindow removeChildWindow:_pageNSWindow];
-    [host addChildWindow:_pageNSWindow ordered:NSWindowAbove];
-  }
-  [_pageNSWindow setFrame:frame display:YES];
-  if (!_pageNSWindow.isVisible) _pageWindow->Show();
-}
-
-- (NSWindow *)pageWindow {
-  return _pageNSWindow;
-}
-
-- (void)devToolsTargetID:(void (^)(NSString *))completion {
-  [self sendCefDevToolsMethod:"Target.getTargetInfo" params:nullptr completion:^(NSDictionary *result) {
-    completion(result[@"targetInfo"][@"targetId"]);
-  }];
-}
-
-- (void)evaluateJavaScript:(NSString *)expression completion:(void (^)(id))completion {
-  CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
-  params->SetString("expression", expression.UTF8String);
-  params->SetBool("returnByValue", true);
-  [self sendCefDevToolsMethod:"Runtime.evaluate" params:params completion:^(NSDictionary *result) {
-    completion(result[@"result"][@"value"]);
-  }];
-}
-
-- (void)sendCefDevToolsMethod:(const char *)method
-                       params:(CefRefPtr<CefDictionaryValue>)params
-                   completion:(void (^)(NSDictionary *))completion {
-  if (!_browser) {
-    completion(nil);
-    return;
-  }
-  static int next_message_id = 1;
-  int message_id = next_message_id++;
-  CefRefPtr<MethodResultObserver> observer = new MethodResultObserver(message_id, completion);
-  observer->registration_ = _browser->GetHost()->AddDevToolsMessageObserver(observer);
-  _browser->GetHost()->ExecuteDevToolsMethod(message_id, method, params);
-}
-
-- (void)focus {
-  if (_pageNSWindow.isVisible) [_pageNSWindow makeKeyWindow];
-  if (_browser) _browser->GetHost()->SetFocus(true);
-}
+#pragma mark - Navigation
 
 - (void)loadURL:(NSString *)url {
   self.currentURL = url;
-  if (_browser) _browser->GetMainFrame()->LoadURL(url.UTF8String);
+  NSURL *parsed = [NSURL URLWithString:url];
+  if (parsed) [_contents loadURL:parsed];
 }
 
 - (void)goBack {
-  if (_browser) _browser->GoBack();
+  [_contents goBack];
 }
 
 - (void)goForward {
-  if (_browser) _browser->GoForward();
+  [_contents goForward];
 }
 
 - (void)reload {
-  if (_browser) _browser->Reload();
-}
-
-// CefBrowser::StopLoad lets a navigation that hasn't answered yet go on. Chrome's own command
-// stops it. The address was taken when the navigation started, so the page's is read again.
-- (void)stopLoading {
-  [self runChromeCommand:IDC_STOP];
-  if (!_browser) return;
-  NSString *url = ToNSString(_browser->GetMainFrame()->GetURL());
-  if (url.length == 0 || [url isEqualToString:self.currentURL]) return;
-  self.currentURL = url;
-  if ([self.delegate respondsToSelector:@selector(browserView:didChangeURL:)]) {
-    [self.delegate browserView:self didChangeURL:url];
-  }
-}
-
-- (void)print {
-  [self runChromeCommand:IDC_PRINT];
-}
-
-- (void)savePage {
-  [self runChromeCommand:IDC_SAVE_PAGE];
-}
-
-- (void)runChromeCommand:(int)command {
-  if (_browser && _browser->GetHost()->CanExecuteChromeCommand(command)) {
-    _browser->GetHost()->ExecuteChromeCommand(command, CEF_WOD_CURRENT_TAB);
-  }
-}
-
-- (void)zoom:(FLXZoom)zoom {
-  if (!_browser) return;
-  switch (zoom) {
-    case FLXZoomIn: _browser->GetHost()->Zoom(CEF_ZOOM_COMMAND_IN); break;
-    case FLXZoomOut: _browser->GetHost()->Zoom(CEF_ZOOM_COMMAND_OUT); break;
-    case FLXZoomReset: _browser->GetHost()->Zoom(CEF_ZOOM_COMMAND_RESET); break;
-  }
-}
-
-- (BOOL)isAudioMuted {
-  return _browser && _browser->GetHost()->IsAudioMuted();
-}
-
-- (void)setAudioMuted:(BOOL)audioMuted {
-  if (_browser) _browser->GetHost()->SetAudioMuted(audioMuted);
-}
-
-- (void)sendMediaCommand:(NSString *)command value:(double)value {
-  if (_browser) _client->SendMediaCommand(_browser, command, value);
-}
-
-// Chromium's zoom levels are powers of 1.2.
-- (double)zoomFactor {
-  return _browser ? pow(1.2, _browser->GetHost()->GetZoomLevel()) : 1;
-}
-
-- (void)findText:(NSString *)text forward:(BOOL)forward findNext:(BOOL)findNext {
-  if (_browser) _browser->GetHost()->Find(text.UTF8String, forward, false, findNext);
-}
-
-- (void)stopFinding {
-  if (_browser) _browser->GetHost()->StopFinding(true);
-}
-
-- (NSArray<NSData *> *)certificateChain {
-  if (!_browser) return @[];
-  CefRefPtr<CefNavigationEntry> entry = _browser->GetHost()->GetVisibleNavigationEntry();
-  CefRefPtr<CefSSLStatus> status = entry ? entry->GetSSLStatus() : nullptr;
-  CefRefPtr<CefX509Certificate> certificate = status ? status->GetX509Certificate() : nullptr;
-  if (!certificate) return @[];
-  NSMutableArray<NSData *> *chain = [NSMutableArray array];
-  auto append = [chain](CefRefPtr<CefBinaryValue> der) {
-    if (!der) return;
-    NSMutableData *data = [NSMutableData dataWithLength:der->GetSize()];
-    der->GetData(data.mutableBytes, data.length, 0);
-    [chain addObject:data];
-  };
-  append(certificate->GetDEREncoded());
-  CefX509Certificate::IssuerChainBinaryList issuers;
-  certificate->GetDEREncodedIssuerChain(issuers);
-  for (auto &issuer : issuers) append(issuer);
-  return chain;
-}
-
-- (void)showDevToolsOnPanel:(NSString *)panel {
-  if (!_browser || self.devTools) return;
-  // DevTools open on the panel they last showed, which Chrome keeps in the profile's preferences.
-  CefRefPtr<CefRequestContext> context = self.profile.requestContext;
-  if (context) {
-    CefRefPtr<CefValue> current = context->GetPreference("devtools.preferences");
-    CefRefPtr<CefDictionaryValue> preferences = current && current->GetType() == VTYPE_DICTIONARY
-        ? current->GetDictionary()->Copy(false)
-        : CefDictionaryValue::Create();
-    if (panel) {
-      preferences->SetString("panel-selected-tab", [NSString stringWithFormat:@"\"%@\"", panel].UTF8String);
-    }
-    // Chrome docks DevTools according to this, in ways that don't apply to Flux's own docking.
-    preferences->Remove("currentDockState");
-    CefRefPtr<CefValue> value = CefValue::Create();
-    value->SetDictionary(preferences);
-    CefString error;
-    context->SetPreference("devtools.preferences", value, error);
-  }
-  // With a client of their own, DevTools aren't taken for a window Chromium opened by itself, which
-  // Flux hides, and their view is found when Chromium creates it.
-  FLXBrowserView *devtools = [[FLXBrowserView alloc] initOpenedByPageWithURL:@"" profile:self.profile];
-  devtools.inspectedPage = self;
-  g_devtools_pending = devtools;
-  _browser->GetHost()->ShowDevTools(CefWindowInfo(), devtools.cefClient, CefBrowserSettings(), CefPoint());
-}
-
-- (void)closeDevTools {
-  if (_browser) _browser->GetHost()->CloseDevTools();
+  [_contents reload];
 }
 
 - (void)reloadIgnoringCache {
-  if (_browser) _browser->ReloadIgnoreCache();
+  [_contents reloadBypassingCache];
 }
 
-- (void)setCanGoBack:(BOOL)canGoBack canGoForward:(BOOL)canGoForward {
-  if (canGoBack == _canGoBack && canGoForward == _canGoForward) return;
-  _canGoBack = canGoBack;
-  _canGoForward = canGoForward;
-  if ([self.delegate respondsToSelector:@selector(browserViewDidChangeNavigationState:)]) {
-    [self.delegate browserViewDidChangeNavigationState:self];
+- (void)stopLoading {
+  [_contents stop];
+}
+
+- (void)print {
+  [_contents print];
+}
+
+- (void)savePage {
+  [_contents savePage];
+}
+
+- (BOOL)canGoBack {
+  return _contents.canGoBack;
+}
+
+- (BOOL)canGoForward {
+  return _contents.canGoForward;
+}
+
+- (void)zoom:(FLXZoom)zoom {
+  switch (zoom) {
+    case FLXZoomIn: [_contents zoomIn]; break;
+    case FLXZoomOut: [_contents zoomOut]; break;
+    case FLXZoomReset: [_contents resetZoom]; break;
   }
+}
+
+- (double)zoomFactor {
+  return _contents ? _contents.zoomPercent / 100.0 : 1;
+}
+
+- (BOOL)isAudioMuted {
+  return _contents.muted;
+}
+
+- (void)setAudioMuted:(BOOL)audioMuted {
+  _contents.muted = audioMuted;
+}
+
+- (void)sendMediaCommand:(NSString *)command value:(double)value {
+  if ([command isEqualToString:@"play"]) {
+    [_contents playMedia];
+  } else if ([command isEqualToString:@"pause"]) {
+    [_contents pauseMedia];
+  } else if ([command isEqualToString:@"previous"]) {
+    [_contents previousTrack];
+  } else if ([command isEqualToString:@"next"]) {
+    [_contents nextTrack];
+  } else if ([command isEqualToString:@"volume"]) {
+    NSString *script = [NSString stringWithFormat:@"globalThis[Symbol.for('flux.setVolume')]?.(%f)", value];
+    [self evaluateJavaScript:script completion:^(id) {}];
+  }
+}
+
+- (void)findText:(NSString *)text forward:(BOOL)forward findNext:(BOOL)findNext {
+  if (findNext) {
+    [_contents findString:text forward:forward];
+  } else {
+    [_contents findString:text];
+  }
+}
+
+- (void)stopFinding {
+  [_contents stopFinding];
+}
+
+- (NSArray<NSData *> *)certificateChain {
+  return @[];
+}
+
+- (void)focus {
+  if (_contents) [self.window makeFirstResponder:_contents.view];
+}
+
+- (ECWebContents *)engineContents {
+  return _contents;
+}
+
+- (void)close {
+  if (!_contents) return;
+  if (!_embedded) [_profile removePageContents:_contents];
+  [_contents close];
+  _contents = nil;
+}
+
+#pragma mark - DevTools
+
+- (void)showDevToolsOnPanel:(NSString *)panel {
+  [_contents showDevTools];
+  if (panel) [_devTools showPanel:panel];
+}
+
+- (void)showElementPicker {
+  [_contents inspectElement];
+}
+
+- (FLXPageDevTools *)devTools {
+  return _devTools;
+}
+
+- (void)closeDevTools {
+  [_contents closeDevTools];
+}
+
+- (void)webContents:(ECWebContents *)contents didOpenDevTools:(ECDevTools *)devTools {
+  _devTools = [[FLXPageDevTools alloc] initWithDevTools:devTools];
+  id<FLXBrowserViewDelegate> delegate = self.delegate;
+  if ([delegate respondsToSelector:@selector(browserView:didOpenDevTools:)]) [delegate browserView:self didOpenDevTools:_devTools];
+}
+
+- (void)webContentsDidCloseDevTools:(ECWebContents *)contents {
+  _devTools = nil;
+  id<FLXBrowserViewDelegate> delegate = self.delegate;
+  if ([delegate respondsToSelector:@selector(browserViewDidCloseDevTools:)]) [delegate browserViewDidCloseDevTools:self];
+}
+
+// The page's target among the browser-wide protocol's, found by the id its document start script
+// gives it, then a session attached to it.
+- (void)withSession:(void (^)(NSString *_Nullable sessionID))block {
+  if (_sessionID) return block(_sessionID);
+  if (!FLXDevTools.isAvailable || !_contents) return block(nil);
+  if (_sessionWaiters) {
+    [_sessionWaiters addObject:[block copy]];
+    return;
+  }
+  _sessionWaiters = [NSMutableArray arrayWithObject:[block copy]];
+  __weak FLXBrowserView *weakSelf = self;
+  [FLXDevTools sendMethod:@"Target.getTargets" params:@{} sessionID:nil completion:^(NSDictionary *result, NSString *) {
+    // Chrome counts pages outside its tab strip as "other" targets. Those showing the page's address
+    // are tried first.
+    FLXBrowserView *view = weakSelf;
+    NSMutableArray<NSString *> *candidates = [NSMutableArray array];
+    for (NSDictionary *info in result[@"targetInfos"]) {
+      if (![info[@"type"] isEqual:@"page"] && ![info[@"type"] isEqual:@"other"]) continue;
+      if ([info[@"url"] isEqual:view.currentURL]) {
+        [candidates insertObject:info[@"targetId"] atIndex:0];
+      } else {
+        [candidates addObject:info[@"targetId"]];
+      }
+    }
+    [weakSelf findTargetAmong:candidates];
+  }];
+}
+
+- (void)findTargetAmong:(NSMutableArray<NSString *> *)candidates {
+  if (candidates.count == 0) return [self finishSessionSearch:nil];
+  NSString *targetID = candidates.firstObject;
+  [candidates removeObjectAtIndex:0];
+  __weak FLXBrowserView *weakSelf = self;
+  [FLXDevTools sendMethod:@"Target.attachToTarget"
+                   params:@{@"targetId": targetID, @"flatten": @YES}
+                sessionID:nil
+               completion:^(NSDictionary *attached, NSString *) {
+    NSString *sessionID = attached[@"sessionId"];
+    if (!sessionID) return [weakSelf findTargetAmong:candidates];
+    [FLXDevTools sendMethod:@"Runtime.evaluate"
+                     params:@{@"expression": @"globalThis[Symbol.for('flux.page')]", @"returnByValue": @YES}
+                  sessionID:sessionID
+                 completion:^(NSDictionary *evaluated, NSString *) {
+      FLXBrowserView *view = weakSelf;
+      if (!view) return;
+      if ([evaluated[@"result"][@"value"] isEqual:view->_pageID]) {
+        view->_targetID = targetID;
+        return [view finishSessionSearch:sessionID];
+      }
+      [FLXDevTools sendMethod:@"Target.detachFromTarget" params:@{@"sessionId": sessionID} sessionID:nil
+                   completion:^(NSDictionary *, NSString *) {}];
+      [view findTargetAmong:candidates];
+    }];
+  }];
+}
+
+- (void)finishSessionSearch:(NSString *)sessionID {
+  _sessionID = sessionID;
+  NSArray *waiters = _sessionWaiters;
+  _sessionWaiters = nil;
+  for (void (^waiter)(NSString *) in waiters) waiter(sessionID);
 }
 
 - (void)sendDevToolsMethod:(NSString *)method
                     params:(NSDictionary<NSString *, id> *)params
                 completion:(void (^)(NSDictionary<NSString *, id> *))completion {
-  CefRefPtr<CefDictionaryValue> values;
-  if (params) {
-    NSData *json = [NSJSONSerialization dataWithJSONObject:params options:0 error:nil];
-    NSString *text = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
-    CefRefPtr<CefValue> parsed = CefParseJSON(text.UTF8String, JSON_PARSER_RFC);
-    if (parsed) values = parsed->GetDictionary();
-  }
-  [self sendCefDevToolsMethod:method.UTF8String params:values completion:completion];
+  [self withSession:^(NSString *sessionID) {
+    if (!sessionID) return completion(nil);
+    [FLXDevTools sendMethod:method params:params ?: @{} sessionID:sessionID
+                 completion:^(NSDictionary *result, NSString *) { completion(result); }];
+  }];
 }
 
-- (void)close {
-  if (_browser && !_client->ClosesAfterDownloads()) _browser->GetHost()->CloseBrowser(true);
+- (void)devToolsTargetID:(void (^)(NSString *))completion {
+  __weak FLXBrowserView *weakSelf = self;
+  [self withSession:^(NSString *) {
+    FLXBrowserView *view = weakSelf;
+    completion(view ? view->_targetID : nil);
+  }];
+}
+
+- (void)evaluateJavaScript:(NSString *)expression completion:(void (^)(id))completion {
+  [self sendDevToolsMethod:@"Runtime.evaluate"
+                    params:@{@"expression": expression, @"returnByValue": @YES}
+                completion:^(NSDictionary *result) {
+    completion(result[@"result"][@"value"]);
+  }];
+}
+
+#pragma mark - ECWebContentsDelegate
+
+- (void)webContentsDidUpdate:(ECWebContents *)contents {
+  id<FLXBrowserViewDelegate> delegate = self.delegate;
+  NSString *url = contents.URL.absoluteString;
+  if (url.length && ![url isEqualToString:_currentURL]) {
+    self.currentURL = url;
+    if ([delegate respondsToSelector:@selector(browserView:didChangeURL:)]) [delegate browserView:self didChangeURL:url];
+  }
+  if (![contents.title isEqualToString:_title]) {
+    self.title = contents.title;
+    if ([delegate respondsToSelector:@selector(browserView:didChangeTitle:)]) [delegate browserView:self didChangeTitle:_title];
+  }
+  if (contents.favicon && contents.favicon != _favicon) {
+    _favicon = contents.favicon;
+    if ([delegate respondsToSelector:@selector(browserView:didChangeFavicon:)]) [delegate browserView:self didChangeFavicon:_favicon];
+  }
+  if (contents.audible != _audible) {
+    _audible = contents.audible;
+    if ([delegate respondsToSelector:@selector(browserView:didChangeAudible:)]) [delegate browserView:self didChangeAudible:_audible];
+  }
+  if ([delegate respondsToSelector:@selector(browserViewDidChangeNavigationState:)]) {
+    [delegate browserViewDidChangeNavigationState:self];
+  }
+  if (_loading && !contents.isLoading && [delegate respondsToSelector:@selector(browserViewDidFinishLoading:)]) {
+    [delegate browserViewDidFinishLoading:self];
+  }
+  _loading = contents.isLoading;
+}
+
+// Chrome's own context menu needs one of its browser windows, so Flux makes its own.
+- (void)webContents:(ECWebContents *)contents showContextMenu:(ECContextMenu *)context {
+  NSMenu *menu = [[NSMenu alloc] initWithTitle:@""];
+  __weak FLXBrowserView *weakSelf = self;
+  __weak ECWebContents *weakContents = contents;
+  void (^add)(NSString *, void (^)(void)) = ^(NSString *title, void (^block)(void)) {
+    [menu addItem:[[FLXBlockMenuItem alloc] initWithTitle:title block:block]];
+  };
+  void (^separate)(void) = ^{
+    if (menu.numberOfItems && !menu.itemArray.lastObject.isSeparatorItem) [menu addItem:NSMenuItem.separatorItem];
+  };
+  void (^copyString)(NSString *) = ^(NSString *string) {
+    [NSPasteboard.generalPasteboard clearContents];
+    [NSPasteboard.generalPasteboard setString:string forType:NSPasteboardTypeString];
+  };
+
+  NSURL *link = context.linkURL;
+  if (link) {
+    add(NSLocalizedString(@"Open Link in New Tab", nil), ^{
+      [weakSelf openPageWithURL:link disposition:ECWindowOpenDispositionNewBackgroundTab];
+    });
+    add(NSLocalizedString(@"Copy Link Address", nil), ^{ copyString(link.absoluteString); });
+    add(NSLocalizedString(@"Save Link As…", nil), ^{ [context saveLink]; });
+    separate();
+  }
+  NSURL *image = context.imageURL;
+  if (image) {
+    add(NSLocalizedString(@"Open Image in New Tab", nil), ^{
+      [weakSelf openPageWithURL:image disposition:ECWindowOpenDispositionNewBackgroundTab];
+    });
+    add(NSLocalizedString(@"Copy Image", nil), ^{ [context copyImage]; });
+    add(NSLocalizedString(@"Copy Image Address", nil), ^{ copyString(image.absoluteString); });
+    add(NSLocalizedString(@"Save Image As…", nil), ^{ [context saveImage]; });
+    separate();
+  }
+  NSString *selection = context.selectionText;
+  ECEditFlags flags = context.editFlags;
+  if (context.editable) {
+    NSArray *edits = @[
+      @[NSLocalizedString(@"Undo", nil), @(ECEditFlagCanUndo), NSStringFromSelector(@selector(undo:))],
+      @[NSLocalizedString(@"Redo", nil), @(ECEditFlagCanRedo), NSStringFromSelector(@selector(redo:))],
+      @"",
+      @[NSLocalizedString(@"Cut", nil), @(ECEditFlagCanCut), NSStringFromSelector(@selector(cut:))],
+      @[NSLocalizedString(@"Copy", nil), @(ECEditFlagCanCopy), NSStringFromSelector(@selector(copy:))],
+      @[NSLocalizedString(@"Paste", nil), @(ECEditFlagCanPaste), NSStringFromSelector(@selector(paste:))],
+      @[NSLocalizedString(@"Paste and Match Style", nil), @(ECEditFlagCanPaste), NSStringFromSelector(@selector(pasteAndMatchStyle:))],
+      @[NSLocalizedString(@"Select All", nil), @(ECEditFlagCanSelectAll), NSStringFromSelector(@selector(selectAll:))],
+    ];
+    for (id edit in edits) {
+      if (![edit isKindOfClass:NSArray.class]) {
+        separate();
+        continue;
+      }
+      NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:edit[0] action:NSSelectorFromString(edit[2]) keyEquivalent:@""];
+      item.target = contents;
+      item.enabled = (flags & [edit[1] unsignedIntegerValue]) != 0;
+      [menu addItem:item];
+    }
+    menu.autoenablesItems = NO;
+    separate();
+  } else if (selection.length) {
+    NSMenuItem *copy = [[NSMenuItem alloc] initWithTitle:NSLocalizedString(@"Copy", nil) action:@selector(copy:) keyEquivalent:@""];
+    copy.target = contents;
+    [menu addItem:copy];
+  }
+  if (selection.length) {
+    NSString *shown = selection.length > 30 ? [[selection substringToIndex:30] stringByAppendingString:@"…"] : selection;
+    add([NSString stringWithFormat:NSLocalizedString(@"Look Up “%@”", nil), shown], ^{ [context lookUp]; });
+    add([NSString stringWithFormat:NSLocalizedString(@"Search Google for “%@”", nil), shown], ^{
+      NSURLComponents *search = [NSURLComponents componentsWithString:@"https://www.google.com/search"];
+      search.queryItems = @[[NSURLQueryItem queryItemWithName:@"q" value:selection]];
+      [weakSelf openPageWithURL:search.URL disposition:ECWindowOpenDispositionNewForegroundTab];
+    });
+    separate();
+  }
+  if (!link && !image && !selection.length && !context.editable) {
+    NSMenuItem *back = [[FLXBlockMenuItem alloc] initWithTitle:NSLocalizedString(@"Back", nil) block:^{ [weakContents goBack]; }];
+    NSMenuItem *forward = [[FLXBlockMenuItem alloc] initWithTitle:NSLocalizedString(@"Forward", nil) block:^{ [weakContents goForward]; }];
+    back.enabled = self.canGoBack;
+    forward.enabled = self.canGoForward;
+    menu.autoenablesItems = NO;
+    [menu addItem:back];
+    [menu addItem:forward];
+    add(NSLocalizedString(@"Reload", nil), ^{ [weakContents reload]; });
+    separate();
+    add(NSLocalizedString(@"Save As…", nil), ^{ [weakContents savePage]; });
+    add(NSLocalizedString(@"Print…", nil), ^{ [weakContents print]; });
+    add(NSLocalizedString(@"View Page Source", nil), ^{
+      FLXBrowserView *view = weakSelf;
+      NSURL *source = [NSURL URLWithString:[@"view-source:" stringByAppendingString:view.currentURL ?: @""]];
+      if (source) [view openPageWithURL:source disposition:ECWindowOpenDispositionNewForegroundTab];
+    });
+    separate();
+  }
+
+  id<FLXBrowserViewDelegate> delegate = self.delegate;
+  if ([delegate respondsToSelector:@selector(browserView:contextMenuItemsForSelectedText:)]) {
+    NSArray<NSString *> *titles = [delegate browserView:self contextMenuItemsForSelectedText:selection ?: @""];
+    [titles enumerateObjectsUsingBlock:^(NSString *title, NSUInteger index, BOOL *) {
+      add(title, ^{
+        FLXBrowserView *view = weakSelf;
+        id<FLXBrowserViewDelegate> current = view.delegate;
+        if ([current respondsToSelector:@selector(browserView:didChooseContextMenuItemAtIndex:selectedText:point:)]) {
+          [current browserView:view didChooseContextMenuItemAtIndex:index selectedText:selection ?: @"" point:NSEvent.mouseLocation];
+        }
+      });
+    }];
+    separate();
+  }
+  add(NSLocalizedString(@"Inspect", nil), ^{ [context inspect]; });
+
+  NSView *view = contents.view;
+  NSPoint point = [view convertPoint:view.window.mouseLocationOutsideOfEventStream fromView:nil];
+  [menu popUpMenuPositioningItem:nil atLocation:point inView:view];
+}
+
+- (void)openPageWithURL:(NSURL *)url disposition:(ECWindowOpenDisposition)disposition {
+  if (_contents) [self webContents:_contents requestsNewWindowWithURL:url disposition:disposition];
+}
+
+- (void)webContents:(ECWebContents *)contents
+    requestsNewWindowWithURL:(NSURL *)url
+                 disposition:(ECWindowOpenDisposition)disposition {
+  id<FLXBrowserViewDelegate> delegate = self.delegate;
+  if (![delegate respondsToSelector:@selector(browserView:didOpenPage:disposition:)]) return;
+  FLXOpenDisposition flux = FLXOpenDispositionForegroundTab;
+  switch (disposition) {
+    case ECWindowOpenDispositionNewBackgroundTab: flux = FLXOpenDispositionBackgroundTab; break;
+    case ECWindowOpenDispositionNewWindow: flux = FLXOpenDispositionShiftClick; break;
+    case ECWindowOpenDispositionNewPopup: flux = FLXOpenDispositionLinkTarget; break;
+    default: break;
+  }
+  FLXBrowserView *page = [[FLXBrowserView alloc] initWithURL:url.absoluteString profile:_profile];
+  [delegate browserView:self didOpenPage:page disposition:flux];
+}
+
+- (void)webContents:(ECWebContents *)contents
+    requestsPermissions:(NSArray<NSString *> *)permissions
+              forOrigin:(NSURL *)origin
+      completionHandler:(void (^)(BOOL))completionHandler {
+  id<FLXBrowserViewDelegate> delegate = self.delegate;
+  if (![delegate respondsToSelector:@selector(browserView:didRequestPermission:)]) return completionHandler(NO);
+  FLXPermission flags = 0;
+  for (NSString *permission in permissions) flags |= PermissionForKey(permission);
+  NSString *originString = origin.absoluteString;
+  if (![originString hasSuffix:@"/"]) originString = [originString stringByAppendingString:@"/"];
+  FLXPermissionRequest *request = [[FLXPermissionRequest alloc] initWithOrigin:originString
+                                                                    permissions:flags
+                                                                     completion:completionHandler];
+  [delegate browserView:self didRequestPermission:request];
+}
+
+- (void)webContents:(ECWebContents *)contents
+    runJavaScriptDialog:(ECJavaScriptDialogType)type
+                message:(NSString *)message
+            defaultText:(NSString *)defaultText
+      completionHandler:(void (^)(BOOL, NSString *))completionHandler {
+  NSAlert *alert = [[NSAlert alloc] init];
+  alert.messageText = type == ECJavaScriptDialogTypeBeforeUnload ? @"Leave this page?" : (contents.URL.host ?: @"");
+  alert.informativeText = message;
+  [alert addButtonWithTitle:@"OK"];
+  if (type != ECJavaScriptDialogTypeAlert) [alert addButtonWithTitle:@"Cancel"];
+  NSTextField *field = nil;
+  if (type == ECJavaScriptDialogTypePrompt) {
+    field = [NSTextField textFieldWithString:defaultText];
+    field.frame = NSMakeRect(0, 0, 260, 22);
+    alert.accessoryView = field;
+  }
+  if (!self.window) return completionHandler(NO, @"");
+  [alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse response) {
+    completionHandler(response == NSAlertFirstButtonReturn, field.stringValue ?: @"");
+  }];
+}
+
+- (void)webContents:(ECWebContents *)contents
+    runFileChooserWithAcceptTypes:(NSArray<NSString *> *)acceptTypes
+                   allowsMultiple:(BOOL)allowsMultiple
+                        directory:(BOOL)directory
+                completionHandler:(void (^)(NSArray<NSURL *> *))completionHandler {
+  NSOpenPanel *panel = [NSOpenPanel openPanel];
+  panel.allowsMultipleSelection = allowsMultiple;
+  panel.canChooseDirectories = directory;
+  panel.canChooseFiles = !directory;
+  void (^done)(NSModalResponse) = ^(NSModalResponse response) {
+    completionHandler(response == NSModalResponseOK ? panel.URLs : nil);
+  };
+  if (self.window) {
+    [panel beginSheetModalForWindow:self.window completionHandler:done];
+  } else {
+    done([panel runModal]);
+  }
+}
+
+- (void)webContents:(ECWebContents *)contents didFindMatches:(NSInteger)matches activeMatch:(NSInteger)activeMatch {
+  id<FLXBrowserViewDelegate> delegate = self.delegate;
+  if ([delegate respondsToSelector:@selector(browserView:didFindMatches:activeMatch:)]) {
+    [delegate browserView:self didFindMatches:matches activeMatch:activeMatch];
+  }
+}
+
+- (void)webContentsDidRequestClose:(ECWebContents *)contents {
+  id<FLXBrowserViewDelegate> delegate = self.delegate;
+  // A new tab that only started a download has committed nothing.
+  if (!contents.URL && [delegate respondsToSelector:@selector(browserViewDidOpenOnlyDownload:)]) {
+    [delegate browserViewDidOpenOnlyDownload:self];
+  } else if ([delegate respondsToSelector:@selector(browserViewDidClose:)]) {
+    [delegate browserViewDidClose:self];
+  }
+}
+
+- (void)webContentsDidRequestActivation:(ECWebContents *)contents {
+  id<FLXBrowserViewDelegate> delegate = self.delegate;
+  if ([delegate respondsToSelector:@selector(browserViewDidRequestShow:)]) [delegate browserViewDidRequestShow:self];
+}
+
+- (void)webContents:(ECWebContents *)contents didCommitNavigationIsHistory:(BOOL)isHistory {
+  [_mediaStates removeAllObjects];
+  [self updateMedia];
+  [self webContentsDidUpdate:contents];
+}
+
+- (void)webContents:(ECWebContents *)contents
+    didReceiveMessage:(NSString *)message
+           fromObject:(NSString *)name
+               origin:(NSURL *)origin
+            mainFrame:(BOOL)mainFrame {
+  if (![name isEqualToString:kMediaObject]) return;
+  NSString *frame = [NSString stringWithFormat:@"%d %@", mainFrame, origin.absoluteString ?: @""];
+  _mediaStates[frame] = message;
+  [self updateMedia];
+}
+
+// The page's media is the frame that last reported playing, or else any frame that played.
+- (void)updateMedia {
+  NSString *shown = nil;
+  for (NSString *state in _mediaStates.allValues) {
+    if (!shown || [state containsString:@"\"playing\":true"]) shown = state;
+  }
+  if ((shown ?: @"").hash == (_shownMedia ?: @"").hash && [shown ?: @"" isEqualToString:_shownMedia ?: @""]) return;
+  _shownMedia = shown;
+  id<FLXBrowserViewDelegate> delegate = self.delegate;
+  if (![delegate respondsToSelector:@selector(browserView:didChangeMedia:)]) return;
+  NSData *data = [shown dataUsingEncoding:NSUTF8StringEncoding];
+  id media = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+  [delegate browserView:self didChangeMedia:[media isKindOfClass:NSDictionary.class] ? media : nil];
+}
+
+- (void)webContents:(ECWebContents *)contents
+    requestsInstallOfExtensionNamed:(NSString *)name
+                               icon:(NSImage *)icon
+                        permissions:(NSArray<NSString *> *)permissions
+                  completionHandler:(void (^)(BOOL))completionHandler {
+  NSAlert *alert = [[NSAlert alloc] init];
+  alert.messageText = [NSString stringWithFormat:@"Add “%@”?", name];
+  alert.informativeText = permissions.count ? [@"It can:\n" stringByAppendingString:[permissions componentsJoinedByString:@"\n"]] : @"";
+  if (icon) alert.icon = icon;
+  [alert addButtonWithTitle:@"Add Extension"];
+  [alert addButtonWithTitle:@"Cancel"];
+  if (!self.window) return completionHandler(NO);
+  [alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse response) {
+    completionHandler(response == NSAlertFirstButtonReturn);
+  }];
+}
+
+- (void)webContents:(ECWebContents *)contents
+    requestsOpeningURL:(NSURL *)url
+    inApplicationNamed:(NSString *)appName
+            fromOrigin:(NSURL *)origin
+     completionHandler:(void (^)(BOOL))completionHandler {
+  NSAlert *alert = [[NSAlert alloc] init];
+  alert.messageText = [NSString stringWithFormat:@"Open “%@”?", appName];
+  [alert addButtonWithTitle:@"Open"];
+  [alert addButtonWithTitle:@"Cancel"];
+  if (!self.window) return completionHandler(NO);
+  [alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse response) {
+    completionHandler(response == NSAlertFirstButtonReturn);
+  }];
 }
 
 @end

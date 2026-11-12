@@ -20,12 +20,7 @@ settings:
     CODE_SIGN_STYLE: Manual
     ENABLE_HARDENED_RUNTIME: NO
     CLANG_CXX_LANGUAGE_STANDARD: c++20
-    # Must match how libcef_dll_wrapper is built, or the wrapper's classes won't link.
-    GCC_ENABLE_CPP_RTTI: NO
-    GCC_ENABLE_CPP_EXCEPTIONS: NO
-    HEADER_SEARCH_PATHS: $(PROJECT_DIR)/vendor/cef
-    LIBRARY_SEARCH_PATHS: $(PROJECT_DIR)/vendor/cef/build/libcef_dll_wrapper
-    OTHER_LDFLAGS: -lcef_dll_wrapper
+    FRAMEWORK_SEARCH_PATHS: $(PROJECT_DIR)/vendor/enginecore
 
 targets:
   Flux:
@@ -43,25 +38,6 @@ targets:
         SWIFT_OBJC_BRIDGING_HEADER: Sources/Flux/Flux-Bridging-Header.h
         CLANG_ENABLE_OBJC_ARC: YES
         ENABLE_USER_SCRIPT_SANDBOXING: NO
-    # CEF ships a flat framework. Xcode's validation and code signing expect the versioned layout
-    # used on macOS, so the framework is copied into that layout and signed here.
-    postBuildScripts:
-      - name: Embed Chromium Embedded Framework
-        basedOnDependencyAnalysis: false
-        script: |
-          set -e
-          NAME="Chromium Embedded Framework"
-          SOURCE="$PROJECT_DIR/vendor/cef/Release/$NAME.framework"
-          FRAMEWORK="$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH/$NAME.framework"
-          mkdir -p "$FRAMEWORK/Versions/A"
-          rsync -a --delete "$SOURCE/" "$FRAMEWORK/Versions/A/"
-          ln -sfn A "$FRAMEWORK/Versions/Current"
-          for ITEM in "$NAME" Libraries Resources; do
-            ln -sfn "Versions/Current/$ITEM" "$FRAMEWORK/$ITEM"
-          done
-          IDENTITY="${EXPANDED_CODE_SIGN_IDENTITY:--}"
-          codesign --force --sign "$IDENTITY" "$FRAMEWORK/Versions/A/Libraries/"*.dylib
-          codesign --force --sign "$IDENTITY" "$FRAMEWORK/Versions/A"
     info:
       path: build/plists/Flux.plist
       properties:
@@ -69,7 +45,7 @@ targets:
         CFBundleDisplayName: Flux
         CFBundleShortVersionString: "0.1.0"
         CFBundleVersion: "1"
-        NSPrincipalClass: FLXApplication
+        NSPrincipalClass: NSApplication
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSSupportsAutomaticGraphicsSwitching: true
         # Without them macOS refuses these devices to Flux without asking. Translated in
@@ -94,54 +70,5 @@ targets:
             UTTypeConformsTo: [public.data]
     dependencies:
       - package: GRDB
-      - target: Flux Helper
+      - framework: vendor/enginecore/EngineCore.framework
         embed: true
-        copy: { destination: frameworks }
-      - target: Flux Helper (GPU)
-        embed: true
-        copy: { destination: frameworks }
-      - target: Flux Helper (Renderer)
-        embed: true
-        copy: { destination: frameworks }
-      - target: Flux Helper (Plugin)
-        embed: true
-        copy: { destination: frameworks }
-      - target: Flux Helper (Alerts)
-        embed: true
-        copy: { destination: frameworks }
-
-  # Chromium launches its subprocesses from these bundles. The names are fixed by Chromium.
-  Flux Helper:
-    templates: [Helper]
-    templateAttributes: { bundleSuffix: helper }
-  Flux Helper (GPU):
-    templates: [Helper]
-    templateAttributes: { bundleSuffix: helper.gpu }
-  Flux Helper (Renderer):
-    templates: [Helper]
-    templateAttributes: { bundleSuffix: helper.renderer }
-  Flux Helper (Plugin):
-    templates: [Helper]
-    templateAttributes: { bundleSuffix: helper.plugin }
-  Flux Helper (Alerts):
-    templateAttributes: { bundleSuffix: helper.alerts }
-    templates: [Helper]
-
-targetTemplates:
-  Helper:
-    type: application
-    platform: macOS
-    sources:
-      - Sources/FluxHelper
-    settings:
-      base:
-        PRODUCT_NAME: ${target_name}
-        PRODUCT_BUNDLE_IDENTIFIER: com.flux-browser.Flux.${bundleSuffix}
-        SKIP_INSTALL: YES
-    info:
-      path: build/plists/${target_name}.plist
-      properties:
-        CFBundleName: ${target_name}
-        LSUIElement: true
-        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
-        NSSupportsAutomaticGraphicsSwitching: true

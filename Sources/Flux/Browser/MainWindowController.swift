@@ -147,12 +147,13 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         observePeek()
         observePanes()
         observeDraggedTab()
-        // Pages are windows of their own, so a click in a pane only reaches Flux this way.
+        // Pages take their clicks, so a click in a pane only reaches Flux this way.
         paneClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            if let self, let window = event.window,
-               let tab = self.state.shownTabs.first(where: { $0.browserView.pageWindow === window || $0.devTools?.pageWindow === window }),
-               tab !== self.state.selectedTab {
-                self.state.select(tab)
+            if let self, let window = self.window, event.window === window,
+               let clicked = window.contentView?.hitTest(event.locationInWindow),
+               let pane = sequence(first: clicked, next: \.superview).lazy.compactMap({ $0 as? PaneView }).first,
+               pane.tab !== self.state.selectedTab {
+                self.state.select(pane.tab)
             }
             return event
         }

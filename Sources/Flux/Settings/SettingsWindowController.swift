@@ -7,7 +7,6 @@ final class SettingsWindowController: NSWindowController {
     private static var shared: SettingsWindowController?
 
     private let tabs = NSTabViewController()
-    private let developerSection = DeveloperSettings.Model()
 
     static func show(state: BrowserState) {
         let controller = shared ?? SettingsWindowController(state: state)
@@ -21,16 +20,6 @@ final class SettingsWindowController: NSWindowController {
         guard let controller = shared,
               let index = controller.tabs.tabViewItems.firstIndex(where: { $0.viewController is NSHostingController<ShortcutSettings> }) else { return }
         controller.tabs.selectedTabViewItemIndex = index
-    }
-
-    /// The developer pane, on the devices the responsive mode offers.
-    static func showDevices(state: BrowserState) {
-        show(state: state)
-        guard let controller = shared else { return }
-        controller.developerSection.section = .devices
-        controller.tabs.selectedTabViewItemIndex = controller.tabs.tabViewItems.count - 1
-        // Selecting a pane in code doesn't retitle the window the way a click does.
-        controller.window?.title = controller.tabs.tabViewItems.last?.label ?? ""
     }
 
     private init(state: BrowserState) {
@@ -49,7 +38,7 @@ final class SettingsWindowController: NSWindowController {
         if let shortcuts = Shortcuts.shared {
             tabs.addTabViewItem(Self.item("Shortcuts", symbol: "command", ShortcutSettings(shortcuts: shortcuts)))
         }
-        tabs.addTabViewItem(Self.item("Developer", symbol: "hammer", DeveloperSettings(state: state, model: developerSection)))
+        tabs.addTabViewItem(Self.item("Developer", symbol: "hammer", DeveloperSettings(state: state)))
         window.center()
     }
 

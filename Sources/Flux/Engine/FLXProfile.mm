@@ -1,165 +1,94 @@
 #import "FLXProfile+Internal.h"
-#import "FLXEngine+Internal.h"
+#import "FLXBrowserView.h"
+#import "FLXEngine.h"
 
-#include "include/cef_client.h"
-#include "include/views/cef_box_layout.h"
-#include "include/views/cef_browser_view.h"
-#include "include/views/cef_window.h"
+@interface FLXDownload ()
+- (instancetype)initWithDownload:(ECDownload *)download context:(ECBrowserContext *)context;
+@end
 
-@interface FLXProfile ()
-- (nullable id)preferenceValue:(NSString *)name;
-- (void)didFinishLoading;
-- (void)releaseRequestContext;
+@interface FLXProfile () <ECDownloadDelegate, ECExtensionsDelegate, ECWindowDelegate>
+@end
+
+@interface FLXExtensionPopup () <ECExtensionPopupDelegate>
+- (instancetype)initWithPopup:(ECExtensionPopup *)popup;
+@end
+
+@implementation FLXExtensionPopup {
+  ECExtensionPopup *_popup;
+}
+
+- (instancetype)initWithPopup:(ECExtensionPopup *)popup {
+  self = [super init];
+  _popup = popup;
+  popup.delegate = self;
+  return self;
+}
+
+- (NSView *)view {
+  return _popup.view;
+}
+
+- (NSSize)size {
+  return _popup.size;
+}
+
+- (void)close {
+  [_popup close];
+}
+
+- (void)extensionPopupDidResize:(ECExtensionPopup *)popup {
+  if (_onResize) _onResize(popup.size);
+}
+
+- (void)extensionPopupDidClose:(ECExtensionPopup *)popup {
+  if (_onClose) _onClose();
+}
+
 @end
 
 namespace {
 
 NSMutableDictionary<NSString *, FLXProfile *> *g_profiles = nil;
 
-class ProfileHandler : public CefRequestContextHandler {
- public:
-  explicit ProfileHandler(FLXProfile *profile) : profile_(profile) {}
-
-  void OnRequestContextInitialized(CefRefPtr<CefRequestContext> request_context) override {
-    [profile_ didFinishLoading];
-  }
-
- private:
-  __weak FLXProfile *profile_;
-  IMPLEMENT_REFCOUNTING(ProfileHandler);
-};
-
-// chrome://extensions only renders in Chrome style, which needs a window made by CEF's Views
-// framework rather than a view inside Flux's window.
-class ExtensionsWindowClient : public CefClient, public CefLifeSpanHandler {
- public:
-  CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override { return this; }
-
-  void OnAfterCreated(CefRefPtr<CefBrowser> browser) override {
-    NSView *view = (__bridge NSView *)browser->GetHost()->GetWindowHandle();
-    if (view.window) FLXEngineKeepWindowVisible(view.window);
-    FLXEngineBrowserCreated(browser);
-  }
-
-  void OnBeforeClose(CefRefPtr<CefBrowser> browser) override { FLXEngineBrowserClosed(browser); }
-
- private:
-  IMPLEMENT_REFCOUNTING(ExtensionsWindowClient);
-};
-
-class ChromeStyleBrowserViewDelegate : public CefBrowserViewDelegate {
- public:
-  explicit ChromeStyleBrowserViewDelegate(ChromeToolbarType toolbar = CEF_CTT_NONE) : toolbar_(toolbar) {}
-
-  cef_runtime_style_t GetBrowserRuntimeStyle() override { return CEF_RUNTIME_STYLE_CHROME; }
-  ChromeToolbarType GetChromeToolbarType(CefRefPtr<CefBrowserView> browser_view) override {
-    return toolbar_;
-  }
-
-  // CEF creates the toolbar but leaves placing it to the window's owner, once the browser view is
-  // in a window.
-  void OnWindowChanged(CefRefPtr<CefView> view, bool added) override {
-    if (!added || toolbar_ == CEF_CTT_NONE) return;
-    CefRefPtr<CefView> toolbar = view->AsBrowserView()->GetChromeToolbar();
-    CefRefPtr<CefWindow> window = view->GetWindow();
-    if (!toolbar || !window) return;
-    CefBoxLayoutSettings settings;
-    settings.horizontal = false;
-    CefRefPtr<CefBoxLayout> layout = window->SetToBoxLayout(settings);
-    window->AddChildViewAt(toolbar, 0);
-    layout->SetFlexForView(view, 1);
-  }
-
- private:
-  ChromeToolbarType toolbar_;
-  IMPLEMENT_REFCOUNTING(ChromeStyleBrowserViewDelegate);
-};
-
-class ExtensionsWindowDelegate : public CefWindowDelegate {
- public:
-  ExtensionsWindowDelegate(CefRefPtr<CefBrowserView> browser_view, const CefString &title)
-      : browser_view_(browser_view), title_(title) {}
-
-  void OnWindowCreated(CefRefPtr<CefWindow> window) override {
-    window->AddChildView(browser_view_);
-    window->SetTitle(title_);
-    window->CenterWindow(CefSize(960, 720));
-    window->Show();
-  }
-
-  void OnWindowDestroyed(CefRefPtr<CefWindow> window) override { browser_view_ = nullptr; }
-  cef_runtime_style_t GetWindowRuntimeStyle() override { return CEF_RUNTIME_STYLE_CHROME; }
-
-  bool CanClose(CefRefPtr<CefWindow> window) override {
-    CefRefPtr<CefBrowser> browser = browser_view_ ? browser_view_->GetBrowser() : nullptr;
-    return !browser || browser->GetHost()->TryCloseBrowser();
-  }
-
- private:
-  CefRefPtr<CefBrowserView> browser_view_;
-  CefString title_;
-  IMPLEMENT_REFCOUNTING(ExtensionsWindowDelegate);
-};
-
-id FoundationValue(CefRefPtr<CefValue> value) {
-  if (!value) return nil;
-  switch (value->GetType()) {
-    case VTYPE_BOOL:
-      return @(value->GetBool());
-    case VTYPE_INT:
-      return @(value->GetInt());
-    case VTYPE_DOUBLE:
-      return @(value->GetDouble());
-    case VTYPE_STRING:
-      return [NSString stringWithUTF8String:value->GetString().ToString().c_str()];
-    case VTYPE_LIST: {
-      CefRefPtr<CefListValue> list = value->GetList();
-      NSMutableArray *array = [NSMutableArray arrayWithCapacity:list->GetSize()];
-      for (size_t i = 0; i < list->GetSize(); i++) {
-        [array addObject:FoundationValue(list->GetValue(i)) ?: NSNull.null];
-      }
-      return array;
-    }
-    case VTYPE_DICTIONARY: {
-      CefRefPtr<CefDictionaryValue> dictionary = value->GetDictionary();
-      CefDictionaryValue::KeyList keys;
-      dictionary->GetKeys(keys);
-      NSMutableDictionary *result = [NSMutableDictionary dictionaryWithCapacity:keys.size()];
-      for (const CefString &key : keys) {
-        id item = FoundationValue(dictionary->GetValue(key));
-        if (item) result[[NSString stringWithUTF8String:key.ToString().c_str()]] = item;
-      }
-      return result;
-    }
-    default:
-      return nil;
-  }
+// A plain window showing one of Chrome's pages, such as chrome://extensions.
+void ShowPageWindow(ECBrowserContext *context, NSString *url, NSString *title) {
+  ECWebContents *contents = [[ECWebContents alloc] initWithBrowserContext:context];
+  NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 960, 720)
+                                                 styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
+                                                           NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable
+                                                   backing:NSBackingStoreBuffered
+                                                     defer:NO];
+  window.title = title;
+  window.releasedWhenClosed = NO;
+  window.contentView = contents.view;
+  [window center];
+  [window makeKeyAndOrderFront:nil];
+  [contents loadURL:[NSURL URLWithString:url]];
+  // Kept alive with its window.
+  static NSMapTable<NSWindow *, ECWebContents *> *open = [NSMapTable strongToStrongObjectsMapTable];
+  [open setObject:contents forKey:window];
+  __block id observer = [NSNotificationCenter.defaultCenter addObserverForName:NSWindowWillCloseNotification
+                                                                        object:window
+                                                                         queue:NSOperationQueue.mainQueue
+                                                                    usingBlock:^(NSNotification *) {
+    [[open objectForKey:window] close];
+    [open removeObjectForKey:window];
+    [NSNotificationCenter.defaultCenter removeObserver:observer];
+  }];
 }
-
-class PreferenceObserver : public CefPreferenceObserver {
- public:
-  PreferenceObserver(FLXProfile *profile, void (^handler)(id)) : profile_(profile), handler_([handler copy]) {}
-
-  void OnPreferenceChanged(const CefString &name) override {
-    FLXProfile *profile = profile_;
-    NSString *key = [NSString stringWithUTF8String:name.ToString().c_str()];
-    handler_([profile preferenceValue:key]);
-  }
-
- private:
-  __weak FLXProfile *profile_;
-  void (^handler_)(id);
-  IMPLEMENT_REFCOUNTING(PreferenceObserver);
-};
 
 }  // namespace
 
 @implementation FLXProfile {
-  CefRefPtr<CefRequestContext> _requestContext;
+  ECBrowserContext *_context;
+  ECWindow *_window;
   BOOL _loadStarted;
-  BOOL _loaded;
   NSMutableArray<void (^)(void)> *_loadedBlocks;
-  std::vector<CefRefPtr<CefRegistration>> _preferenceRegistrations;
+  NSMapTable<ECWebContents *, FLXBrowserView *> *_pages;
+  NSMutableDictionary<NSString *, NSMutableArray<void (^)(id)> *> *_observers;
+  NSMutableDictionary<NSString *, id> *_observedValues;
+  NSTimer *_preferenceTimer;
+  BOOL _private;
 }
 
 static NSString *_Nullable (^g_languages_provider)(NSString *) = nil;
@@ -182,9 +111,16 @@ static NSString *_Nullable (^g_languages_provider)(NSString *) = nil;
   return profile;
 }
 
-// CEF keeps a context without a cache path in memory.
+// Chrome's incognito profiles belong to a regular one, so private windows use one of their own.
 + (instancetype)privateBrowsingProfile {
-  return [[FLXProfile alloc] initWithPath:@""];
+  NSString *root = g_profiles.allKeys.firstObject.stringByDeletingLastPathComponent;
+  FLXProfile *profile = [[FLXProfile alloc] initWithPath:@""];
+  profile->_private = YES;
+  FLXProfile *base = [FLXProfile profileAtPath:[root stringByAppendingPathComponent:@"Private"]];
+  [base whenReady:^{
+    [profile didLoadContext:base.context.offTheRecordContext];
+  }];
+  return profile;
 }
 
 - (instancetype)initWithPath:(NSString *)path {
@@ -192,170 +128,258 @@ static NSString *_Nullable (^g_languages_provider)(NSString *) = nil;
   if (!self) return nil;
   _path = [path copy];
   _loadedBlocks = [NSMutableArray array];
+  _pages = [NSMapTable weakToWeakObjectsMapTable];
+  _observers = [NSMutableDictionary dictionary];
+  _observedValues = [NSMutableDictionary dictionary];
   return self;
 }
 
 - (void)load {
-  if (_loadStarted) return;
+  if (_loadStarted || _private) return;
   _loadStarted = YES;
   __weak FLXProfile *weakSelf = self;
-  [FLXEngine whenReady:^{
-    FLXProfile *profile = weakSelf;
-    if (!profile) return;
-    CefRequestContextSettings settings;
-    CefString(&settings.cache_path) = profile.path.UTF8String;
-    settings.persist_session_cookies = true;
-    NSString *languages = g_languages_provider ? g_languages_provider(profile.path) : nil;
-    if (languages.length > 0) CefString(&settings.accept_language_list) = languages.UTF8String;
-    profile->_requestContext = CefRequestContext::CreateContext(settings, new ProfileHandler(profile));
+  [ECBrowserContext loadWithPath:_path
+                      completion:^(ECBrowserContext *context) {
+    if (!context) {
+      NSLog(@"Couldn't load the profile at %@", weakSelf.path);
+      return;
+    }
+    [weakSelf didLoadContext:context];
   }];
+}
+
+- (void)didLoadContext:(ECBrowserContext *)context {
+  _context = context;
+  context.downloadDelegate = self;
+  context.extensionsDelegate = self;
+  _window = [[ECWindow alloc] initWithBrowserContext:context];
+  _window.delegate = self;
+  _window.focused = YES;
+  NSArray<void (^)(void)> *blocks = _loadedBlocks;
+  _loadedBlocks = [NSMutableArray array];
+  for (void (^block)(void) in blocks) block();
 }
 
 - (BOOL)isLoaded {
-  return _loaded;
+  return _context != nil;
 }
 
-- (void)showExtensionsWindowWithTitle:(NSString *)title {
-  [self whenReady:^{
-    CefBrowserSettings settings;
-    CefRefPtr<CefBrowserView> browser_view = CefBrowserView::CreateBrowserView(
-        new ExtensionsWindowClient(), "chrome://extensions", settings, nullptr, self->_requestContext,
-        new ChromeStyleBrowserViewDelegate());
-    CefWindow::CreateTopLevelWindow(new ExtensionsWindowDelegate(browser_view, title.UTF8String));
-  }];
-}
-
-- (void)showChromeWindowWithURL:(NSString *)url title:(NSString *)title {
-  [self whenReady:^{
-    CefBrowserSettings settings;
-    CefRefPtr<CefBrowserView> browser_view = CefBrowserView::CreateBrowserView(
-        new ExtensionsWindowClient(), url.UTF8String, settings, nullptr, self->_requestContext,
-        new ChromeStyleBrowserViewDelegate(CEF_CTT_NORMAL));
-    CefWindow::CreateTopLevelWindow(new ExtensionsWindowDelegate(browser_view, title.UTF8String));
-  }];
-}
-
-- (void)observePreference:(NSString *)name handler:(void (^)(id))handler {
-  __weak FLXProfile *weakSelf = self;
-  [self whenLoaded:^{
-    FLXProfile *profile = weakSelf;
-    if (!profile || !profile->_requestContext) return;
-    CefRefPtr<CefRegistration> registration = profile->_requestContext->AddPreferenceObserver(
-        name.UTF8String, new PreferenceObserver(profile, handler));
-    if (registration) profile->_preferenceRegistrations.push_back(registration);
-    handler([profile preferenceValue:name]);
-  }];
-}
-
-- (void)setPreference:(NSString *)name boolValue:(BOOL)value {
-  CefRefPtr<CefValue> preference = CefValue::Create();
-  preference->SetBool(value);
-  [self setPreference:name value:preference];
-}
-
-- (void)setPreference:(NSString *)name stringValue:(NSString *)value {
-  CefRefPtr<CefValue> preference = CefValue::Create();
-  preference->SetString(value.UTF8String);
-  [self setPreference:name value:preference];
-}
-
-- (void)setPreference:(NSString *)name stringListValue:(NSArray<NSString *> *)value {
-  CefRefPtr<CefListValue> list = CefListValue::Create();
-  for (NSUInteger i = 0; i < value.count; i++) {
-    list->SetString(i, value[i].UTF8String);
-  }
-  CefRefPtr<CefValue> preference = CefValue::Create();
-  preference->SetList(list);
-  [self setPreference:name value:preference];
-}
-
-- (void)setPreference:(NSString *)name value:(CefRefPtr<CefValue>)preference {
-  __weak FLXProfile *weakSelf = self;
-  [self whenLoaded:^{
-    FLXProfile *profile = weakSelf;
-    if (!profile || !profile->_requestContext) return;
-    CefString error;
-    if (!profile->_requestContext->SetPreference(name.UTF8String, preference, error)) {
-      NSLog(@"Couldn't set %@: %s", name, error.ToString().c_str());
-    }
-  }];
-}
-
-- (NSString *)stringPreference:(NSString *)name {
-  id value = [self preferenceValue:name];
-  return [value isKindOfClass:NSString.class] ? value : nil;
-}
-
-- (id)preferenceValue:(NSString *)name {
-  if (!_requestContext) return nil;
-  return FoundationValue(_requestContext->GetPreference(name.UTF8String));
-}
-
-- (CefRefPtr<CefRequestContext>)requestContext {
-  return _requestContext;
+- (ECBrowserContext *)context {
+  return _context;
 }
 
 - (void)whenReady:(void (^)(void))block {
   [self load];
-  [self whenLoaded:block];
-}
-
-- (void)whenLoaded:(void (^)(void))block {
-  if (_loaded) {
+  if (_context) {
     block();
     return;
   }
   [_loadedBlocks addObject:[block copy]];
 }
 
-- (void)didFinishLoading {
-  _loaded = YES;
-  NSArray<void (^)(void)> *blocks = _loadedBlocks;
-  _loadedBlocks = [NSMutableArray array];
-  for (void (^block)(void) in blocks) block();
+#pragma mark - Pages
+
+- (void)addPage:(FLXBrowserView *)page contents:(ECWebContents *)contents {
+  [_pages setObject:page forKey:contents];
+  _window.tabs = [_window.tabs arrayByAddingObject:contents];
 }
 
-- (void)releaseRequestContext {
-  _preferenceRegistrations.clear();
-  _requestContext = nullptr;
+- (void)removePageContents:(ECWebContents *)contents {
+  [_pages removeObjectForKey:contents];
+  NSMutableArray *tabs = [_window.tabs mutableCopy];
+  [tabs removeObject:contents];
+  _window.tabs = tabs;
+}
+
+- (void)activatePageContents:(ECWebContents *)contents {
+  if ([_window.tabs containsObject:contents]) _window.activeTab = contents;
+}
+
+- (ECWebContents *)window:(ECWindow *)window openTabWithURL:(NSURL *)url active:(BOOL)active {
+  void (^handler)(NSString *, NSString *) = FLXEngine.externalPageHandler;
+  if (handler) handler(url.absoluteString, _path);
+  return nil;
+}
+
+- (void)window:(ECWindow *)window activateTab:(ECWebContents *)contents {
+}
+
+- (void)window:(ECWindow *)window closeTab:(ECWebContents *)contents {
+  [[_pages objectForKey:contents] close];
+}
+
+#pragma mark - Downloads
+
+- (BOOL)asksWhereToSaveDownloads {
+  return NO;
+}
+
+- (void)setAsksWhereToSaveDownloads:(BOOL)asksWhereToSaveDownloads {
+}
+
+- (void)browserContext:(ECBrowserContext *)context downloadDidUpdate:(ECDownload *)download {
+  if (_downloadHandler) _downloadHandler([[FLXDownload alloc] initWithDownload:download context:context]);
+}
+
+#pragma mark - Extensions
+
+- (void)browserContextExtensionsDidChange:(ECBrowserContext *)context {
+  [self checkPreferences];
+}
+
+- (void)browserContext:(ECBrowserContext *)context
+    actionDidChangeForExtension:(NSString *)identifier
+                    webContents:(ECWebContents *)contents {
+  if (_actionChangeHandler) _actionChangeHandler();
+}
+
+- (FLXExtensionPopup *)runActionForExtension:(NSString *)identifier onPage:(FLXBrowserView *)page {
+  ECWebContents *contents = page.engineContents;
+  if (!_context || !contents) return nil;
+  [self activatePageContents:contents];
+  ECExtensionPopup *popup = [_context runActionForExtension:identifier inWebContents:contents];
+  return popup ? [[FLXExtensionPopup alloc] initWithPopup:popup] : nil;
+}
+
+- (ECExtensionAction *)actionForExtension:(NSString *)identifier onPage:(FLXBrowserView *)page {
+  ECWebContents *contents = page.engineContents;
+  return _context && contents ? [_context actionForExtension:identifier inWebContents:contents] : nil;
+}
+
+- (NSString *)badgeTextForExtension:(NSString *)identifier onPage:(FLXBrowserView *)page {
+  NSString *text = [self actionForExtension:identifier onPage:page].badgeText;
+  return text.length ? text : nil;
+}
+
+- (NSColor *)badgeColorForExtension:(NSString *)identifier onPage:(FLXBrowserView *)page {
+  NSColor *color = [self actionForExtension:identifier onPage:page].badgeBackgroundColor;
+  return color.alphaComponent > 0 ? color : nil;
+}
+
+// The extensions as Chrome keeps them in the profile's preferences, which it only writes to disk
+// every few seconds, rebuilt from the loaded ones.
+- (NSDictionary *)extensionSettings {
+  NSString *folder = [_path stringByAppendingPathComponent:@"Extensions"];
+  NSMutableDictionary *settings = [NSMutableDictionary dictionary];
+  for (ECExtension *extension in _context.extensions) {
+    if (extension.builtIn) continue;
+    NSString *extensionFolder = [folder stringByAppendingPathComponent:extension.identifier];
+    NSArray *versions = [[NSFileManager.defaultManager contentsOfDirectoryAtPath:extensionFolder error:nil]
+        sortedArrayUsingSelector:@selector(localizedStandardCompare:)];
+    if (!versions.lastObject) continue;
+    settings[extension.identifier] = @{
+      @"location": @1,
+      @"path": [extension.identifier stringByAppendingPathComponent:versions.lastObject],
+      @"disable_reasons": extension.enabled ? @[] : @[ @1 ],
+    };
+  }
+  return settings;
+}
+
+- (void)showExtensionsWindowWithTitle:(NSString *)title {
+  [self whenReady:^{
+    ShowPageWindow(self->_context, @"chrome://extensions", title);
+  }];
+}
+
+- (void)showChromeWindowWithURL:(NSString *)url title:(NSString *)title {
+  [self whenReady:^{
+    ShowPageWindow(self->_context, url, title);
+  }];
+}
+
+#pragma mark - Preferences
+
+// EngineCore has no access to a profile's preferences. Chrome writes them to disk every few
+// seconds, which is enough to read them here.
+- (id)preferenceValue:(NSString *)name {
+  if ([name isEqualToString:@"extensions.settings"] && _context) return [self extensionSettings];
+  for (NSString *file in @[ @"Secure Preferences", @"Preferences" ]) {
+    NSData *data = [NSData dataWithContentsOfFile:[_path stringByAppendingPathComponent:file]];
+    id value = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+    for (NSString *key in [name componentsSeparatedByString:@"."]) {
+      value = [value isKindOfClass:NSDictionary.class] ? value[key] : nil;
+    }
+    if (value) return value;
+  }
+  return nil;
+}
+
+- (void)observePreference:(NSString *)name handler:(void (^)(id))handler {
+  __weak FLXProfile *weakSelf = self;
+  [self whenReady:^{
+    FLXProfile *profile = weakSelf;
+    if (!profile) return;
+    if (!profile->_observers[name]) profile->_observers[name] = [NSMutableArray array];
+    [profile->_observers[name] addObject:[handler copy]];
+    id value = [profile preferenceValue:name];
+    profile->_observedValues[name] = value ?: NSNull.null;
+    handler(value);
+    if (!profile->_preferenceTimer) {
+      profile->_preferenceTimer = [NSTimer scheduledTimerWithTimeInterval:2 repeats:YES block:^(NSTimer *) {
+        [weakSelf checkPreferences];
+      }];
+    }
+  }];
+}
+
+- (void)checkPreferences {
+  for (NSString *name in _observers) {
+    id value = [self preferenceValue:name] ?: NSNull.null;
+    if ([value isEqual:_observedValues[name]]) continue;
+    _observedValues[name] = value;
+    for (void (^handler)(id) in _observers[name]) handler(value == NSNull.null ? nil : value);
+  }
+}
+
+- (void)setPreference:(NSString *)name boolValue:(BOOL)value {
+  NSLog(@"Not set, EngineCore has no preferences: %@", name);
+}
+
+- (void)setPreference:(NSString *)name stringValue:(NSString *)value {
+  NSLog(@"Not set, EngineCore has no preferences: %@", name);
+}
+
+- (void)setPreference:(NSString *)name stringListValue:(NSArray<NSString *> *)value {
+  NSLog(@"Not set, EngineCore has no preferences: %@", name);
+}
+
+- (NSString *)stringPreference:(NSString *)name {
+  id value = _context ? [self preferenceValue:name] : nil;
+  return [value isKindOfClass:NSString.class] ? value : nil;
 }
 
 @end
 
-void FLXProfileReleaseAll() {
-  for (FLXProfile *profile in g_profiles.allValues) {
-    [profile releaseRequestContext];
-  }
-  [g_profiles removeAllObjects];
-}
-
 @implementation FLXDownload {
-  // Still works once the page that started the download is closed.
-  CefRefPtr<CefDownloadItemCallback> _callback;
+  __weak ECBrowserContext *_context;
 }
 
-- (instancetype)initWithItem:(CefRefPtr<CefDownloadItem>)item
-                    callback:(CefRefPtr<CefDownloadItemCallback>)callback {
+- (instancetype)initWithDownload:(ECDownload *)download context:(ECBrowserContext *)context {
   self = [super init];
-  _callback = callback;
-  _identifier = item->GetId();
-  _url = [NSString stringWithUTF8String:item->GetOriginalUrl().ToString().c_str()];
-  _path = [NSString stringWithUTF8String:item->GetFullPath().ToString().c_str()];
-  _mimeType = [NSString stringWithUTF8String:item->GetMimeType().ToString().c_str()];
-  _receivedBytes = item->GetReceivedBytes();
-  _totalBytes = item->GetTotalBytes() > 0 ? item->GetTotalBytes() : -1;
-  if (item->IsComplete()) {
-    _state = FLXDownloadStateComplete;
-  } else if (item->IsCanceled() || item->IsInterrupted()) {
-    _state = FLXDownloadStateCanceled;
-  } else {
-    _state = FLXDownloadStateInProgress;
+  _context = context;
+  _identifier = download.identifier;
+  _url = download.URL.absoluteString ?: @"";
+  _path = download.fileURL.path ?: @"";
+  _mimeType = @"";
+  _receivedBytes = download.receivedBytes;
+  _totalBytes = download.totalBytes > 0 ? download.totalBytes : -1;
+  switch (download.state) {
+    case ECDownloadStateComplete:
+      _state = FLXDownloadStateComplete;
+      break;
+    case ECDownloadStateCancelled:
+    case ECDownloadStateInterrupted:
+      _state = FLXDownloadStateCanceled;
+      break;
+    default:
+      _state = FLXDownloadStateInProgress;
   }
   return self;
 }
 
 - (void)cancel {
-  if (_callback) _callback->Cancel();
+  [_context cancelDownload:_identifier];
 }
 
 @end

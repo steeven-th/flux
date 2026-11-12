@@ -2,6 +2,7 @@
 #import <QuartzCore/QuartzCore.h>
 
 @class FLXBrowserView;
+@class FLXPageDevTools;
 @class FLXProfile;
 
 NS_ASSUME_NONNULL_BEGIN
@@ -53,6 +54,17 @@ typedef NS_OPTIONS(uint32_t, FLXPermission) {
 /// A site asking to use something, such as notifications or the camera. Chromium keeps the answer
 /// for the site, as Chrome does.
 NS_SWIFT_UI_ACTOR
+/// A page's DevTools, docked as in Chrome. Flux shows the view in the page's place and lays the
+/// page over it at pageFrame, which leaves room for their panels and their device toolbar.
+@interface FLXPageDevTools : NSObject
+- (instancetype)init NS_UNAVAILABLE;
+@property (nonatomic, readonly) NSView *view;
+/// From the view's top left corner. Empty until DevTools have laid out.
+@property (nonatomic, readonly) NSRect pageFrame;
+@property (nonatomic, copy, nullable) void (^onPageFrameChange)(void);
+- (void)showPanel:(NSString *)panel;
+@end
+
 @interface FLXPermissionRequest : NSObject
 
 /// The site, as an origin such as https://example.com/.
@@ -77,15 +89,13 @@ NS_SWIFT_UI_ACTOR
 - (void)browserView:(FLXBrowserView *)browserView didChangeURL:(NSString *)url;
 - (void)browserView:(FLXBrowserView *)browserView didChangeTitle:(NSString *)title;
 - (void)browserView:(FLXBrowserView *)browserView didChangeFavicon:(NSImage *)favicon;
-/// Sent when automatic resizing is on and the page's content size changed.
-- (void)browserView:(FLXBrowserView *)browserView didResizeToFit:(NSSize)size;
 /// Sent when the page opens a link in a new tab or window. The new page is already loading in
 /// `page`.
 - (void)browserView:(FLXBrowserView *)browserView
         didOpenPage:(FLXBrowserView *)page
         disposition:(FLXOpenDisposition)disposition;
-/// Sent when the page's DevTools open, in a view of their own that Flux shows next to the page.
-- (void)browserView:(FLXBrowserView *)browserView didOpenDevTools:(FLXBrowserView *)devTools;
+/// Sent when the page's DevTools open, from Flux or from Chromium's context menu and shortcuts.
+- (void)browserView:(FLXBrowserView *)browserView didOpenDevTools:(FLXPageDevTools *)devTools;
 /// Sent when the page's DevTools have closed.
 - (void)browserViewDidCloseDevTools:(FLXBrowserView *)browserView;
 /// Sent when going back or forward becomes possible or not.
@@ -147,9 +157,6 @@ NS_SWIFT_UI_ACTOR
 @property (nonatomic, getter=isDimmed) BOOL dimmed;
 @property (nonatomic, readonly, copy) NSString *title;
 
-/// Makes the page size itself to its content, between the two sizes. Extension popups need this.
-- (void)fitToContentWithMinimumSize:(NSSize)minimumSize maximumSize:(NSSize)maximumSize;
-
 - (void)loadURL:(NSString *)url;
 - (void)goBack;
 - (void)goForward;
@@ -178,7 +185,9 @@ NS_SWIFT_UI_ACTOR
 /// Opens Chromium's DevTools for the page, on the given panel ("console", "network"…) or the one
 /// they last showed.
 - (void)showDevToolsOnPanel:(nullable NSString *)panel;
-@property (nonatomic, readonly, weak, nullable) FLXBrowserView *devTools;
+/// Opens DevTools with their element picker on.
+- (void)showElementPicker;
+@property (nonatomic, readonly, nullable) FLXPageDevTools *devTools;
 - (void)closeDevTools;
 
 /// The page's certificate then the ones that issued it, DER encoded. Empty without https.
@@ -194,10 +203,6 @@ NS_SWIFT_UI_ACTOR
 
 /// The page's own DevTools target id, which the browser-wide protocol uses to refer to it.
 - (void)devToolsTargetID:(void (^)(NSString *_Nullable targetID))completion;
-
-/// Where Chromium anchors the popup of an extension's toolbar action: the top right corner of the
-/// page, in screen coordinates. Nil for embedded pages.
-@property (nonatomic, readonly, nullable) NSWindow *pageWindow;
 
 /// Gives the keyboard to the page.
 - (void)focus;

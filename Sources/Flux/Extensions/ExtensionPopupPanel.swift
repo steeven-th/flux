@@ -13,20 +13,21 @@ final class ExtensionPopupPanel: NSPanel {
 
     private static weak var current: ExtensionPopupPanel?
 
-    private let page: FLXBrowserView
+    private let popup: FLXExtensionPopup
     private var anchorTopLeft = NSPoint.zero
 
-    static func show(url: String, profile: FLXProfile, below anchor: NSView) {
+    static func show(_ popup: FLXExtensionPopup, below anchor: NSView) {
         current?.close()
-        let panel = ExtensionPopupPanel(url: url, profile: profile)
+        let panel = ExtensionPopupPanel(popup: popup)
         panel.present(below: anchor)
         current = panel
     }
 
-    private init(url: String, profile: FLXProfile) {
-        page = FLXBrowserView(embeddedWithURL: url, profile: profile)
+    private init(popup: FLXExtensionPopup) {
+        self.popup = popup
+        let size = NSSize(width: max(popup.size.width, Self.minimumSize.width), height: max(popup.size.height, Self.minimumSize.height))
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 320, height: 200),
+            contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -43,13 +44,20 @@ final class ExtensionPopupPanel: NSPanel {
         container.layer?.cornerRadius = Self.cornerRadius
         container.layer?.cornerCurve = .continuous
         container.layer?.masksToBounds = true
-        page.frame = container.bounds
-        page.autoresizingMask = [.width, .height]
-        container.addSubview(page)
+        popup.view.frame = container.bounds
+        popup.view.autoresizingMask = [.width, .height]
+        container.addSubview(popup.view)
         contentView = container
 
-        page.delegate = self
-        page.fitToContent(withMinimumSize: Self.minimumSize, maximumSize: Self.maximumSize)
+        popup.onResize = { [weak self] size in self?.resize(to: size) }
+        popup.onClose = { [weak self] in self?.close() }
+    }
+
+    private func resize(to size: NSSize) {
+        var frame = self.frame
+        frame.size = size
+        frame.origin = NSPoint(x: anchorTopLeft.x, y: anchorTopLeft.y - size.height)
+        setFrame(frame, display: true)
     }
 
     override var canBecomeKey: Bool { true }
@@ -60,7 +68,7 @@ final class ExtensionPopupPanel: NSPanel {
         anchorTopLeft = NSPoint(x: anchorFrame.minX, y: anchorFrame.minY - 6)
         setFrameTopLeftPoint(anchorTopLeft)
         makeKeyAndOrderFront(nil)
-        page.focus()
+        makeFirstResponder(popup.view)
     }
 
     override func resignKey() {
@@ -73,20 +81,8 @@ final class ExtensionPopupPanel: NSPanel {
     }
 
     override func close() {
-        page.close()
+        popup.onClose = nil
+        popup.close()
         super.close()
-    }
-}
-
-extension ExtensionPopupPanel: FLXBrowserViewDelegate {
-    func browserView(_ browserView: FLXBrowserView, didResizeToFit size: NSSize) {
-        var frame = self.frame
-        frame.size = size
-        frame.origin = NSPoint(x: anchorTopLeft.x, y: anchorTopLeft.y - size.height)
-        setFrame(frame, display: true)
-    }
-
-    func browserViewDidClose(_ browserView: FLXBrowserView) {
-        close()
     }
 }

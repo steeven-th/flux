@@ -20,19 +20,14 @@ final class BrowserState {
     private static let pinnedExtensionsMigratedKey = "pinnedExtensionsMigrated"
     private static let collapsedSectionsKey = "collapsedSections"
     private static let developerSitesKey = "developerSites"
-    private static let devToolsWidthKey = "devToolsWidth"
     private static let devToolsOrderKey = "devToolsOrder"
     private static let devToolsShownKey = "devToolsShown"
-    private static let responsiveBackdropKey = "responsiveBackdrop"
-    private static let responsiveOptionsKey = "responsiveOptions"
     private static let translationProviderKey = "translationProvider"
     private static let translatedCharactersKey = "translatedCharacters"
     private static let importedExtensionsKey = "importedExtensions"
     private static let importedExtensionsCardHiddenKey = "importedExtensionsCardHidden"
     private static let passwordExportKey = "passwordExport"
     private static let tabSleepDelayKey = "tabSleepDelay"
-    private static let hiddenDevicesKey = "hiddenDevices"
-    private static let customDevicesKey = "customDevices"
     private static let archiveDelayKey = "archiveDelay"
     private static let linkTargetsOpenPeekKey = "linkTargetsOpenPeek"
     private static let shiftClickOpensPeekKey = "shiftClickOpensPeek"
@@ -273,6 +268,9 @@ final class BrowserState {
         let space = Space(record: record)
         let database = try ProfileDatabase(profileFolder: space.profileFolder)
         let profile = FLXProfile(atPath: space.profileFolder.path)
+        profile.actionChangeHandler = {
+            NotificationCenter.default.post(name: ExtensionButton.actionsDidChange, object: nil)
+        }
         spaces.append(space)
         spaceRecords[space.id] = record
         selectedTabIDs[space.id] = record.selectedTabID
@@ -899,7 +897,7 @@ final class BrowserState {
         get {
             _ = settingsRevision
             let saved = (try? appDatabase.setting(Self.devToolsOrderKey))
-                .flatMap { try? JSONDecoder().decode([DevTool].self, from: Data($0.utf8)) } ?? DevTool.allCases
+                .flatMap(Self.decodeDevTools) ?? DevTool.allCases
             return saved + DevTool.allCases.filter { !saved.contains($0) }
         }
         set {
@@ -912,7 +910,7 @@ final class BrowserState {
         get {
             _ = settingsRevision
             return (try? appDatabase.setting(Self.devToolsShownKey))
-                .flatMap { try? JSONDecoder().decode(Set<DevTool>.self, from: Data($0.utf8)) } ?? Set(DevTool.standard)
+                .flatMap(Self.decodeDevTools).map(Set.init) ?? Set(DevTool.standard)
         }
         set {
             save { try appDatabase.setSetting(Self.devToolsShownKey, to: String(data: try JSONEncoder().encode(newValue), encoding: .utf8)) }
@@ -920,70 +918,15 @@ final class BrowserState {
         }
     }
 
+    /// Tools Flux no longer has, such as its own responsive mode, are left out.
+    private static func decodeDevTools(_ json: String) -> [DevTool]? {
+        (try? JSONDecoder().decode([String].self, from: Data(json.utf8)))?.compactMap(DevTool.init(rawValue:))
+    }
+
     /// The tools of the developer bar, in order.
     var devToolsInBar: [DevTool] {
         let shown = shownDevTools
         return devToolsOrder.filter { shown.contains($0) }
-    }
-
-    var devToolsWidth: CGFloat {
-        get { (try? appDatabase.setting(Self.devToolsWidthKey)).flatMap { Double($0) }.map { CGFloat($0) } ?? 480 }
-        set { save { try appDatabase.setSetting(Self.devToolsWidthKey, to: String(Double(newValue))) } }
-    }
-
-    var responsiveBackdrop: ResponsiveBackdrop {
-        get {
-            _ = settingsRevision
-            return (try? appDatabase.setting(Self.responsiveBackdropKey)).flatMap(ResponsiveBackdrop.init) ?? .system
-        }
-        set {
-            save { try appDatabase.setSetting(Self.responsiveBackdropKey, to: newValue == .system ? nil : newValue.rawValue) }
-            settingsRevision += 1
-        }
-    }
-
-    /// What the responsive mode's toolbar shows beyond the size, from its options menu.
-    var responsiveOptions: Set<ResponsiveOption> {
-        get {
-            _ = settingsRevision
-            return (try? appDatabase.setting(Self.responsiveOptionsKey))
-                .flatMap { try? JSONDecoder().decode(Set<ResponsiveOption>.self, from: Data($0.utf8)) } ?? []
-        }
-        set {
-            save { try appDatabase.setSetting(Self.responsiveOptionsKey, to: String(data: try JSONEncoder().encode(newValue), encoding: .utf8)) }
-            settingsRevision += 1
-        }
-    }
-
-    /// Built-in devices the user unchecked, by id.
-    var hiddenDevices: Set<String> {
-        get {
-            _ = settingsRevision
-            return (try? appDatabase.setting(Self.hiddenDevicesKey))
-                .flatMap { try? JSONDecoder().decode(Set<String>.self, from: Data($0.utf8)) } ?? []
-        }
-        set {
-            save { try appDatabase.setSetting(Self.hiddenDevicesKey, to: newValue.isEmpty ? nil : String(data: try JSONEncoder().encode(newValue), encoding: .utf8)) }
-            settingsRevision += 1
-        }
-    }
-
-    var customDevices: [EmulatedDevice] {
-        get {
-            _ = settingsRevision
-            return (try? appDatabase.setting(Self.customDevicesKey))
-                .flatMap { try? JSONDecoder().decode([EmulatedDevice].self, from: Data($0.utf8)) } ?? []
-        }
-        set {
-            save { try appDatabase.setSetting(Self.customDevicesKey, to: newValue.isEmpty ? nil : String(data: try JSONEncoder().encode(newValue), encoding: .utf8)) }
-            settingsRevision += 1
-        }
-    }
-
-    /// The devices the responsive mode offers.
-    var emulatedDevices: [EmulatedDevice] {
-        let hidden = hiddenDevices
-        return EmulatedDevice.all.filter { !hidden.contains($0.id) } + customDevices
     }
 
     /// The Mac's languages as Chromium lists them, each followed by its language without region.
@@ -1565,7 +1508,6 @@ final class BrowserState {
         // A new pane starts with an equal part.
         for pane in panes {
             pane.setShare(nil)
-            if pane.emulation != nil { pane.toggleResponsive() }
         }
         save { try profileDatabases[split.spaceID]?.save(panes.map(\.node)) }
         if let previousSplit { dissolveIfNeeded(previousSplit) }
