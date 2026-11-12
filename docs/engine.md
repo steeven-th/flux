@@ -36,8 +36,8 @@ instead of "other" ones.
 
 The engine build workflow, run from the Actions tab, checks out Chromium at the pinned version,
 applies `engine/`, compiles the framework with H.264 and AAC, and publishes the archive as a
-pre-release. A full build takes 10 to 14 hours, through a chain of jobs as for CEF
-([cef.md](cef.md) explains how it resumes). Then:
+pre-release. A full build takes 10 to 14 hours. A GitHub job stops after 6 hours, so the workflow
+is a chain of jobs, each one picking up the build folder of the one before. Then:
 
 1. Set `ENGINE_SHA256` in `scripts/engine.env` to the one in the release.
 2. `scripts/build.sh --run` and check the change.
@@ -47,6 +47,22 @@ Every job applies `engine/` again to the untouched sources. Files that come out 
 job before get back their previous mtime, so that siso only rebuilds what a change to `engine/`
 touches. After changing `engine/`, bump `ENGINE_BUILD` and run the workflow with `resume_from` set
 to the last run, whose archives are kept 3 days: only what changed is compiled again.
+
+If a job fails, fix the cause and run the workflow again with `resume_from` set to the ID of the
+failed run. A job cancelled because no macOS runner was available can simply be re-run.
+
+Jobs can land on different versions of the macOS runner image while GitHub rolls out a new one.
+siso compares file mtimes, and each image installs Xcode with its own, so the workflow gives every
+Xcode file the same mtime before building. Without it, a job on another image than the one before
+recompiles most of Chromium.
+
+## When the checkout fails
+
+Chromium's `DEPS` pins a commit for each dependency. Some of these commits have disappeared from
+their mirrors on chromium.googlesource.com, and `gclient sync` then fails with HTTP 500 on that
+dependency. `scripts/build-engine.sh` leaves such dependencies out of the checkout, and takes those
+the build needs from Chromium's source tarball, in `TARBALL_DEPS`. After a Chromium update, the
+list may need to change.
 
 ## New Chromium versions
 

@@ -374,13 +374,6 @@ const CGFloat FLXPageCornerRadius = 18;
   }
 }
 
-- (NSWindow *)pageWindow {
-  return _embedded ? nil : self.window;
-}
-
-- (void)fitToContentWithMinimumSize:(NSSize)minimumSize maximumSize:(NSSize)maximumSize {
-}
-
 #pragma mark - Navigation
 
 - (void)loadURL:(NSString *)url {

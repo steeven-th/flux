@@ -89,8 +89,6 @@ NS_SWIFT_UI_ACTOR
 - (void)browserView:(FLXBrowserView *)browserView didChangeURL:(NSString *)url;
 - (void)browserView:(FLXBrowserView *)browserView didChangeTitle:(NSString *)title;
 - (void)browserView:(FLXBrowserView *)browserView didChangeFavicon:(NSImage *)favicon;
-/// Sent when automatic resizing is on and the page's content size changed.
-- (void)browserView:(FLXBrowserView *)browserView didResizeToFit:(NSSize)size;
 /// Sent when the page opens a link in a new tab or window. The new page is already loading in
 /// `page`.
 - (void)browserView:(FLXBrowserView *)browserView
@@ -159,9 +157,6 @@ NS_SWIFT_UI_ACTOR
 @property (nonatomic, getter=isDimmed) BOOL dimmed;
 @property (nonatomic, readonly, copy) NSString *title;
 
-/// Makes the page size itself to its content, between the two sizes. Extension popups need this.
-- (void)fitToContentWithMinimumSize:(NSSize)minimumSize maximumSize:(NSSize)maximumSize;
-
 - (void)loadURL:(NSString *)url;
 - (void)goBack;
 - (void)goForward;
@@ -208,10 +203,6 @@ NS_SWIFT_UI_ACTOR
 
 /// The page's own DevTools target id, which the browser-wide protocol uses to refer to it.
 - (void)devToolsTargetID:(void (^)(NSString *_Nullable targetID))completion;
-
-/// Where Chromium anchors the popup of an extension's toolbar action: the top right corner of the
-/// page, in screen coordinates. Nil for embedded pages.
-@property (nonatomic, readonly, nullable) NSWindow *pageWindow;
 
 /// Gives the keyboard to the page.
 - (void)focus;
