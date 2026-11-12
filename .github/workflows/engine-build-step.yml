@@ -17,6 +17,12 @@ on:
         description: Run holding the engine-out archive, this run when empty.
         type: string
         default: ""
+      carry-src:
+        description: >-
+          Uploads the engine-src archive of src-run to this run, so that the next jobs and later
+          resumes find it here, for 3 more days.
+        type: boolean
+        default: false
       last:
         description: Fails when the build is still not done, so that re-running the job resumes it.
         type: boolean
@@ -90,6 +96,14 @@ jobs:
           path: ${{ runner.temp }}/src
           run-id: ${{ inputs.src-run || github.run_id }}
           github-token: ${{ github.token }}
+
+      - uses: actions/upload-artifact@v7
+        if: inputs.carry-src
+        with:
+          name: engine-src
+          path: ${{ runner.temp }}/src/src.tar.zst
+          compression-level: 0
+          retention-days: 3
 
       - uses: actions/download-artifact@v8
         if: ${{ !inputs.first }}

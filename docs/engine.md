@@ -49,7 +49,8 @@ touches. After changing `engine/`, bump `ENGINE_BUILD` and run the workflow with
 to the last run, whose archives are kept 3 days: only what changed is compiled again.
 
 If a job fails, fix the cause and run the workflow again with `resume_from` set to the ID of the
-failed run. A job cancelled because no macOS runner was available can simply be re-run.
+failed run. A resumed run keeps its own copy of the sources, so it can be resumed in turn, 3 days
+from its start. A job cancelled because no macOS runner was available can simply be re-run.
 
 Jobs can land on different versions of the macOS runner image while GitHub rolls out a new one.
 siso compares file mtimes, and each image installs Xcode with its own, so the workflow gives every
