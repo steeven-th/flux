@@ -35,9 +35,9 @@ instead of "other" ones.
 `engine-<version>-<build>` of this repository and unpacks it into `vendor/enginecore`.
 
 The engine build workflow, run from the Actions tab, checks out Chromium at the pinned version,
-applies `engine/`, compiles the framework with H.264 and AAC, and publishes the archive as a
-pre-release. A full build takes 10 to 14 hours. A GitHub job stops after 6 hours, so the workflow
-is a chain of jobs, each one picking up the build folder of the one before. Then:
+applies `engine/`, compiles the framework with H.264, AAC and Widevine, and publishes the archive
+as a pre-release. A full build takes 10 to 14 hours. A GitHub job stops after 6 hours, so the
+workflow is a chain of jobs, each one picking up the build folder of the one before. Then:
 
 1. Set `ENGINE_SHA256` in `scripts/engine.env` to the one in the release.
 2. `scripts/build.sh --run` and check the change.

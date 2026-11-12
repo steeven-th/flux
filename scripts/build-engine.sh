@@ -118,8 +118,10 @@ for path in sys.stdin.read().splitlines():
     lines.append(f"{path} {digest} {os.stat(path).st_mtime_ns}\n")
 open(manifest, "w").writelines(lines)
 ' "$OUT/engine-mtimes.txt"
-    if [[ ! -f "$OUT/build.ninja" ]]; then
-        cat > "$OUT/args.gn" <<ARGS
+    # Chromium only plays DRM protected media, as on Netflix, with Widevine, which only Chrome
+    # branded builds turn on by default. The component updater then downloads its CDM.
+    local args
+    args="$(cat <<ARGS
 is_debug = false
 is_component_build = false
 dcheck_always_on = false
@@ -130,7 +132,12 @@ enable_dsyms = false
 target_cpu = "arm64"
 proprietary_codecs = true
 ffmpeg_branding = "Chrome"
+enable_widevine = true
 ARGS
+)"
+    # A resumed build keeps the build folder of the one before, which may have other arguments.
+    if [[ ! -f "$OUT/build.ninja" || "$(cat "$OUT/args.gn" 2>/dev/null)" != "$args" ]]; then
+        printf '%s\n' "$args" > "$OUT/args.gn"
         gn gen "$OUT"
     fi
 }
