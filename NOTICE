@@ -1,7 +1,8 @@
 Flux
 
 Flux is licensed under the Mozilla Public License 2.0 (see LICENSE), except engine/, which is
-licensed under the Apache License 2.0 (see engine/LICENSE).
+licensed under the Apache License 2.0 (see engine/LICENSE). The name Flux and its logo are not
+covered by these licenses (see TRADEMARKS.md).
 
 engine/ comes from Sailfish, https://github.com/SailfishBrowser/macOS, at commit f894675, copyright
 The Sailfish Authors, under the Apache License 2.0: the patches to Chromium in engine/patches and

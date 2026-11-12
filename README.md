@@ -45,3 +45,9 @@ Architecture decisions are recorded in [docs/decisions](docs/decisions).
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Security problems go through [SECURITY.md](SECURITY.md).
+
+## License
+
+Flux is under the [Mozilla Public License 2.0](LICENSE), and its engine under the Apache License
+2.0, as [NOTICE](NOTICE) details. The name and the logo are covered by
+[TRADEMARKS.md](TRADEMARKS.md).
