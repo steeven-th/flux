@@ -1,9 +1,10 @@
 name: Engine build
 
-# Builds the engine pinned in scripts/engine.env, Chrome's framework with engine/ and H.264/AAC,
-# and publishes it as a pre-release, which scripts/fetch-engine.sh downloads. A full build takes
-# longer than the 6 hours a job may run on a free macOS runner, so it goes through a chain of jobs,
-# each resuming where the previous one stopped. A full build usually needs three or four of them.
+# Builds the engine pinned in scripts/engine.env, Chrome's framework with engine/, H.264/AAC and
+# Widevine, and publishes it as a pre-release, which scripts/fetch-engine.sh downloads. A full build
+# takes longer than the 6 hours a job may run on a free macOS runner, so it goes through a chain of
+# jobs, each resuming where the previous one stopped. A full build usually needs three or four of
+# them.
 on:
   workflow_dispatch:
     inputs:
@@ -11,6 +12,11 @@ on:
         description: >-
           ID of an earlier run to continue from its last build output, for example after fixing
           this workflow. Its archives are kept 3 days.
+        type: string
+        default: ""
+      sources_from:
+        description: >-
+          ID of the run holding the sources archive, when resume_from doesn't have it.
         type: string
         default: ""
 
@@ -27,7 +33,7 @@ jobs:
     uses: ./.github/workflows/engine-build-step.yml
     with:
       first: ${{ !inputs.resume_from }}
-      src-run: ${{ inputs.resume_from }}
+      src-run: ${{ inputs.sources_from || inputs.resume_from }}
       out-run: ${{ inputs.resume_from }}
       carry-src: ${{ inputs.resume_from != '' }}
 
