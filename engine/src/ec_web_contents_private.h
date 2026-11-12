@@ -16,7 +16,7 @@ namespace extensions {
 class WindowController;
 }
 
-class DevToolsToggleAction;
+struct DevToolsToggleAction;
 
 NS_ASSUME_NONNULL_BEGIN
 
