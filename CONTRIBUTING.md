@@ -16,16 +16,16 @@ parts will change a lot. Bug reports, ideas and pull requests are welcome.
 ## Building
 
 See the [README](README.md#building) for the requirements and the build script. The first build
-downloads CEF, about 135 MB.
+downloads the engine, about 190 MB.
 
 Flux keeps its data in `~/Library/Application Support/Flux`. If you use Flux every day, keep in
 mind that a development build uses the same folder.
 
 ## Writing code
 
-- Swift for the app, Objective-C++ only in `Sources/Flux/Engine`, the bridge to CEF.
+- Swift for the app, Objective-C++ only in `Sources/Flux/Engine`, the bridge to the engine.
 - Follow the style of the code around your change: naming, structure, SwiftUI or AppKit.
-- Comment only what the code can't say by itself: a constraint of CEF or Chromium, a workaround,
+- Comment only what the code can't say by itself: a constraint of Chromium, a workaround,
   a choice that isn't obvious. Don't paraphrase the code. A clear name is better than a comment.
 - Everything in the repository is in English: code, comments, docs, commit messages.
 - User-facing strings go through the string catalog. See [docs/localization.md](docs/localization.md),
@@ -45,9 +45,14 @@ mind that a development build uses the same folder.
 
 ## License
 
-Flux is under the [Mozilla Public License 2.0](LICENSE). By contributing, you agree that your
-contribution is licensed under the same terms. Only submit code you wrote yourself or have the
-right to share under this license.
+Flux is under the [Mozilla Public License 2.0](LICENSE). Before your first pull request is merged,
+you sign the [contributor license agreement](CLA.md), by a comment the CLA check asks for on the
+pull request. You keep the copyright of your code, and it stays available under an open source
+license. [docs/decisions/0016](docs/decisions/0016-contributor-license-agreement.md) explains why.
+
+Only submit code you wrote yourself or have the right to share. Code under the GPL can't be taken
+into Flux. A fork or a changed build needs a name and a logo of its own, see
+[TRADEMARKS.md](TRADEMARKS.md).
 
 ## Security
 
