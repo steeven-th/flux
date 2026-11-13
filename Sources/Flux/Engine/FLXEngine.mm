@@ -47,8 +47,12 @@ void AskBeforeTerminating(Class applicationClass) {
     if (SecCodeCopySelf(kSecCSDefaultFlags, &code) == errSecSuccess &&
         SecCodeCopyStaticCode(code, kSecCSDefaultFlags, &staticCode) == errSecSuccess &&
         SecCodeCopySigningInformation(staticCode, kSecCSSigningInformation, &info) == errSecSuccess) {
-      // Ad hoc signatures have no team.
-      uses = CFDictionaryGetValue(info, kSecCodeInfoTeamIdentifier) != NULL;
+      // Ad hoc signatures change with every build. Any certificate, Apple's or self-signed, keeps
+      // the same identity from one build to the next.
+      uint32_t flags = 0;
+      CFNumberRef value = (CFNumberRef)CFDictionaryGetValue(info, kSecCodeInfoFlags);
+      if (value) CFNumberGetValue(value, kCFNumberSInt32Type, &flags);
+      uses = CFDictionaryGetValue(info, kSecCodeInfoIdentifier) != NULL && !(flags & kSecCodeSignatureAdhoc);
     }
     if (info) CFRelease(info);
     if (staticCode) CFRelease(staticCode);

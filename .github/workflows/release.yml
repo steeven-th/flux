@@ -1,0 +1,70 @@
+name: Release
+
+# Keeps a release pull request up to date with the changes since the last version. Merging it tags
+# the version, publishes its notes as a GitHub release and attaches Flux.dmg to it.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      created: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+
+  # In the same workflow because a release made with GITHUB_TOKEN starts no other workflow.
+  dmg:
+    needs: release-please
+    if: needs.release-please.outputs.created == 'true'
+    runs-on: macos-26
+    env:
+      TAG: ${{ needs.release-please.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release-please.outputs.tag }}
+
+      - run: brew install xcodegen
+
+      - name: Import the signing certificate
+        env:
+          CERTIFICATE: ${{ secrets.FLUX_SIGNING_CERTIFICATE }}
+          PASSWORD: ${{ secrets.FLUX_SIGNING_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          security create-keychain -p runner "$KEYCHAIN"
+          security set-keychain-settings "$KEYCHAIN"
+          security unlock-keychain -p runner "$KEYCHAIN"
+          echo "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/signing.p12"
+          security import "$RUNNER_TEMP/signing.p12" -k "$KEYCHAIN" -P "$PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k runner "$KEYCHAIN" > /dev/null
+          rm "$RUNNER_TEMP/signing.p12"
+          # The certificate is self-signed, so macOS lists it as not trusted: codesign takes it by
+          # its hash.
+          IDENTITY="$(security find-identity -p codesigning "$KEYCHAIN" | awk '/\)/ { print $2; exit }')"
+          echo "FLUX_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+          echo "FLUX_SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+      - run: scripts/package.sh
+
+      - name: Attach the DMG to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" build/Flux.dmg --clobber
+
+      # The website builds its release notes and download links from the releases.
+      - name: Rebuild the website
+        env:
+          HOOK: ${{ secrets.WEBSITE_DEPLOY_HOOK }}
+        run: |
+          [ -n "$HOOK" ] || exit 0
+          curl -fsS -X POST "$HOOK" -H 'Content-Type: application/json' -H 'X-GitHub-Event: push' \
+            -d '{"ref":"refs/heads/main"}'
