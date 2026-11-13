@@ -17,7 +17,9 @@ Importing passwords from Arc made that a real problem.
 
 Chromium keeps its secret in the keychain when Flux is signed with a certificate, which keeps the
 same identity from one build to the next. `scripts/build.sh` signs with an Apple Development
-certificate when one is installed. Ad hoc builds keep the fixed secret.
+certificate when one is installed, and released versions are signed with a certificate of their
+own (see [0017](0017-releases-from-conventional-commits.md)). Any certificate counts, self-signed
+ones included. Ad hoc builds keep the fixed secret.
 
 The import from Arc reads Arc's secret, with the user's permission, and makes Flux's own when
 Chromium hasn't yet, the way Chromium makes it.

@@ -37,6 +37,9 @@ mind that a development build uses the same folder.
   `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`, `build`. For example
   `fix(sidebar): open new tabs at the top of Today`.
 - The body explains what changed for the user and why, not the list of files.
+- The subject of `feat`, `fix` and `perf` commits goes as is into the release notes, under New,
+  Fixed and Faster. Write it for the people who use Flux: `fix(sidebar): open new tabs at the top
+  of Today` rather than `fix(sidebar): change the insertion index`.
 - Update the docs (`README.md`, `docs/`) in the same commit as the code they describe.
 - An important technical choice gets a decision record in `docs/decisions`, with the
   alternatives considered.

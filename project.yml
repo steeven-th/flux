@@ -43,7 +43,7 @@ targets:
       properties:
         CFBundleName: Flux
         CFBundleDisplayName: Flux
-        CFBundleShortVersionString: "0.1.0"
+        CFBundleShortVersionString: "0.1.0" # x-release-please-version
         CFBundleVersion: "1"
         NSPrincipalClass: NSApplication
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
