@@ -27,6 +27,7 @@
 - (void)activate;
 - (void)frontendDidAskToClose;
 - (void)frontendDidLoad;
+- (void)frontendDidSetDocked;
 - (void)openURL:(const GURL&)url;
 @end
 
@@ -56,8 +57,9 @@ class BindingsDelegate : public DevToolsUIBindings::Delegate {
     [owner_ setInspectedPageBounds:rect];
   }
   void InspectElementCompleted() override {}
-  // DevTools stay docked in the embedder's window.
-  void SetIsDocked(bool is_docked) override {}
+  // DevTools stay docked in the embedder's window. The first call also tells
+  // the frontend is ready, as for Chrome's DevToolsWindow.
+  void SetIsDocked(bool is_docked) override { [owner_ frontendDidSetDocked]; }
   void OpenInNewTab(const std::string& url) override {
     [owner_ openURL:GURL(url)];
   }
@@ -168,6 +170,8 @@ void RegisterDevToolsHost() {
   std::unique_ptr<FrontendDelegate> _frontendDelegate;
   std::unique_ptr<DevToolsToggleAction> _pendingAction;
   NSString* _pendingPanel;
+  BOOL _onLoadFired;
+  BOOL _dockedSet;
   BOOL _loaded;
   NSView* _view;
 }
@@ -275,7 +279,23 @@ void RegisterDevToolsHost() {
   }
 }
 
+// The document loads before the frontend's panels exist, and a panel or an
+// action asked for then is lost. The frontend sets whether it is docked once
+// it is ready, so Chrome's DevToolsWindow waits for both, and so does this.
 - (void)frontendDidLoad {
+  _onLoadFired = YES;
+  [self frontendMayBeReady];
+}
+
+- (void)frontendDidSetDocked {
+  _dockedSet = YES;
+  [self frontendMayBeReady];
+}
+
+- (void)frontendMayBeReady {
+  if (_loaded || !_onLoadFired || !_dockedSet) {
+    return;
+  }
   _loaded = YES;
   if (_pendingPanel) {
     [self showPanel:_pendingPanel];
