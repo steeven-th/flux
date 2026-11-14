@@ -28,6 +28,13 @@ the page over it where DevTools ask, which leaves room for their panels and thei
 Patch 0102 makes Flux's pages "page" targets of the DevTools protocol, as Chrome's tabs are,
 instead of "other" ones.
 
+## Pages opened by a page
+
+A script's `window.open()` and links with a target open a page that Chromium creates itself, as in
+Chrome, so that it keeps the page that opened it as its `window.opener`. Sign-in popups need that
+link to send their result back. The bridge hands the new page to Flux, which shows it in a Peek or
+a tab like any other new window. ⌘-click and middle click still only pass the URL.
+
 ## Building
 
 `scripts/engine.env` pins the Chromium version, a build name, and the SHA-256 of the archive.

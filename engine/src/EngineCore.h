@@ -458,6 +458,17 @@ EC_EXPORT
     requestsNewWindowWithURL:(NSURL*)url
                  disposition:(ECWindowOpenDisposition)disposition
                modifierFlags:(NSEventModifierFlags)modifierFlags;
+// A page this one opened with a script's window.open() or a link with a
+// target, already loading `url`. It keeps this page as its window.opener,
+// which sign-in popups need to send their result back. The shell shows it as
+// it would a new window's URL, and a page it lets go of closes. Without this
+// method the engine asks for the URL with the methods above, and the new
+// page has no opener.
+- (void)webContents:(ECWebContents*)contents
+    didOpenWebContents:(ECWebContents*)opened
+                   URL:(NSURL*)url
+           disposition:(ECWindowOpenDisposition)disposition
+         modifierFlags:(NSEventModifierFlags)modifierFlags;
 // `permissions` are Chrome's permission keys, e.g. "notifications",
 // "geolocation", "media_stream_camera". Chrome's content settings remember
 // the decision for the origin. Without this method requests stay pending.
