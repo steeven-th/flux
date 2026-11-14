@@ -27,6 +27,11 @@ and `END_COMMIT_OVERRIDE`.
 
 To force a version, add a commit with a `Release-As: 1.0.0` footer.
 
+If the DMG of a release is missing, run the Release workflow by hand from the Actions tab, with the
+release's tag. It builds the DMG from that tag, attaches it and rebuilds the website:
+
+    gh workflow run release.yml -f tag=v0.1.0
+
 ## Signing
 
 Released versions are signed with a self-signed certificate named Flux Release, so that macOS sees

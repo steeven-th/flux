@@ -6,6 +6,12 @@ name: Release
 on:
   push:
     branches: [main]
+  # Builds the DMG of a release again, for one whose build failed for example.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag of the release, such as v0.1.0
+        required: true
 
 permissions:
   contents: write
@@ -13,6 +19,7 @@ permissions:
 
 jobs:
   release-please:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
       created: ${{ steps.release.outputs.release_created }}
@@ -24,14 +31,16 @@ jobs:
   # In the same workflow because a release made with GITHUB_TOKEN starts no other workflow.
   dmg:
     needs: release-please
-    if: needs.release-please.outputs.created == 'true'
+    if: >-
+      !cancelled() &&
+      (needs.release-please.outputs.created == 'true' || github.event_name == 'workflow_dispatch')
     runs-on: macos-26
     env:
-      TAG: ${{ needs.release-please.outputs.tag }}
+      TAG: ${{ inputs.tag || needs.release-please.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.release-please.outputs.tag }}
+          ref: ${{ inputs.tag || needs.release-please.outputs.tag }}
 
       - run: brew install xcodegen
 
