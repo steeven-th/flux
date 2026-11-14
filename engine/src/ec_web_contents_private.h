@@ -32,6 +32,12 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)requestNewWindowWithURL:(const GURL&)url
                     disposition:(WindowOpenDisposition)disposition
                     userGesture:(BOOL)userGesture;
+// Gives the delegate a page Chromium created for this one, its opener. Takes
+// ownership of `contents`.
+- (void)didOpenContents:(content::WebContents*)contents
+                    URL:(const GURL&)url
+            disposition:(WindowOpenDisposition)disposition
+            userGesture:(BOOL)userGesture;
 // Opens or brings forward the page's DevTools, or closes them when
 // `forceOpen` is NO and they are open, as Chrome's toggle does.
 - (void)toggleDevToolsForcingOpen:(BOOL)forceOpen

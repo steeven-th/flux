@@ -569,6 +569,8 @@ class WebContentsDelegateBridge : public content::WebContentsDelegate,
     return source;
   }
 
+  // Chromium creates the page itself, as in Chrome, when the shell takes
+  // opened pages, so that it keeps its opener.
   bool IsWebContentsCreationOverridden(
       content::RenderFrameHost* opener,
       content::SiteInstance* source_site_instance,
@@ -576,7 +578,37 @@ class WebContentsDelegateBridge : public content::WebContentsDelegate,
       const GURL& opener_url,
       const std::string& frame_name,
       const GURL& target_url) override {
-    return true;
+    return ![owner_.delegate
+        respondsToSelector:@selector
+        (webContents:didOpenWebContents:URL:disposition:modifierFlags:)];
+  }
+
+  // Before the new page's first navigation, as Chrome's Browser does.
+  void WebContentsCreated(content::WebContents* source_contents,
+                          const content::GlobalRenderFrameHostId& opener_id,
+                          const std::string& frame_name,
+                          const GURL& target_url,
+                          content::WebContents* new_contents) override {
+    EngineCoreTabHelpers::Attach(new_contents);
+  }
+
+  content::WebContents* AddNewContents(
+      content::WebContents* source,
+      std::unique_ptr<content::WebContents> new_contents,
+      const GURL& target_url,
+      WindowOpenDisposition disposition,
+      const blink::mojom::WindowFeatures& window_features,
+      bool user_gesture,
+      bool* was_blocked) override {
+    if (!owner_) {
+      return nullptr;
+    }
+    content::WebContents* added = new_contents.get();
+    [owner_ didOpenContents:new_contents.release()
+                        URL:target_url
+                disposition:disposition
+                userGesture:user_gesture];
+    return added;
   }
 
   content::WebContents* CreateCustomWebContents(
@@ -1233,11 +1265,20 @@ void OfferToSaveCard(
 }
 
 - (instancetype)initWithBrowserContext:(ECBrowserContext*)context {
+  return [self initWithBrowserContext:context
+                             contents:content::WebContents::Create(
+                                          content::WebContents::CreateParams(
+                                              context.profile))
+                                          .release()];
+}
+
+// Takes ownership of `contents`.
+- (instancetype)initWithBrowserContext:(ECBrowserContext*)context
+                              contents:(content::WebContents*)contents {
   if ((self = [super init])) {
     _context = context;
     _bridge = std::make_unique<WebContentsDelegateBridge>(self);
-    _contents = content::WebContents::Create(
-        content::WebContents::CreateParams(context.profile));
+    _contents = std::unique_ptr<content::WebContents>(contents);
     _contents->SetUserData(Owner::kKey, std::make_unique<Owner>(self));
     EngineCoreTabHelpers::Attach(_contents.get());
     // The manager's only seam for a prompt other than Chrome's bubble.
@@ -1718,17 +1759,38 @@ void OfferToSaveCard(
   }
 }
 
+static ECWindowOpenDisposition ECDisposition(WindowOpenDisposition disposition) {
+  switch (disposition) {
+    case WindowOpenDisposition::NEW_BACKGROUND_TAB:
+      return ECWindowOpenDispositionNewBackgroundTab;
+    case WindowOpenDisposition::NEW_WINDOW:
+      return ECWindowOpenDispositionNewWindow;
+    case WindowOpenDisposition::NEW_POPUP:
+      return ECWindowOpenDispositionNewPopup;
+    default:
+      return ECWindowOpenDispositionNewForegroundTab;
+  }
+}
+
+- (void)didOpenContents:(content::WebContents*)contents
+                    URL:(const GURL&)url
+            disposition:(WindowOpenDisposition)disposition
+            userGesture:(BOOL)userGesture {
+  ECWebContents* opened =
+      [[ECWebContents alloc] initWithBrowserContext:_context contents:contents];
+  [_delegate webContents:self
+      didOpenWebContents:opened
+                     URL:net::NSURLWithGURL(url)
+             disposition:ECDisposition(disposition)
+           modifierFlags:userGesture && _bridge
+                             ? _bridge->recent_modifier_flags()
+                             : 0];
+}
+
 - (void)requestNewWindowWithURL:(const GURL&)url
                     disposition:(WindowOpenDisposition)disposition
                     userGesture:(BOOL)userGesture {
-  ECWindowOpenDisposition kind = ECWindowOpenDispositionNewForegroundTab;
-  if (disposition == WindowOpenDisposition::NEW_BACKGROUND_TAB) {
-    kind = ECWindowOpenDispositionNewBackgroundTab;
-  } else if (disposition == WindowOpenDisposition::NEW_WINDOW) {
-    kind = ECWindowOpenDispositionNewWindow;
-  } else if (disposition == WindowOpenDisposition::NEW_POPUP) {
-    kind = ECWindowOpenDispositionNewPopup;
-  }
+  ECWindowOpenDisposition kind = ECDisposition(disposition);
   NSURL* URL = net::NSURLWithGURL(url);
   if ([_delegate respondsToSelector:@selector
                  (webContents:requestsNewWindowWithURL:disposition:

@@ -300,6 +300,18 @@ const CGFloat FLXPageCornerRadius = 18;
 }
 
 - (instancetype)initWithURL:(NSString *)url profile:(FLXProfile *)profile embedded:(BOOL)embedded {
+  return [self initWithURL:url profile:profile embedded:embedded contents:nil];
+}
+
+// A page another one opened, which the engine created already so that it keeps its opener.
+- (instancetype)initWithOpenedContents:(ECWebContents *)contents URL:(NSString *)url profile:(FLXProfile *)profile {
+  return [self initWithURL:url profile:profile embedded:NO contents:contents];
+}
+
+- (instancetype)initWithURL:(NSString *)url
+                    profile:(FLXProfile *)profile
+                   embedded:(BOOL)embedded
+                   contents:(ECWebContents *)contents {
   self = [super initWithFrame:NSMakeRect(0, 0, 800, 600)];
   if (!self) return nil;
   _profile = profile;
@@ -313,6 +325,10 @@ const CGFloat FLXPageCornerRadius = 18;
   self.layer.cornerCurve = kCACornerCurveCircular;
   self.layer.maskedCorners = AllCorners();
   self.layer.masksToBounds = YES;
+  if (contents) {
+    [self setUpContents:contents];
+    return self;
+  }
   __weak FLXBrowserView *weakSelf = self;
   [profile whenReady:^{
     [weakSelf createContents];
@@ -321,7 +337,12 @@ const CGFloat FLXPageCornerRadius = 18;
 }
 
 - (void)createContents {
-  _contents = [[ECWebContents alloc] initWithBrowserContext:_profile.context];
+  [self setUpContents:[[ECWebContents alloc] initWithBrowserContext:_profile.context]];
+  if (_currentURL.length) [_contents loadURL:[NSURL URLWithString:_currentURL]];
+}
+
+- (void)setUpContents:(ECWebContents *)contents {
+  _contents = contents;
   _contents.delegate = self;
   // Lets the page be found among the DevTools protocol's targets.
   [_contents addDocumentStartScript:[NSString stringWithFormat:
@@ -335,7 +356,6 @@ const CGFloat FLXPageCornerRadius = 18;
   view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
   [self addSubview:view positioned:NSWindowBelow relativeTo:nil];
   if (!_embedded) [_profile addPage:self contents:_contents];
-  if (_currentURL.length) [_contents loadURL:[NSURL URLWithString:_currentURL]];
 }
 
 // In a popover, vibrancy would wash out the page's colors.
@@ -754,20 +774,33 @@ const CGFloat FLXPageCornerRadius = 18;
   if (_contents) [self webContents:_contents requestsNewWindowWithURL:url disposition:disposition];
 }
 
+static FLXOpenDisposition FluxDisposition(ECWindowOpenDisposition disposition) {
+  switch (disposition) {
+    case ECWindowOpenDispositionNewBackgroundTab: return FLXOpenDispositionBackgroundTab;
+    case ECWindowOpenDispositionNewWindow: return FLXOpenDispositionShiftClick;
+    case ECWindowOpenDispositionNewPopup: return FLXOpenDispositionLinkTarget;
+    default: return FLXOpenDispositionForegroundTab;
+  }
+}
+
 - (void)webContents:(ECWebContents *)contents
     requestsNewWindowWithURL:(NSURL *)url
                  disposition:(ECWindowOpenDisposition)disposition {
   id<FLXBrowserViewDelegate> delegate = self.delegate;
   if (![delegate respondsToSelector:@selector(browserView:didOpenPage:disposition:)]) return;
-  FLXOpenDisposition flux = FLXOpenDispositionForegroundTab;
-  switch (disposition) {
-    case ECWindowOpenDispositionNewBackgroundTab: flux = FLXOpenDispositionBackgroundTab; break;
-    case ECWindowOpenDispositionNewWindow: flux = FLXOpenDispositionShiftClick; break;
-    case ECWindowOpenDispositionNewPopup: flux = FLXOpenDispositionLinkTarget; break;
-    default: break;
-  }
   FLXBrowserView *page = [[FLXBrowserView alloc] initWithURL:url.absoluteString profile:_profile];
-  [delegate browserView:self didOpenPage:page disposition:flux];
+  [delegate browserView:self didOpenPage:page disposition:FluxDisposition(disposition)];
+}
+
+- (void)webContents:(ECWebContents *)contents
+    didOpenWebContents:(ECWebContents *)opened
+                   URL:(NSURL *)url
+           disposition:(ECWindowOpenDisposition)disposition
+         modifierFlags:(NSEventModifierFlags)modifierFlags {
+  id<FLXBrowserViewDelegate> delegate = self.delegate;
+  if (![delegate respondsToSelector:@selector(browserView:didOpenPage:disposition:)]) return;
+  FLXBrowserView *page = [[FLXBrowserView alloc] initWithOpenedContents:opened URL:url.absoluteString profile:_profile];
+  [delegate browserView:self didOpenPage:page disposition:FluxDisposition(disposition)];
 }
 
 - (void)webContents:(ECWebContents *)contents
