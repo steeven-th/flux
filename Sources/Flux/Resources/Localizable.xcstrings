@@ -621,6 +621,16 @@
         }
       }
     },
+    "Check for Updates…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher les mises à jour…"
+          }
+        }
+      }
+    },
     "Choose the tools of the developer bar, shown on sites in developer mode. Drag them to change their order." : {
       "localizations" : {
         "fr" : {
@@ -637,6 +647,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choisir…"
+          }
+        }
+      }
+    },
+    "Chromium Engine Version %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version du moteur Chromium %@"
           }
         }
       }
@@ -977,16 +997,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Foncé"
-          }
-        }
-      }
-    },
-    "Debug" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Débogage"
           }
         }
       }
@@ -1411,12 +1421,32 @@
         }
       }
     },
+    "Flux is made possible by the [Chromium](https://www.chromium.org/) open source project and other [open source software](https://github.com/steeven-th/flux/blob/main/NOTICE)." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flux existe grâce au projet open source [Chromium](https://www.chromium.org/) et à d'autres [logiciels open source](https://github.com/steeven-th/flux/blob/main/NOTICE)."
+          }
+        }
+      }
+    },
     "Flux is your default browser" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Flux est votre navigateur par défaut"
+          }
+        }
+      }
+    },
+    "Flux Website" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Site de Flux"
           }
         }
       }
@@ -2811,6 +2841,16 @@
         }
       }
     },
+    "Privacy Policy" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Politique de confidentialité"
+          }
+        }
+      }
+    },
     "Private Browsing" : {
       "localizations" : {
         "fr" : {
@@ -2931,6 +2971,16 @@
         }
       }
     },
+    "Release Notes" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notes de version"
+          }
+        }
+      }
+    },
     "Reload" : {
       "localizations" : {
         "fr" : {
@@ -3037,6 +3087,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remplacer"
+          }
+        }
+      }
+    },
+    "Report an Issue…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signaler un problème…"
           }
         }
       }
@@ -3931,6 +3991,16 @@
         }
       }
     },
+    "Troubleshooting" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dépannage"
+          }
+        }
+      }
+    },
     "Turn Off Chromium's" : {
       "localizations" : {
         "fr" : {
@@ -4007,6 +4077,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Retirer de la barre d'adresse"
+          }
+        }
+      }
+    },
+    "Update Available…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mise à jour disponible…"
           }
         }
       }

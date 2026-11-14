@@ -11,9 +11,11 @@ Versions, release notes and the DMG come from the commits on `main`. The reasons
 2. The version follows the commits since the last release. Before 1.0, a `feat` raises the minor
    number (0.1.0 to 0.2.0) and a `fix` the patch number (0.1.0 to 0.1.1).
 3. Merging that pull request tags the version, publishes its notes as a GitHub release and builds
-   `Flux.dmg`, which the workflow attaches to the release a few minutes later.
-4. The workflow then rebuilds flux-browser.com, which makes a page of each release and points its
-   download buttons to the latest `Flux.dmg`.
+   `Flux.dmg`, which the workflow attaches to the release a few minutes later, with its update
+   signature in `Flux.dmg.sparkle`.
+4. The workflow then rebuilds flux-browser.com, which makes a page of each release, points its
+   download buttons to the latest `Flux.dmg` and adds the version to `appcast.xml`. Flux finds it
+   there at its next daily check (see [decision 0018](decisions/0018-updates-with-sparkle.md)).
 
 A paragraph added by hand at the top of a GitHub release becomes its headline on the website, at
 the next rebuild.
@@ -35,6 +37,13 @@ The certificate and its private key are in two secrets of the repository:
 
 - `FLUX_SIGNING_CERTIFICATE`: the `.p12` file, in base64.
 - `FLUX_SIGNING_PASSWORD`: the password of the `.p12`.
+
+Updates are signed with an EdDSA key, whose public half is `SUPublicEDKey` in `project.yml`:
+
+- `FLUX_SPARKLE_KEY`: the private key, in base64, as Sparkle's `generate_keys -x` exports it.
+
+The maintainer keeps a copy of it outside GitHub too. Without it, the versions out there can't
+update anymore.
 
 The secret `WEBSITE_DEPLOY_HOOK` holds the deploy webhook of the website on Dokploy. Without it
 the website waits for its next deployment.
@@ -68,6 +77,7 @@ To make one, if it is ever lost:
 
 builds Flux in release and writes `build/Flux.dmg`. Set `FLUX_SIGNING_IDENTITY` to the hash or
 the name of a certificate to sign with it, and `FLUX_KEYCHAIN` when it isn't in the login keychain.
+Set `FLUX_SPARKLE_KEY` to write the update signature to `build/Flux.dmg.sparkle` as well.
 
 ## Repository settings
 

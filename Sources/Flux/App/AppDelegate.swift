@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var dialogFixer: ChromiumDialogFixer?
     private var isRelaunching = false
     private var welcome: WelcomeWindowController?
+    private let updater = Updater()
     /// Links from other apps that came before the browser window, at the first launch.
     private var pendingLinks: [(url: URL, app: SourceApp?)] = []
     private let database: Result<AppDatabase, any Error>
@@ -59,7 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let menu = MainMenu.make(spacesMenuDelegate: self)
+        let menu = MainMenu.make(spacesMenuDelegate: self, updater: updater)
         target(menu)
         NSApp.mainMenu = menu
         Shortcuts.install(in: menu, database: try? database.get())
@@ -511,6 +512,67 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SettingsWindowController.showShortcuts(state: state)
     }
 
+    @objc func showAbout(_ sender: Any?) {
+        let engine = Bundle(url: Bundle.main.privateFrameworksURL!.appending(path: "EngineCore.framework"))
+        let chromium = engine?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        let notice = String(
+            localized: "Flux is made possible by the [Chromium](https://www.chromium.org/) open source project and other [open source software](https://github.com/steeven-th/flux/blob/main/NOTICE)."
+        )
+        let credits = NSMutableAttributedString(string: String(localized: "Chromium Engine Version \(chromium)") + "\n\n")
+        credits.append(NSAttributedString((try? AttributedString(markdown: notice)) ?? AttributedString(notice)))
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        let all = NSRange(location: 0, length: credits.length)
+        credits.addAttributes([
+            .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .paragraphStyle: paragraph,
+        ], range: all)
+        // The build number is the version too, which AppKit would show a second time.
+        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits, .version: ""])
+        NSApp.activate()
+    }
+
+    @objc func checkForUpdates(_ sender: Any?) {
+        updater.checkForUpdates()
+    }
+
+    @objc func showReleaseNotes(_ sender: Any?) {
+        openInTab(Self.website.appending(path: "release-notes/"))
+    }
+
+    @objc func showWebsite(_ sender: Any?) {
+        openInTab(Self.website)
+    }
+
+    @objc func showPrivacyPolicy(_ sender: Any?) {
+        openInTab(Self.website.appending(path: "privacy/"))
+    }
+
+    /// The bug report form, with the versions already filled in.
+    @objc func reportIssue(_ sender: Any?) {
+        let os = ProcessInfo.processInfo.operatingSystemVersion
+        var url = URLComponents(string: "https://github.com/steeven-th/flux/issues/new")!
+        url.queryItems = [
+            URLQueryItem(name: "template", value: "bug_report.yml"),
+            URLQueryItem(name: "version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String),
+            URLQueryItem(name: "macos", value: "macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion)"),
+        ]
+        openInTab(url.url!)
+    }
+
+    private static let website = URL(string: "https://flux-browser.com/")!
+
+    private func openInTab(_ url: URL) {
+        guard let state = regularState else {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        state.newTab(url: url.absoluteString)
+        windows.first { $0.state === state }?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate()
+    }
+
     @objc func zoomIn(_ sender: Any?) {
         zoom(.in)
     }
@@ -552,6 +614,9 @@ extension AppDelegate: NSMenuDelegate, NSMenuItemValidation {
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(checkForUpdates(_:)) {
+            return updater.canCheckForUpdates
+        }
         if menuItem.action == #selector(openLittleWindowInSpace(_:)) {
             return LittleWindowController.key != nil
         }

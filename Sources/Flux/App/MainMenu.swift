@@ -3,14 +3,16 @@ import AppKit
 @MainActor
 enum MainMenu {
     /// `spacesMenuDelegate` fills in the spaces' names each time the Spaces menu opens.
-    static func make(spacesMenuDelegate: NSMenuDelegate) -> NSMenu {
+    static func make(spacesMenuDelegate: NSMenuDelegate, updater: Updater) -> NSMenu {
         let menu = NSMenu()
         let services = NSMenu(title: String(localized: "Services"))
         NSApp.servicesMenu = services
         let servicesItem = NSMenuItem(title: String(localized: "Services"), action: nil, keyEquivalent: "")
         servicesItem.submenu = services
         menu.addItem(submenu(title: String(localized: "Flux"), items: [
-            NSMenuItem(title: String(localized: "About Flux"), action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: ""),
+            NSMenuItem(title: String(localized: "About Flux"), action: #selector(AppDelegate.showAbout(_:)), keyEquivalent: ""),
+            updatesItem(updater),
+            NSMenuItem(title: String(localized: "Privacy Policy"), action: #selector(AppDelegate.showPrivacyPolicy(_:)), keyEquivalent: ""),
             .separator(),
         ] + customizable([
             NSMenuItem(title: String(localized: "Settings…"), action: #selector(AppDelegate.showSettings(_:)), keyEquivalent: ","),
@@ -101,10 +103,6 @@ enum MainMenu {
             )),
         ])))
         menu.addItem(spacesMenu(delegate: spacesMenuDelegate))
-        menu.addItem(submenu(title: String(localized: "Debug"), items: [
-            NSMenuItem(title: String(localized: "Open Tab in Chrome Window"), action: #selector(AppDelegate.openInChromeWindow(_:)), keyEquivalent: ""),
-            NSMenuItem(title: String(localized: "Show Welcome Window"), action: #selector(AppDelegate.previewWelcome(_:)), keyEquivalent: ""),
-        ]))
         // AppKit lists the windows in the Window menu, and adds a search of the menus to Help.
         let window = submenu(title: String(localized: "Window"), items: [
             NSMenuItem(title: String(localized: "Minimize"), action: #selector(AppDelegate.minimizeWindow(_:)), keyEquivalent: "m"),
@@ -116,10 +114,25 @@ enum MainMenu {
         menu.addItem(window)
         let help = submenu(title: String(localized: "Help"), items: [
             NSMenuItem(title: String(localized: "Keyboard Shortcuts"), action: #selector(AppDelegate.showShortcutSettings(_:)), keyEquivalent: ""),
+            NSMenuItem(title: String(localized: "Release Notes"), action: #selector(AppDelegate.showReleaseNotes(_:)), keyEquivalent: ""),
+            NSMenuItem(title: String(localized: "Report an Issue…"), action: #selector(AppDelegate.reportIssue(_:)), keyEquivalent: ""),
+            NSMenuItem(title: String(localized: "Flux Website"), action: #selector(AppDelegate.showWebsite(_:)), keyEquivalent: ""),
+            NSMenuItem(title: String(localized: "Privacy Policy"), action: #selector(AppDelegate.showPrivacyPolicy(_:)), keyEquivalent: ""),
+            .separator(),
+            submenu(title: String(localized: "Troubleshooting"), items: [
+                NSMenuItem(title: String(localized: "Open Tab in Chrome Window"), action: #selector(AppDelegate.openInChromeWindow(_:)), keyEquivalent: ""),
+                NSMenuItem(title: String(localized: "Show Welcome Window"), action: #selector(AppDelegate.previewWelcome(_:)), keyEquivalent: ""),
+            ]),
         ])
         NSApp.helpMenu = help.submenu
         menu.addItem(help)
         return menu
+    }
+
+    private static func updatesItem(_ updater: Updater) -> NSMenuItem {
+        let item = NSMenuItem(title: String(localized: "Check for Updates…"), action: #selector(AppDelegate.checkForUpdates(_:)), keyEquivalent: "")
+        updater.menuItem = item
+        return item
     }
 
     /// ⌃1 to ⌃9 select the first nine spaces. The items exist up front so the shortcuts work
