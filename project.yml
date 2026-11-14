@@ -45,6 +45,7 @@ targets:
         CFBundleDisplayName: Flux
         CFBundleShortVersionString: "0.1.0" # x-release-please-version
         CFBundleVersion: "1"
+        NSHumanReadableCopyright: Copyright © 2026 The Flux Authors.
         NSPrincipalClass: NSApplication
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSSupportsAutomaticGraphicsSwitching: true

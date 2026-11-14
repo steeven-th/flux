@@ -641,6 +641,16 @@
         }
       }
     },
+    "Chromium Engine Version %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version du moteur Chromium %@"
+          }
+        }
+      }
+    },
     "Chromium Password Manager" : {
       "localizations" : {
         "fr" : {
@@ -977,16 +987,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Foncé"
-          }
-        }
-      }
-    },
-    "Debug" : {
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Débogage"
           }
         }
       }
@@ -1411,12 +1411,32 @@
         }
       }
     },
+    "Flux is made possible by the [Chromium](https://www.chromium.org/) open source project and other [open source software](https://github.com/steeven-th/flux/blob/main/NOTICE)." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flux existe grâce au projet open source [Chromium](https://www.chromium.org/) et à d'autres [logiciels open source](https://github.com/steeven-th/flux/blob/main/NOTICE)."
+          }
+        }
+      }
+    },
     "Flux is your default browser" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Flux est votre navigateur par défaut"
+          }
+        }
+      }
+    },
+    "Flux Website" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Site de Flux"
           }
         }
       }
@@ -2811,6 +2831,16 @@
         }
       }
     },
+    "Privacy Policy" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Politique de confidentialité"
+          }
+        }
+      }
+    },
     "Private Browsing" : {
       "localizations" : {
         "fr" : {
@@ -2931,6 +2961,16 @@
         }
       }
     },
+    "Release Notes" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notes de version"
+          }
+        }
+      }
+    },
     "Reload" : {
       "localizations" : {
         "fr" : {
@@ -3037,6 +3077,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remplacer"
+          }
+        }
+      }
+    },
+    "Report an Issue…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signaler un problème…"
           }
         }
       }
@@ -3927,6 +3977,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "La traduction a échoué (erreur %lld)"
+          }
+        }
+      }
+    },
+    "Troubleshooting" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dépannage"
           }
         }
       }
