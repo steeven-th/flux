@@ -11,6 +11,9 @@ packages:
   GRDB:
     url: https://github.com/groue/GRDB.swift
     from: 7.11.0
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.10.1
 
 settings:
   base:
@@ -44,8 +47,13 @@ targets:
         CFBundleName: Flux
         CFBundleDisplayName: Flux
         CFBundleShortVersionString: "0.1.0" # x-release-please-version
-        CFBundleVersion: "1"
+        # Sparkle compares this one to the versions in the update feed.
+        CFBundleVersion: "0.1.0" # x-release-please-version
         NSHumanReadableCopyright: Copyright © 2026 The Flux Authors.
+        SUFeedURL: https://flux-browser.com/appcast.xml
+        SUPublicEDKey: kOAGgBkOU3kjuWvuk1vQ4M8WDD0tCp/LQh+AIeWX1Mw=
+        # Checks daily from the first launch, without Sparkle's question about it.
+        SUEnableAutomaticChecks: true
         NSPrincipalClass: NSApplication
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSSupportsAutomaticGraphicsSwitching: true
@@ -71,5 +79,6 @@ targets:
             UTTypeConformsTo: [public.data]
     dependencies:
       - package: GRDB
+      - package: Sparkle
       - framework: vendor/enginecore/EngineCore.framework
         embed: true

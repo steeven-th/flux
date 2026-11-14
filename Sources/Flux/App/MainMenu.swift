@@ -3,7 +3,7 @@ import AppKit
 @MainActor
 enum MainMenu {
     /// `spacesMenuDelegate` fills in the spaces' names each time the Spaces menu opens.
-    static func make(spacesMenuDelegate: NSMenuDelegate) -> NSMenu {
+    static func make(spacesMenuDelegate: NSMenuDelegate, updater: Updater) -> NSMenu {
         let menu = NSMenu()
         let services = NSMenu(title: String(localized: "Services"))
         NSApp.servicesMenu = services
@@ -11,6 +11,7 @@ enum MainMenu {
         servicesItem.submenu = services
         menu.addItem(submenu(title: String(localized: "Flux"), items: [
             NSMenuItem(title: String(localized: "About Flux"), action: #selector(AppDelegate.showAbout(_:)), keyEquivalent: ""),
+            updatesItem(updater),
             NSMenuItem(title: String(localized: "Privacy Policy"), action: #selector(AppDelegate.showPrivacyPolicy(_:)), keyEquivalent: ""),
             .separator(),
         ] + customizable([
@@ -126,6 +127,12 @@ enum MainMenu {
         NSApp.helpMenu = help.submenu
         menu.addItem(help)
         return menu
+    }
+
+    private static func updatesItem(_ updater: Updater) -> NSMenuItem {
+        let item = NSMenuItem(title: String(localized: "Check for Updates…"), action: #selector(AppDelegate.checkForUpdates(_:)), keyEquivalent: "")
+        updater.menuItem = item
+        return item
     }
 
     /// ⌃1 to ⌃9 select the first nine spaces. The items exist up front so the shortcuts work

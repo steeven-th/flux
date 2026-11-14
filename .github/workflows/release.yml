@@ -1,7 +1,8 @@
 name: Release
 
 # Keeps a release pull request up to date with the changes since the last version. Merging it tags
-# the version, publishes its notes as a GitHub release and attaches Flux.dmg to it.
+# the version, publishes its notes as a GitHub release and attaches Flux.dmg to it, with the
+# signature Sparkle checks updates with.
 on:
   push:
     branches: [main]
@@ -54,11 +55,14 @@ jobs:
           echo "FLUX_SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
 
       - run: scripts/package.sh
+        env:
+          FLUX_SPARKLE_KEY: ${{ secrets.FLUX_SPARKLE_KEY }}
 
+      # Flux.dmg.sparkle holds the signature the website puts in the update feed.
       - name: Attach the DMG to the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" build/Flux.dmg --clobber
+        run: gh release upload "$TAG" build/Flux.dmg build/Flux.dmg.sparkle --clobber
 
       # The website builds its release notes and download links from the releases.
       - name: Rebuild the website

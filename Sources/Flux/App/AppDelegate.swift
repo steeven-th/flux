@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var dialogFixer: ChromiumDialogFixer?
     private var isRelaunching = false
     private var welcome: WelcomeWindowController?
+    private let updater = Updater()
     /// Links from other apps that came before the browser window, at the first launch.
     private var pendingLinks: [(url: URL, app: SourceApp?)] = []
     private let database: Result<AppDatabase, any Error>
@@ -59,7 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let menu = MainMenu.make(spacesMenuDelegate: self)
+        let menu = MainMenu.make(spacesMenuDelegate: self, updater: updater)
         target(menu)
         NSApp.mainMenu = menu
         Shortcuts.install(in: menu, database: try? database.get())
@@ -532,6 +533,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate()
     }
 
+    @objc func checkForUpdates(_ sender: Any?) {
+        updater.checkForUpdates()
+    }
+
     @objc func showReleaseNotes(_ sender: Any?) {
         openInTab(Self.website.appending(path: "release-notes/"))
     }
@@ -609,6 +614,9 @@ extension AppDelegate: NSMenuDelegate, NSMenuItemValidation {
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(checkForUpdates(_:)) {
+            return updater.canCheckForUpdates
+        }
         if menuItem.action == #selector(openLittleWindowInSpace(_:)) {
             return LittleWindowController.key != nil
         }

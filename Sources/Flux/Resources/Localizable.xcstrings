@@ -621,6 +621,16 @@
         }
       }
     },
+    "Check for Updates…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher les mises à jour…"
+          }
+        }
+      }
+    },
     "Choose the tools of the developer bar, shown on sites in developer mode. Drag them to change their order." : {
       "localizations" : {
         "fr" : {
@@ -4067,6 +4077,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Retirer de la barre d'adresse"
+          }
+        }
+      }
+    },
+    "Update Available…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mise à jour disponible…"
           }
         }
       }

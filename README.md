@@ -23,6 +23,8 @@ Flux isn't notarized by Apple yet, so macOS blocks it the first time:
    the line about Flux.
 3. Confirm with your password or Touch ID. Flux opens, and macOS won't ask again.
 
+Flux then updates itself. When a new version is out, Flux > Update Available installs it.
+
 ## Building
 
 ### Requirements
