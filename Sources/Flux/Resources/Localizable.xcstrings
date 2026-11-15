@@ -1801,6 +1801,16 @@
         }
       }
     },
+    "Its Own" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le sien"
+          }
+        }
+      }
+    },
     "Its tabs will be deleted. Sign-ins and extensions stay with the other spaces using the same profile." : {
       "localizations" : {
         "fr" : {
@@ -1827,6 +1837,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Console JavaScript"
+          }
+        }
+      }
+    },
+    "Keeps its sign-ins, passwords, history and extensions apart." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Garde ses connexions, mots de passe, historique et extensions à part."
           }
         }
       }
@@ -2861,6 +2881,16 @@
         }
       }
     },
+    "Profile" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profil"
+          }
+        }
+      }
+    },
     "Profile Settings…" : {
       "localizations" : {
         "fr" : {
@@ -3137,6 +3167,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Règles pour les liens des autres apps"
+          }
+        }
+      }
+    },
+    "Same as %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le même que %@"
+          }
+        }
+      }
+    },
+    "Same profile: history, passwords, sign-ins and extensions are shared." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Même profil : l'historique, les mots de passe, les connexions et les extensions sont partagés."
           }
         }
       }
@@ -3497,6 +3547,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Partager"
+          }
+        }
+      }
+    },
+    "Shares its sign-ins, passwords, history and extensions with these spaces." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partage ses connexions, mots de passe, historique et extensions avec ces espaces."
+          }
+        }
+      }
+    },
+    "Shares sign-ins with %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partage ses connexions avec %@"
           }
         }
       }

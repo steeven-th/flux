@@ -109,11 +109,17 @@ private struct SpacesImportView: View {
                             get: { chosen.contains(space.id) },
                             set: { isOn in if isOn { chosen.insert(space.id) } else { chosen.remove(space.id) } }
                         )) {
-                            HStack(spacing: 6) {
-                                Text(verbatim: space.icon ?? "●")
-                                    .foregroundStyle(Color(hex: space.color ?? BrowserState.spaceColors[0]))
-                                Text(verbatim: space.name)
-                                Text("\(space.tabCount) tabs").foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text(verbatim: space.icon ?? "●")
+                                        .foregroundStyle(Color(hex: space.color ?? BrowserState.spaceColors[0]))
+                                    Text(verbatim: space.name)
+                                    Text("\(space.tabCount) tabs").foregroundStyle(.secondary)
+                                }
+                                let others = spacesSharingProfile(with: space)
+                                if !others.isEmpty {
+                                    SharedProfileLabel(spaces: others)
+                                }
                             }
                         }
                         .toggleStyle(.checkbox)
@@ -177,5 +183,10 @@ private struct SpacesImportView: View {
                 }
             }
         }
+    }
+
+    /// They come as spaces sharing a profile in Flux too.
+    private func spacesSharingProfile(with space: ImportedSpace) -> [String] {
+        spaces.filter { $0.id != space.id && $0.profileFolder == space.profileFolder }.map(\.name)
     }
 }

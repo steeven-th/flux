@@ -11,7 +11,7 @@ the browser up as soon as it is.
 ## What comes from Arc
 
 - **Spaces**, with their name, emoji and color. Arc spaces that share a profile give Flux spaces
-  that share one too. Flux shows the space Arc showed last.
+  that share one too, and the import window says which ones. Flux shows the space Arc showed last.
 - **Favorites**, Arc's icons at the top of the sidebar, become Flux's pinned tabs. The grid takes
   twelve: the others go first among favorites.
 - **Pinned tabs and their folders** become Flux's favorites. Folders deeper than Flux allows give

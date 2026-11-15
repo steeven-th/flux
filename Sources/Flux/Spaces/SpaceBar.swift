@@ -24,7 +24,10 @@ struct SpaceBar: View {
                         .disabled(state.spaces.count == 1)
                 }
                 .popover(isPresented: editingBinding(for: space.id), arrowEdge: .top) {
-                    SpaceEditor(title: "Edit Space", space: space) { name, icon, color in
+                    SpaceEditor(
+                        title: "Edit Space", space: space,
+                        sharesProfileWith: state.spaces(sharingProfileOf: space.id).filter { $0.id != space.id }.map(\.name)
+                    ) { name, icon, color, _ in
                         state.updateSpace(space.id, name: name, icon: icon, color: color)
                         editedSpaceID = nil
                     } onCancel: {
@@ -89,8 +92,8 @@ struct SpaceBar: View {
         .buttonStyle(.borderless)
         .help("New Space")
         .popover(isPresented: $isCreating, arrowEdge: .top) {
-            SpaceEditor(title: "New Space", space: nil) { name, icon, color in
-                state.createSpace(name: name, icon: icon, color: color)
+            SpaceEditor(title: "New Space", space: nil, profiles: state.profilesInUse) { name, icon, color, other in
+                state.createSpace(name: name, icon: icon, color: color, sharingProfileOf: other)
                 isCreating = false
             } onCancel: {
                 isCreating = false
