@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/steeven-th/flux/compare/v0.1.0...v0.2.0) (2026-11-15)
+
+
+### New
+
+* **spaces:** show which spaces share a profile, and share one from New Space ([95ba611](https://github.com/steeven-th/flux/commit/95ba611f5cb98fff16653c58ab49070a34e542d6))
+
 ## 0.1.0 (2026-11-14)
 
 

@@ -46,9 +46,9 @@ targets:
       properties:
         CFBundleName: Flux
         CFBundleDisplayName: Flux
-        CFBundleShortVersionString: "0.1.0" # x-release-please-version
+        CFBundleShortVersionString: "0.2.0" # x-release-please-version
         # Sparkle compares this one to the versions in the update feed.
-        CFBundleVersion: "0.1.0" # x-release-please-version
+        CFBundleVersion: "0.2.0" # x-release-please-version
         NSHumanReadableCopyright: Copyright © 2026 The Flux Authors.
         SUFeedURL: https://flux-browser.com/appcast.xml
         SUPublicEDKey: kOAGgBkOU3kjuWvuk1vQ4M8WDD0tCp/LQh+AIeWX1Mw=
