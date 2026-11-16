@@ -52,6 +52,7 @@ source_set("engine_core") {
     "//chrome/browser/favicon",
     "//chrome/browser/history",
     "//chrome/browser/password_manager/factories",
+    "//chrome/browser/permissions",
     "//chrome/browser/picture_in_picture",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/profiles:profile_manager",

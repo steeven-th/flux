@@ -28,6 +28,7 @@
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
 #include "chrome/browser/file_select_helper.h"
 #include "chrome/browser/history/history_tab_helper.h"
+#include "chrome/browser/permissions/permission_decision_auto_blocker_factory.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/printing/print_view_manager_common.h"
 #include "chrome/browser/profiles/profile.h"
@@ -53,6 +54,7 @@
 #include "components/js_injection/browser/web_message_host.h"
 #include "components/js_injection/browser/web_message_host_factory.h"
 #include "components/js_injection/common/enum.mojom.h"
+#include "components/permissions/permission_decision_auto_blocker.h"
 #include "components/permissions/permission_prompt.h"
 #include "components/permissions/permission_request.h"
 #include "components/permissions/permission_request_manager.h"
@@ -150,6 +152,24 @@ namespace {
 constexpr int kSessionStateVersion = 1;
 constexpr int kSessionEntryMaxSize = 1 << 20;
 
+// The content setting a permission key stands for, the one Chrome checks when
+// several map to the same request type (GEOLOCATION and
+// GEOLOCATION_WITH_OPTIONS).
+std::optional<ContentSettingsType> PermissionContentSettingsType(
+    std::string_view permission) {
+  for (const content_settings::ContentSettingsInfo* info :
+       *content_settings::ContentSettingsRegistry::GetInstance()) {
+    std::optional<permissions::RequestType> request =
+        permissions::ContentSettingsTypeToRequestTypeIfExists(
+            info->website_settings_info()->type());
+    if (request &&
+        permission == permissions::PermissionKeyForRequestType(*request)) {
+      return permissions::RequestTypeToContentSettingsType(*request);
+    }
+  }
+  return std::nullopt;
+}
+
 // The content settings of permissions the user set for the URL's site.
 NSDictionary<NSString*, NSNumber*>* SitePermissions(Profile* profile,
                                                      const GURL& url) {
@@ -162,7 +182,8 @@ NSDictionary<NSString*, NSNumber*>* SitePermissions(Profile* profile,
     ContentSettingsType type = info->website_settings_info()->type();
     std::optional<permissions::RequestType> request =
         permissions::ContentSettingsTypeToRequestTypeIfExists(type);
-    if (!request || !permissions::PermissionUtil::IsPermission(type)) {
+    if (!request || !permissions::PermissionUtil::IsPermission(type) ||
+        permissions::RequestTypeToContentSettingsType(*request) != type) {
       continue;
     }
     content_settings::SettingInfo setting_info;
@@ -181,25 +202,28 @@ NSDictionary<NSString*, NSNumber*>* SitePermissions(Profile* profile,
   return permissions;
 }
 
-// CONTENT_SETTING_DEFAULT removes the user's decision.
+// As Chrome's page info: the rule that decides for the URL is changed, a
+// decision taken in a prompt included, and a site no longer blocked leaves
+// its embargo. No setting puts the permission back to asking.
 void SetSitePermission(Profile* profile,
                        const GURL& url,
                        NSString* permission,
-                       ContentSetting setting) {
-  for (const content_settings::ContentSettingsInfo* info :
-       *content_settings::ContentSettingsRegistry::GetInstance()) {
-    ContentSettingsType type = info->website_settings_info()->type();
-    std::optional<permissions::RequestType> request =
-        permissions::ContentSettingsTypeToRequestTypeIfExists(type);
-    if (request &&
-        std::string_view(permission.UTF8String) ==
-            permissions::PermissionKeyForRequestType(*request)) {
-      HostContentSettingsMapFactory::GetForProfile(profile)
-          ->SetContentSettingDefaultScope(
-              url, url, type, setting);
-      return;
-    }
+                       std::optional<ContentSetting> setting) {
+  std::optional<ContentSettingsType> type =
+      PermissionContentSettingsType(permission.UTF8String);
+  if (!type) {
+    return;
   }
+  if (setting != CONTENT_SETTING_BLOCK) {
+    PermissionDecisionAutoBlockerFactory::GetForProfile(profile)
+        ->RemoveEmbargoAndResetCounts(url, *type);
+  }
+  std::optional<PermissionSetting> value;
+  if (setting) {
+    value = PermissionSetting(*setting);
+  }
+  HostContentSettingsMapFactory::GetForProfile(profile)
+      ->SetNarrowestContentSetting(url, url, *type, value);
 }
 
 // Runs the completion of clearSiteDataForURL:, then deletes itself.
@@ -1634,7 +1658,7 @@ void OfferToSaveCard(
 - (void)resetSitePermission:(NSString*)permission {
   if (_contents) {
     SetSitePermission(_context.profile, _contents->GetLastCommittedURL(),
-                      permission, CONTENT_SETTING_DEFAULT);
+                      permission, std::nullopt);
   }
 }
 
@@ -2163,7 +2187,7 @@ static ECWindowOpenDisposition ECDisposition(WindowOpenDisposition disposition) 
 
 - (void)resetPermission:(NSString*)permission forOrigin:(NSURL*)origin {
   SetSitePermission(self.profile, net::GURLWithNSURL(origin), permission,
-                    CONTENT_SETTING_DEFAULT);
+                    std::nullopt);
 }
 
 - (void)clearSiteDataForURL:(NSURL*)url completion:(void (^)(void))completion {
