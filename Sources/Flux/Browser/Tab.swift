@@ -23,6 +23,11 @@ final class Tab: NSObject, Identifiable {
     var isMediaDismissed = false
     /// What the site asks to use, waiting for an answer. Shown under the address while the tab is.
     private(set) var permissionRequest: FLXPermissionRequest?
+    /// A card, an address or an IBAN Chromium offers to keep, shown under the address like a
+    /// permission request.
+    private(set) var saveOffer: FLXSaveOffer?
+    /// A page asking for a Bluetooth, USB, HID or serial device.
+    private(set) var deviceChooser: FLXDeviceChooser?
     /// 1 at the default size. Chromium keeps it per site, so it changes as the page does.
     private(set) var zoomFactor = 1.0
     /// How long this page stays loaded unseen, instead of the setting for every tab.
@@ -150,6 +155,24 @@ final class Tab: NSObject, Identifiable {
         case .next: loadedView?.sendMediaCommand("next", value: 0)
         case .volume(let volume): loadedView?.sendMediaCommand("volume", value: volume)
         }
+    }
+
+    /// Nil closes the offer without an answer.
+    func answerSaveOffer(_ saves: Bool?) {
+        guard let offer = saveOffer else { return }
+        saveOffer = nil
+        switch saves {
+        case true?: offer.save()
+        case false?: offer.decline()
+        case nil: offer.ignore()
+        }
+    }
+
+    /// Nil cancels the request.
+    func chooseDevice(at index: Int?) {
+        guard let chooser = deviceChooser else { return }
+        deviceChooser = nil
+        if let index { chooser.selectOption(at: UInt(index)) } else { chooser.cancel() }
     }
 
     /// Nil closes the request without an answer.
@@ -551,6 +574,20 @@ extension Tab: FLXBrowserViewDelegate {
             self.permissionRequest = nil
         }
         permissionRequest = request
+    }
+
+    func browserView(_ browserView: FLXBrowserView, didOfferToSave offer: FLXSaveOffer) {
+        answerSaveOffer(nil)
+        saveOffer = offer
+    }
+
+    func browserView(_ browserView: FLXBrowserView, didRequestDevice chooser: FLXDeviceChooser) {
+        chooseDevice(at: nil)
+        chooser.onCancel = { [weak self, weak chooser] in
+            guard let self, self.deviceChooser === chooser else { return }
+            self.deviceChooser = nil
+        }
+        deviceChooser = chooser
     }
 
     func browserView(_ browserView: FLXBrowserView, didChangeMedia media: [String: Any]?) {

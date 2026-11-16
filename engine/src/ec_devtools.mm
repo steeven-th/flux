@@ -289,7 +289,20 @@ void RegisterDevToolsHost() {
 
 - (void)frontendDidSetDocked {
   _dockedSet = YES;
+  [self useSoftMenus];
   [self frontendMayBeReady];
+}
+
+// Chrome shows the frontend's native menus only in a views widget, which the
+// embedder's window is not. The frontend says whether it is docked on every
+// load, once its menus listen, so it is told here each time.
+- (void)useSoftMenus {
+  DevToolsUIBindings* bindings =
+      _frontend ? DevToolsUIBindings::ForWebContents(_frontend.get()) : nullptr;
+  if (bindings) {
+    bindings->CallClientMethod("DevToolsAPI", "setUseSoftMenu",
+                               base::Value(true));
+  }
 }
 
 - (void)frontendMayBeReady {

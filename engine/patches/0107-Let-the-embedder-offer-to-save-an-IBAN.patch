@@ -1,0 +1,71 @@
+Subject: [PATCH] Let the embedder offer to save an IBAN
+
+When a submitted form holds a new IBAN, Chrome offers to keep it on this
+device through ConfirmSaveIbanLocally, whose desktop branch hands the offer
+to the IBAN bubble. The bubble controller finds no tab interface for
+EngineCore's web contents and returns at once, so the offer and its
+callback were dropped and no IBAN was ever saved. EngineCore replaces the
+bubble through a callback and offers the save through its embedder, which
+answers with Chrome's own decision.
+---
+diff --git a/chrome/browser/ui/autofill/payments/chrome_payments_autofill_client.cc b/chrome/browser/ui/autofill/payments/chrome_payments_autofill_client.cc
+--- a/chrome/browser/ui/autofill/payments/chrome_payments_autofill_client.cc
++++ b/chrome/browser/ui/autofill/payments/chrome_payments_autofill_client.cc
+@@ -142,6 +142,8 @@ namespace {
+ 
+ ChromePaymentsAutofillClient::ShowSaveCreditCardLocallyCallback*
+     g_show_save_credit_card_locally_callback = nullptr;
++ChromePaymentsAutofillClient::ConfirmSaveIbanLocallyCallback*
++    g_confirm_save_iban_locally_callback = nullptr;
+ 
+ }  // namespace
+ 
+@@ -576,6 +578,14 @@ void ChromePaymentsAutofillClient::ConfirmSaveIbanLocally(
+     bridge->RequestShowContent(ui_info, std::move(save_iban_delegate));
+   }
+ #else
++  // EngineCore's tabs have no tab interface, so the bubble dropped the offer
++  // and its callback. Its embedder offers the save instead.
++  if (g_confirm_save_iban_locally_callback) {
++    g_confirm_save_iban_locally_callback->Run(web_contents(), iban,
++                                              should_show_prompt,
++                                              std::move(callback));
++    return;
++  }
+   // Do lazy initialization of IbanBubbleControllerImpl.
+   IbanBubbleControllerImpl::CreateForWebContents(web_contents());
+   IbanBubbleControllerImpl::FromWebContents(web_contents())
+@@ -583,6 +593,13 @@ void ChromePaymentsAutofillClient::ConfirmSaveIbanLocally(
+ #endif
+ }
+ 
++// static
++void ChromePaymentsAutofillClient::SetConfirmSaveIbanLocallyCallback(
++    ConfirmSaveIbanLocallyCallback callback) {
++  g_confirm_save_iban_locally_callback =
++      new ConfirmSaveIbanLocallyCallback(std::move(callback));
++}
++
+ void ChromePaymentsAutofillClient::ConfirmUploadIbanToCloud(
+     const Iban& iban,
+     LegalMessageLines legal_message_lines,
+diff --git a/chrome/browser/ui/autofill/payments/chrome_payments_autofill_client.h b/chrome/browser/ui/autofill/payments/chrome_payments_autofill_client.h
+--- a/chrome/browser/ui/autofill/payments/chrome_payments_autofill_client.h
++++ b/chrome/browser/ui/autofill/payments/chrome_payments_autofill_client.h
+@@ -112,6 +112,16 @@ class ChromePaymentsAutofillClient : public PaymentsAutofillClient,
+   static void SetShowSaveCreditCardLocallyCallback(
+       ShowSaveCreditCardLocallyCallback callback);
+ 
++  // Replaces the save IBAN bubble that ConfirmSaveIbanLocally shows on
++  // desktop, for the same reason.
++  using ConfirmSaveIbanLocallyCallback = base::RepeatingCallback<void(
++      content::WebContents* web_contents,
++      const Iban& iban,
++      bool should_show_prompt,
++      SaveIbanPromptCallback callback)>;
++  static void SetConfirmSaveIbanLocallyCallback(
++      ConfirmSaveIbanLocallyCallback callback);
++
+   // RiskDataLoader:
+   void LoadRiskData(
+       base::OnceCallback<void(const std::string&)> callback) override;

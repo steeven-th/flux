@@ -215,6 +215,113 @@ const CGFloat FLXPageCornerRadius = 18;
 
 @end
 
+typedef NS_ENUM(NSInteger, FLXSaveOfferAnswer) {
+  FLXSaveOfferAnswerSave,
+  FLXSaveOfferAnswerDecline,
+  FLXSaveOfferAnswerIgnore,
+};
+
+@implementation FLXSaveOffer {
+  void (^_answer)(FLXSaveOfferAnswer);
+}
+
+- (instancetype)initWithKind:(FLXSaveOfferKind)kind
+                      update:(BOOL)update
+                       lines:(NSArray<NSString *> *)lines
+                      answer:(void (^)(FLXSaveOfferAnswer))answer {
+  self = [super init];
+  if (!self) return nil;
+  _kind = kind;
+  _update = update;
+  _lines = [lines copy];
+  _answer = [answer copy];
+  return self;
+}
+
+- (void)save {
+  [self answer:FLXSaveOfferAnswerSave];
+}
+
+- (void)decline {
+  [self answer:FLXSaveOfferAnswerDecline];
+}
+
+- (void)ignore {
+  [self answer:FLXSaveOfferAnswerIgnore];
+}
+
+- (void)answer:(FLXSaveOfferAnswer)answer {
+  void (^block)(FLXSaveOfferAnswer) = _answer;
+  _answer = nil;
+  if (block) block(answer);
+}
+
+@end
+
+@implementation FLXDeviceChooser {
+  ECChooser *_chooser;
+}
+
+- (instancetype)initWithChooser:(ECChooser *)chooser {
+  self = [super init];
+  if (!self) return nil;
+  _chooser = chooser;
+  __weak FLXDeviceChooser *weakSelf = self;
+  chooser.updateHandler = ^{
+    FLXDeviceChooser *strong = weakSelf;
+    if (strong.onChange) strong.onChange();
+  };
+  chooser.dismissHandler = ^{
+    FLXDeviceChooser *strong = weakSelf;
+    if (strong.onCancel) strong.onCancel();
+  };
+  return self;
+}
+
+- (NSString *)title { return _chooser.title; }
+- (NSString *)emptyText { return _chooser.noOptionsText; }
+- (NSString *)selectTitle { return _chooser.selectButtonTitle; }
+- (NSArray<NSString *> *)options { return _chooser.options; }
+- (BOOL)isScanning { return _chooser.isScanning; }
+- (BOOL)canRescan { return _chooser.canRescan; }
+- (BOOL)isBluetoothOff { return _chooser.adapterState == ECChooserAdapterStateOff; }
+- (BOOL)isBluetoothRefused { return _chooser.adapterState == ECChooserAdapterStateUnauthorized; }
+- (void)selectOptionAtIndex:(NSUInteger)index { [_chooser selectOptionAtIndex:index]; }
+- (void)cancel { [_chooser cancel]; }
+- (void)rescan { [_chooser rescan]; }
+- (void)openSystemSettings { [_chooser openSystemSettings]; }
+
+@end
+
+static NSArray<NSString *> *AddressLines(ECAddress *address) {
+  NSMutableArray<NSString *> *lines = [NSMutableArray array];
+  NSString *cityLine = [[@[ address.postalCode, address.city ] filteredArrayUsingPredicate:
+      [NSPredicate predicateWithFormat:@"length > 0"]] componentsJoinedByString:@" "];
+  NSMutableArray<NSString *> *candidates = [NSMutableArray arrayWithObjects:address.name, address.organization, nil];
+  [candidates addObjectsFromArray:address.streetLines];
+  [candidates addObjectsFromArray:@[ cityLine, address.region, address.country, address.email, address.phone ]];
+  for (NSString *line in candidates) {
+    if (line.length) [lines addObject:line];
+  }
+  return lines;
+}
+
+// A borderless window can't take the keyboard by default, and the page needs it, Escape included.
+@interface FLXFullscreenWindow : NSWindow
+@end
+
+@implementation FLXFullscreenWindow
+
+- (BOOL)canBecomeKeyWindow {
+  return YES;
+}
+
+- (BOOL)canBecomeMainWindow {
+  return YES;
+}
+
+@end
+
 // A context menu item that runs a block.
 @interface FLXBlockMenuItem : NSMenuItem
 @end
@@ -289,6 +396,16 @@ const CGFloat FLXPageCornerRadius = 18;
   NSMutableDictionary<NSString *, NSString *> *_mediaStates;
   NSString *_shownMedia;
   FLXPageDevTools *_devTools;
+  // While the page shows an element full screen, its view is in this window, and goes back to
+  // where it was.
+  NSWindow *_fullscreenWindow;
+  NSView *_fullscreenOrigin;
+  NSRect _fullscreenOriginFrame;
+  NSApplicationPresentationOptions _presentationBeforeFullscreen;
+  id _escapeMonitor;
+  // Where the link under the pointer leads, in the page's bottom left corner as in Chrome, clear
+  // of its rounded corner.
+  NSTextField *_linkLabel;
 }
 
 - (instancetype)initWithURL:(NSString *)url profile:(FLXProfile *)profile {
@@ -517,6 +634,7 @@ const CGFloat FLXPageCornerRadius = 18;
 
 - (void)close {
   if (!_contents) return;
+  [self leaveFullscreenWindow];
   if (!_embedded) [_profile removePageContents:_contents];
   [_contents close];
   _contents = nil;
@@ -551,6 +669,93 @@ const CGFloat FLXPageCornerRadius = 18;
   _devTools = nil;
   id<FLXBrowserViewDelegate> delegate = self.delegate;
   if ([delegate respondsToSelector:@selector(browserViewDidCloseDevTools:)]) [delegate browserViewDidCloseDevTools:self];
+}
+
+#pragma mark - Link under the pointer
+
+- (void)webContents:(ECWebContents *)contents didUpdateTargetURL:(NSURL *)url {
+  if (!url) {
+    _linkLabel.hidden = YES;
+    return;
+  }
+  if (!_linkLabel) {
+    _linkLabel = [NSTextField labelWithString:@""];
+    _linkLabel.font = [NSFont systemFontOfSize:11];
+    _linkLabel.textColor = NSColor.secondaryLabelColor;
+    _linkLabel.lineBreakMode = NSLineBreakByTruncatingMiddle;
+    _linkLabel.drawsBackground = YES;
+    _linkLabel.backgroundColor = NSColor.windowBackgroundColor;
+    _linkLabel.wantsLayer = YES;
+    _linkLabel.layer.cornerRadius = 5;
+    _linkLabel.layer.masksToBounds = YES;
+    _linkLabel.autoresizingMask = NSViewMaxXMargin | NSViewMaxYMargin;
+  }
+  NSString *text = url.absoluteString;
+  for (NSString *scheme in @[ @"https://", @"http://" ]) {
+    if ([text hasPrefix:scheme]) text = [text substringFromIndex:scheme.length];
+  }
+  _linkLabel.stringValue = [NSString stringWithFormat:@" %@ ", text.stringByRemovingPercentEncoding ?: text];
+  [_linkLabel sizeToFit];
+  CGFloat width = MIN(_linkLabel.frame.size.width + 6, MAX(self.bounds.size.width / 2, 200));
+  _linkLabel.frame = NSMakeRect(8, 8, width, _linkLabel.frame.size.height + 4);
+  _linkLabel.hidden = NO;
+  if (_linkLabel.superview != self) [self addSubview:_linkLabel positioned:NSWindowAbove relativeTo:nil];
+}
+
+#pragma mark - Full screen
+
+// A video's full screen button or Element.requestFullscreen(). Chromium already lays the page out
+// as filling its view, so the view only has to fill the screen.
+- (void)webContents:(ECWebContents *)contents didEnterFullscreenForOrigin:(NSURL *)origin {
+  NSView *view = contents.view;
+  NSScreen *screen = self.window.screen ?: NSScreen.mainScreen;
+  if (_fullscreenWindow || !view.superview || !screen) return;
+  _fullscreenOrigin = view.superview;
+  _fullscreenOriginFrame = view.frame;
+  _fullscreenWindow = [[FLXFullscreenWindow alloc] initWithContentRect:screen.frame
+                                                  styleMask:NSWindowStyleMaskBorderless
+                                                    backing:NSBackingStoreBuffered
+                                                      defer:NO];
+  _fullscreenWindow.releasedWhenClosed = NO;
+  _fullscreenWindow.backgroundColor = NSColor.blackColor;
+  _fullscreenWindow.collectionBehavior = NSWindowCollectionBehaviorFullScreenAuxiliary;
+  [_fullscreenWindow setFrame:screen.frame display:NO];
+  view.frame = _fullscreenWindow.contentView.bounds;
+  [_fullscreenWindow.contentView addSubview:view];
+  _presentationBeforeFullscreen = NSApp.presentationOptions;
+  NSApp.presentationOptions = NSApplicationPresentationHideDock | NSApplicationPresentationHideMenuBar;
+  [_fullscreenWindow makeKeyAndOrderFront:nil];
+  [_fullscreenWindow makeFirstResponder:view];
+  // Chrome leaves full screen on Escape before the page sees it, so a page can't keep the user in.
+  __weak FLXBrowserView *weakSelf = self;
+  _escapeMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown handler:^NSEvent *(NSEvent *event) {
+    FLXBrowserView *view = weakSelf;
+    if (!view || event.keyCode != 53 || event.window != view->_fullscreenWindow) return event;
+    [view->_contents exitFullscreenResizingView:YES];
+    return nil;
+  }];
+}
+
+- (void)webContentsDidExitFullscreen:(ECWebContents *)contents {
+  [self leaveFullscreenWindow];
+}
+
+- (void)leaveFullscreenWindow {
+  if (!_fullscreenWindow) return;
+  if (_escapeMonitor) [NSEvent removeMonitor:_escapeMonitor];
+  _escapeMonitor = nil;
+  NSView *view = _contents.view;
+  NSView *origin = _fullscreenOrigin ?: self;
+  if (view) {
+    view.frame = origin == self ? self.bounds : _fullscreenOriginFrame;
+    [origin addSubview:view positioned:NSWindowBelow relativeTo:nil];
+  }
+  NSApp.presentationOptions = _presentationBeforeFullscreen;
+  [_fullscreenWindow orderOut:nil];
+  _fullscreenWindow = nil;
+  _fullscreenOrigin = nil;
+  [self.window makeKeyAndOrderFront:nil];
+  if (view) [self.window makeFirstResponder:view];
 }
 
 // The page's target among the browser-wide protocol's, found by the id its document start script
@@ -858,6 +1063,146 @@ static FLXOpenDisposition FluxDisposition(ECWindowOpenDisposition disposition, B
   if (!self.window) return completionHandler(NO, @"");
   [alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse response) {
     completionHandler(response == NSAlertFirstButtonReturn, field.stringValue ?: @"");
+  }];
+}
+
+#pragma mark - Offers to save and device choosers
+
+- (void)offerToSave:(FLXSaveOffer *)offer orAnswer:(void (^)(void))unanswered {
+  id<FLXBrowserViewDelegate> delegate = self.delegate;
+  if (![delegate respondsToSelector:@selector(browserView:didOfferToSave:)]) return unanswered();
+  [delegate browserView:self didOfferToSave:offer];
+}
+
+- (void)webContents:(ECWebContents *)contents
+     offersToSaveCard:(ECCardOffer *)card
+    completionHandler:(void (^)(ECCardOfferAnswer))completionHandler {
+  NSString *line = [NSString stringWithFormat:@"%@ •••• %@", card.network, card.lastFourDigits];
+  FLXSaveOffer *offer = [[FLXSaveOffer alloc] initWithKind:FLXSaveOfferKindCard update:card.isSecurityCodeOnly
+                                                     lines:@[ line ]
+                                                    answer:^(FLXSaveOfferAnswer answer) {
+    completionHandler(answer == FLXSaveOfferAnswerSave ? ECCardOfferAnswerSave
+                      : answer == FLXSaveOfferAnswerDecline ? ECCardOfferAnswerDecline : ECCardOfferAnswerIgnore);
+  }];
+  [self offerToSave:offer orAnswer:^{ completionHandler(ECCardOfferAnswerIgnore); }];
+}
+
+- (void)webContents:(ECWebContents *)contents
+    offersToSaveAddress:(ECAddressOffer *)address
+      completionHandler:(void (^)(ECAddressOfferAnswer))completionHandler {
+  FLXSaveOffer *offer = [[FLXSaveOffer alloc] initWithKind:FLXSaveOfferKindAddress update:address.isUpdate
+                                                     lines:AddressLines(address.address)
+                                                    answer:^(FLXSaveOfferAnswer answer) {
+    completionHandler(answer == FLXSaveOfferAnswerSave ? ECAddressOfferAnswerSave
+                      : answer == FLXSaveOfferAnswerDecline ? ECAddressOfferAnswerDecline : ECAddressOfferAnswerIgnore);
+  }];
+  [self offerToSave:offer orAnswer:^{ completionHandler(ECAddressOfferAnswerIgnore); }];
+}
+
+- (void)webContents:(ECWebContents *)contents
+     offersToSaveIban:(ECIbanOffer *)iban
+    completionHandler:(void (^)(ECIbanOfferAnswer, NSString *))completionHandler {
+  NSArray<NSString *> *lines = iban.nickname.length ? @[ iban.nickname, iban.maskedValue ] : @[ iban.maskedValue ];
+  FLXSaveOffer *offer = [[FLXSaveOffer alloc] initWithKind:FLXSaveOfferKindIban update:NO
+                                                     lines:lines
+                                                    answer:^(FLXSaveOfferAnswer answer) {
+    completionHandler(answer == FLXSaveOfferAnswerSave ? ECIbanOfferAnswerSave
+                      : answer == FLXSaveOfferAnswerDecline ? ECIbanOfferAnswerDecline : ECIbanOfferAnswerIgnore, nil);
+  }];
+  [self offerToSave:offer orAnswer:^{ completionHandler(ECIbanOfferAnswerIgnore, nil); }];
+}
+
+- (void)webContents:(ECWebContents *)contents showChooser:(ECChooser *)chooser {
+  id<FLXBrowserViewDelegate> delegate = self.delegate;
+  if (![delegate respondsToSelector:@selector(browserView:didRequestDevice:)]) return [chooser cancel];
+  [delegate browserView:self didRequestDevice:[[FLXDeviceChooser alloc] initWithChooser:chooser]];
+}
+
+// getDisplayMedia(): a screen or a window, then macOS's picker says which one.
+- (void)webContents:(ECWebContents *)contents
+    requestsDisplayCaptureFromOrigin:(NSURL *)origin
+                            surfaces:(ECDisplaySurfaces)surfaces
+                   completionHandler:(void (^)(ECDisplaySurface))completionHandler {
+  NSWindow *window = self.window;
+  if (!window) return completionHandler(ECDisplaySurfaceNone);
+  BOOL screen = (surfaces & ECDisplaySurfacesScreen) != 0;
+  BOOL windows = (surfaces & ECDisplaySurfacesWindow) != 0;
+  NSAlert *alert = [[NSAlert alloc] init];
+  alert.messageText = [NSString stringWithFormat:NSLocalizedString(@"Share your screen with %@?", nil),
+                                                 origin.host ?: origin.absoluteString];
+  alert.informativeText = NSLocalizedString(@"macOS then asks which one to share.", nil);
+  NSMutableArray<NSNumber *> *answers = [NSMutableArray array];
+  if (screen) {
+    [alert addButtonWithTitle:NSLocalizedString(@"Entire Screen", nil)];
+    [answers addObject:@(ECDisplaySurfaceScreen)];
+  }
+  if (windows) {
+    [alert addButtonWithTitle:NSLocalizedString(@"A Window", nil)];
+    [answers addObject:@(ECDisplaySurfaceWindow)];
+  }
+  [alert addButtonWithTitle:NSLocalizedString(@"Cancel", nil)];
+  [alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse response) {
+    NSInteger index = response - NSAlertFirstButtonReturn;
+    completionHandler(index >= 0 && index < (NSInteger)answers.count
+                          ? (ECDisplaySurface)answers[index].integerValue
+                          : ECDisplaySurfaceNone);
+  }];
+}
+
+// A site or a proxy asking for a username and a password, in a sheet as Safari does.
+- (void)webContents:(ECWebContents *)contents
+    requestsCredentials:(ECAuthChallenge *)challenge
+      completionHandler:(void (^)(NSString *, NSString *))completionHandler {
+  NSWindow *window = self.window;
+  if (!window) return completionHandler(nil, nil);
+  NSAlert *alert = [[NSAlert alloc] init];
+  alert.messageText = challenge.isProxy
+      ? [NSString stringWithFormat:NSLocalizedString(@"Sign in to the proxy %@", nil), challenge.host]
+      : [NSString stringWithFormat:NSLocalizedString(@"Sign in to %@", nil), challenge.host];
+  alert.informativeText = challenge.warning
+      ? [NSString stringWithFormat:@"%@\n\n%@", challenge.message, challenge.warning]
+      : challenge.message;
+  [alert addButtonWithTitle:NSLocalizedString(@"Sign In", nil)];
+  [alert addButtonWithTitle:NSLocalizedString(@"Cancel", nil)];
+
+  NSTextField *username = [NSTextField textFieldWithString:@""];
+  username.placeholderString = NSLocalizedString(@"Username", nil);
+  username.contentType = NSTextContentTypeUsername;
+  NSSecureTextField *password = [[NSSecureTextField alloc] init];
+  password.placeholderString = NSLocalizedString(@"Password", nil);
+  password.contentType = NSTextContentTypePassword;
+  NSStackView *fields = [NSStackView stackViewWithViews:@[ username, password ]];
+  fields.orientation = NSUserInterfaceLayoutOrientationVertical;
+  fields.spacing = 8;
+  fields.frame = NSMakeRect(0, 0, 260, 52);
+  for (NSView *field in @[ username, password ]) {
+    [field.widthAnchor constraintEqualToConstant:260].active = YES;
+  }
+  alert.accessoryView = fields;
+  alert.window.initialFirstResponder = username;
+
+  challenge.savedLoginHandler = ^(NSString *savedUsername, NSString *savedPassword) {
+    if (username.stringValue.length) return;
+    username.stringValue = savedUsername;
+    password.stringValue = savedPassword;
+  };
+  __block BOOL answered = NO;
+  __weak NSAlert *weakAlert = alert;
+  __weak NSWindow *weakWindow = window;
+  challenge.dismissHandler = ^{
+    NSAlert *shown = weakAlert;
+    if (answered || !shown) return;
+    answered = YES;
+    [weakWindow endSheet:shown.window];
+  };
+  [alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse response) {
+    if (answered) return;
+    answered = YES;
+    if (response == NSAlertFirstButtonReturn) {
+      completionHandler(username.stringValue, password.stringValue);
+    } else {
+      completionHandler(nil, nil);
+    }
   }];
 }
 

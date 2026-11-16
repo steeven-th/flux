@@ -32,3 +32,13 @@ _OBJC_CLASS_$_ECNavigationEntry
 _OBJC_METACLASS_$_ECNavigationEntry
 _OBJC_CLASS_$_ECCardOffer
 _OBJC_METACLASS_$_ECCardOffer
+_OBJC_CLASS_$_ECAuthChallenge
+_OBJC_METACLASS_$_ECAuthChallenge
+_OBJC_CLASS_$_ECChooser
+_OBJC_METACLASS_$_ECChooser
+_OBJC_CLASS_$_ECAddress
+_OBJC_METACLASS_$_ECAddress
+_OBJC_CLASS_$_ECAddressOffer
+_OBJC_METACLASS_$_ECAddressOffer
+_OBJC_CLASS_$_ECIbanOffer
+_OBJC_METACLASS_$_ECIbanOffer

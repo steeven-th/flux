@@ -1,0 +1,63 @@
+Subject: [PATCH] Let the embedder show the device chooser
+
+Web Bluetooth, WebUSB, WebHID and Web Serial all show their device
+chooser through chrome::ShowDeviceChooserDialog, which anchors a bubble
+to the browser window holding the tab. EngineCore's tabs have none, so
+the controller was dropped at once and the page got a cancelled
+request without ever seeing a chooser. EngineCore takes the controller
+through a callback and lets its embedder show the list instead.
+---
+diff --git a/chrome/browser/ui/dialogs/browser_dialogs.h b/chrome/browser/ui/dialogs/browser_dialogs.h
+--- a/chrome/browser/ui/dialogs/browser_dialogs.h
++++ b/chrome/browser/ui/dialogs/browser_dialogs.h
+@@ -141,6 +141,15 @@
+     content::RenderFrameHost* owner,
+     std::unique_ptr<permissions::ChooserController> controller);
+ bool IsDeviceChooserShowingForTesting(BrowserWindowInterface* browser);
++
++// Replaces the bubble ShowDeviceChooserDialog shows. EngineCore
++// (//engine_core) hands the controller to its embedder, as its tabs have
++// no browser window to anchor the bubble to. Returns the closure that
++// closes the chooser.
++using ShowDeviceChooserCallback = base::RepeatingCallback<base::OnceClosure(
++    content::RenderFrameHost* owner,
++    std::unique_ptr<permissions::ChooserController> controller)>;
++void SetShowDeviceChooserCallback(ShowDeviceChooserCallback callback);
+ #endif
+ 
+ // Show the prompt to set a window name for browser's window, optionally with
+diff --git a/chrome/browser/ui/views/permissions/chooser_bubble_ui.cc b/chrome/browser/ui/views/permissions/chooser_bubble_ui.cc
+--- a/chrome/browser/ui/views/permissions/chooser_bubble_ui.cc
++++ b/chrome/browser/ui/views/permissions/chooser_bubble_ui.cc
+@@ -234,6 +234,8 @@
+ 
+ namespace {
+ 
++ShowDeviceChooserCallback* g_show_device_chooser_callback = nullptr;
++
+ // The browser hosting a chooser dialog and the tab contents the dialog
+ // belongs to, along with the blocker that keeps fullscreen from being
+ // re-entered while the dialog is up. All three are known to be live at the
+@@ -329,6 +331,12 @@
+ base::OnceClosure ShowDeviceChooserDialog(
+     content::RenderFrameHost* owner,
+     std::unique_ptr<permissions::ChooserController> controller) {
++  // EngineCore's tabs have no browser window, so the bubble below would
++  // never show and the request would be cancelled. Its embedder shows it.
++  if (g_show_device_chooser_callback) {
++    return g_show_device_chooser_callback->Run(owner, std::move(controller));
++  }
++
+   content::WeakDocumentPtr weak_document = owner->GetWeakDocumentPtr();
+   auto* contents = content::WebContents::FromRenderFrameHost(owner);
+ 
+@@ -390,4 +398,9 @@
+   return close_closure;
+ }
+ 
++void SetShowDeviceChooserCallback(ShowDeviceChooserCallback callback) {
++  g_show_device_chooser_callback =
++      new ShowDeviceChooserCallback(std::move(callback));
++}
++
+ }  // namespace chrome
