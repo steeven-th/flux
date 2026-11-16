@@ -50,18 +50,37 @@ struct AddressBar: View {
         }
         .padding(.trailing, 3)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.primary.opacity(0.06)))
-        .popover(isPresented: isAskingPermission, arrowEdge: .bottom) {
-            if let tab = state.selectedTab, let request = tab.permissionRequest {
-                PermissionPrompt(request: request, onAnswer: tab.answerPermission)
+        .popover(isPresented: isAsking, arrowEdge: .bottom) {
+            if let tab = state.selectedTab {
+                if let request = tab.permissionRequest {
+                    PermissionPrompt(request: request, onAnswer: tab.answerPermission)
+                } else if let chooser = tab.deviceChooser {
+                    DeviceChooserPrompt(chooser: chooser, onChoose: tab.chooseDevice)
+                } else if let offer = tab.saveOffer {
+                    SaveOfferPrompt(offer: offer, onAnswer: tab.answerSaveOffer)
+                }
             }
         }
     }
 
-    /// Closing the popover by clicking elsewhere leaves the request unanswered, as in Chrome.
-    private var isAskingPermission: Binding<Bool> {
+    /// The page asks for a permission or a device, or Chromium offers to keep what a form held.
+    /// Closing the popover by clicking elsewhere leaves it unanswered, as in Chrome.
+    private var isAsking: Binding<Bool> {
         Binding(
-            get: { state.selectedTab?.permissionRequest != nil },
-            set: { if !$0 { state.selectedTab?.answerPermission(nil) } }
+            get: {
+                guard let tab = state.selectedTab else { return false }
+                return tab.permissionRequest != nil || tab.deviceChooser != nil || tab.saveOffer != nil
+            },
+            set: {
+                guard !$0, let tab = state.selectedTab else { return }
+                if tab.permissionRequest != nil {
+                    tab.answerPermission(nil)
+                } else if tab.deviceChooser != nil {
+                    tab.chooseDevice(at: nil)
+                } else {
+                    tab.answerSaveOffer(nil)
+                }
+            }
         )
     }
 

@@ -1,5 +1,6 @@
 // Changed for Flux: DevTools docked in the embedder's window (ECDevTools), permissions reset,
-// site data cleared and the certificate chain.
+// site data cleared, the certificate chain, HTTP authentication, device choosers, address and
+// IBAN offers, and camera, microphone and screen capture.
 #import <AppKit/AppKit.h>
 
 #define EC_EXPORT __attribute__((visibility("default")))
@@ -422,6 +423,131 @@ EC_EXPORT
 @property(readonly, getter=isSecurityCodeOnly) BOOL securityCodeOnly;
 @end
 
+typedef NS_ENUM(NSInteger, ECAddressOfferAnswer) {
+  // Save the address, or the new details of the saved one.
+  ECAddressOfferAnswerSave,
+  // The user said no. Chrome counts it against the site, or for an update
+  // against the saved address, and offers it less.
+  ECAddressOfferAnswerDecline,
+  // The offer went unanswered. Chrome counts nothing against it.
+  ECAddressOfferAnswerIgnore,
+};
+
+// An address as Chrome shows it, in the app's language. A field the form did
+// not hold is empty.
+EC_EXPORT
+@interface ECAddress : NSObject
+- (instancetype)init NS_UNAVAILABLE;
+@property(readonly) NSString* name;
+@property(readonly) NSString* organization;
+@property(readonly) NSArray<NSString*>* streetLines;
+@property(readonly) NSString* city;
+@property(readonly) NSString* postalCode;
+// The state, province or county.
+@property(readonly) NSString* region;
+// The country's name, e.g. "France".
+@property(readonly) NSString* country;
+@property(readonly) NSString* email;
+@property(readonly) NSString* phone;
+@end
+
+// An address a page's submitted form held, which Chrome offers to save on
+// this Mac, or new details for an address saved already.
+EC_EXPORT
+@interface ECAddressOffer : NSObject
+- (instancetype)init NS_UNAVAILABLE;
+// The address as it would be saved.
+@property(readonly) ECAddress* address;
+// For an update, the saved address as it is now.
+@property(readonly, nullable) ECAddress* previousAddress;
+@property(readonly, getter=isUpdate) BOOL update;
+@end
+
+typedef NS_ENUM(NSInteger, ECIbanOfferAnswer) {
+  // Keep the IBAN on this Mac.
+  ECIbanOfferAnswerSave,
+  // The user said no. Chrome counts it against the IBAN and offers it less.
+  ECIbanOfferAnswerDecline,
+  // The offer went unanswered. Chrome records nothing.
+  ECIbanOfferAnswerIgnore,
+};
+
+// An IBAN a page's submitted form held, which Chrome offers to keep on this
+// Mac.
+EC_EXPORT
+@interface ECIbanOffer : NSObject
+- (instancetype)init NS_UNAVAILABLE;
+// The country code and the last four digits, the rest masked.
+@property(readonly) NSString* maskedValue;
+@property(readonly) NSString* nickname;
+@end
+
+// A site or a proxy asking for a username and a password (HTTP Basic,
+// Digest or NTLM authentication).
+EC_EXPORT
+@interface ECAuthChallenge : NSObject
+- (instancetype)init NS_UNAVAILABLE;
+@property(readonly) NSString* host;
+@property(readonly, getter=isProxy) BOOL proxy;
+// Chrome's sentence naming who asks, e.g. "https://example.com requires a
+// username and password".
+@property(readonly) NSString* message;
+// Set when the credentials would travel unencrypted.
+@property(readonly, nullable) NSString* warning;
+// Called with a login Chrome saved for this site and realm, if it finds one,
+// to fill the prompt.
+@property(copy, nullable) void (^savedLoginHandler)
+    (NSString* username, NSString* password);
+// Called when the challenge no longer needs an answer: another prompt for
+// the same realm was answered, or the page went elsewhere or closed. The
+// shell closes its prompt.
+@property(copy, nullable) void (^dismissHandler)(void);
+@end
+
+typedef NS_ENUM(NSInteger, ECDisplaySurface) {
+  ECDisplaySurfaceNone,
+  ECDisplaySurfaceScreen,
+  ECDisplaySurfaceWindow,
+};
+
+typedef NS_OPTIONS(NSUInteger, ECDisplaySurfaces) {
+  ECDisplaySurfacesScreen = 1 << 0,
+  ECDisplaySurfacesWindow = 1 << 1,
+};
+
+typedef NS_ENUM(NSInteger, ECChooserAdapterState) {
+  ECChooserAdapterStateReady,
+  // Bluetooth is off.
+  ECChooserAdapterStateOff,
+  // macOS doesn't let the app use Bluetooth.
+  ECChooserAdapterStateUnauthorized,
+};
+
+// A page asking for a device (Web Bluetooth, WebUSB, WebHID, Web Serial).
+// The list fills in as devices are found. The first answer ends it.
+EC_EXPORT
+@interface ECChooser : NSObject
+- (instancetype)init NS_UNAVAILABLE;
+// Already names the site, in the app's language.
+@property(readonly) NSString* title;
+@property(readonly) NSString* noOptionsText;
+@property(readonly) NSString* selectButtonTitle;
+@property(readonly) NSArray<NSString*>* options;
+@property(readonly, getter=isScanning) BOOL scanning;
+@property(readonly) BOOL canRescan;
+@property(readonly) ECChooserAdapterState adapterState;
+// Called when the list, the scanning or the adapter state changed.
+@property(copy, nullable) void (^updateHandler)(void);
+// Called when the chooser no longer needs an answer: the page went elsewhere
+// or closed. The shell closes it.
+@property(copy, nullable) void (^dismissHandler)(void);
+- (void)selectOptionAtIndex:(NSUInteger)index;
+- (void)cancel;
+- (void)rescan;
+// System Settings, where the app is allowed to use Bluetooth.
+- (void)openSystemSettings;
+@end
+
 @class ECDevTools;
 
 @protocol ECDevToolsDelegate <NSObject>
@@ -607,6 +733,39 @@ EC_EXPORT
 - (void)webContents:(ECWebContents*)contents
      offersToSaveCard:(ECCardOffer*)card
     completionHandler:(void (^)(ECCardOfferAnswer answer))completionHandler;
+// A submitted form held an address Chrome offers to save, or new details for
+// a saved one. Answer as for a card. Without this method the offer is
+// declined as a suppressed prompt is, which counts nothing against the site.
+- (void)webContents:(ECWebContents*)contents
+    offersToSaveAddress:(ECAddressOffer*)address
+      completionHandler:
+          (void (^)(ECAddressOfferAnswer answer))completionHandler;
+// A submitted form held an IBAN Chrome offers to keep. Answer as for a card.
+// `nickname` is read with Save only. Without this method the offer is
+// ignored.
+- (void)webContents:(ECWebContents*)contents
+     offersToSaveIban:(ECIbanOffer*)iban
+    completionHandler:(void (^)(ECIbanOfferAnswer answer,
+                                NSString* _Nullable nickname))completionHandler;
+// The page asks to share the screen (getDisplayMedia). The shell answers a
+// screen or a window, and macOS's picker then lets the user choose which one.
+// ECDisplaySurfaceNone refuses. `surfaces` are those the page may share.
+// Without this method requests are refused.
+- (void)webContents:(ECWebContents*)contents
+    requestsDisplayCaptureFromOrigin:(NSURL*)origin
+                            surfaces:(ECDisplaySurfaces)surfaces
+                   completionHandler:
+                       (void (^)(ECDisplaySurface surface))completionHandler;
+// A page asks for a device. Without this method the request is cancelled.
+- (void)webContents:(ECWebContents*)contents showChooser:(ECChooser*)chooser;
+// A site or a proxy asks for credentials. Chrome shows a blank page under the
+// prompt. A nil username cancels, and the page shows the server's error.
+// Without this method the challenge is cancelled.
+- (void)webContents:(ECWebContents*)contents
+    requestsCredentials:(ECAuthChallenge*)challenge
+      completionHandler:(void (^)(NSString* _Nullable username,
+                                  NSString* _Nullable password))
+                            completionHandler;
 @end
 
 // A page in a web contents' history, as of when it was read.

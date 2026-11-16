@@ -1,0 +1,88 @@
+Subject: [PATCH] Let the embedder offer to save an address
+
+When a submitted form holds a new address, or new details for a saved one,
+Chrome offers to save it in a bubble that it asks the tab's browser window
+for. EngineCore's tabs have no browser window, so the lookup returned null
+and the browser process crashed on every such form. EngineCore replaces the
+bubble through a callback and offers the save through its embedder, which
+answers with Chrome's own decision. Without the callback and a browser
+window, the offer is declined as a suppressed prompt is.
+---
+diff --git a/chrome/browser/ui/autofill/chrome_autofill_client.cc b/chrome/browser/ui/autofill/chrome_autofill_client.cc
+--- a/chrome/browser/ui/autofill/chrome_autofill_client.cc
++++ b/chrome/browser/ui/autofill/chrome_autofill_client.cc
+@@ -225,6 +225,7 @@
+ #include "chrome/browser/ui/autofill/email_verifier/email_verification_controller.h"
+ #include "chrome/browser/ui/autofill/payments/offer_notification_bubble_controller_impl.h"
+ #include "chrome/browser/ui/browser_commands.h"
++#include "chrome/browser/ui/browser_window.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+@@ -255,6 +256,9 @@ AutoselectFirstSuggestion ShouldAutofillPopupAutoselectFirstSuggestion(
+       source == AutofillSuggestionTriggerSource::kTextFieldDidReceiveKeyDown);
+ }
+ 
++ChromeAutofillClient::ConfirmSaveAddressProfileCallback*
++    g_confirm_save_address_profile_callback = nullptr;
++
+ #if !BUILDFLAG(IS_ANDROID)
+ 
+ const base::Feature& GetFeature(AutofillClient::IphFeature iph_feature) {
+@@ -877,6 +881,20 @@ void ChromeAutofillClient::ConfirmSaveAddressProfile(
+           : SaveUpdateAddressProfilePromptMode::kSaveNewProfile,
+       std::move(callback));
+ #else
++  // The bubble needs a browser window, which EngineCore's tabs don't have:
++  // without one it crashed. Their embedder offers the save instead. With no
++  // embedder to ask, the offer is declined as a suppressed prompt is.
++  if (g_confirm_save_address_profile_callback) {
++    g_confirm_save_address_profile_callback->Run(
++        web_contents(), profile, original_profile, save_address_bubble_type,
++        std::move(callback));
++    return;
++  }
++  if (!BrowserWindow::FindBrowserWindowWithWebContents(web_contents())) {
++    std::move(callback).Run(AddressPromptUserDecision::kAutoDeclined,
++                            std::nullopt);
++    return;
++  }
+   AddressBubblesController::SetUpAndShowSaveOrUpdateAddressBubble(
+       web_contents(), profile, original_profile, save_address_bubble_type,
+       !GetPersonalDataManager().address_data_manager().GetProfiles().empty(),
+@@ -884,6 +902,13 @@ void ChromeAutofillClient::ConfirmSaveAddressProfile(
+ #endif
+ }
+ 
++// static
++void ChromeAutofillClient::SetConfirmSaveAddressProfileCallback(
++    ConfirmSaveAddressProfileCallback callback) {
++  g_confirm_save_address_profile_callback =
++      new ConfirmSaveAddressProfileCallback(std::move(callback));
++}
++
+ AutofillClient::SuggestionUiSessionId
+ ChromeAutofillClient::ShowAutofillSuggestions(
+     const PopupOpenArgs& open_args,
+diff --git a/chrome/browser/ui/autofill/chrome_autofill_client.h b/chrome/browser/ui/autofill/chrome_autofill_client.h
+--- a/chrome/browser/ui/autofill/chrome_autofill_client.h
++++ b/chrome/browser/ui/autofill/chrome_autofill_client.h
+@@ -128,6 +128,18 @@ class ChromeAutofillClient : public ContentAutofillClient {
+     return static_cast<ChromeAutofillClient*>(FromWebContents(web_contents));
+   }
+ 
++  // Replaces the save and update address bubble that ConfirmSaveAddressProfile
++  // shows on desktop. EngineCore (//engine_core) offers the save through its
++  // embedder, as its tabs have no browser window for the bubble.
++  using ConfirmSaveAddressProfileCallback = base::RepeatingCallback<void(
++      content::WebContents* web_contents,
++      const AutofillProfile& profile,
++      const AutofillProfile* original_profile,
++      SaveAddressBubbleType save_address_bubble_type,
++      AddressProfileSavePromptCallback callback)>;
++  static void SetConfirmSaveAddressProfileCallback(
++      ConfirmSaveAddressProfileCallback callback);
++
+   ChromeAutofillClient(const ChromeAutofillClient&) = delete;
+   ChromeAutofillClient& operator=(const ChromeAutofillClient&) = delete;
+   ~ChromeAutofillClient() override;

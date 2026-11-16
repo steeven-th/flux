@@ -1,0 +1,65 @@
+Subject: [PATCH] Let EngineCore show the screen share picker
+
+getDisplayMedia() shows Chrome's picker as a web-modal dialog, whose host
+comes from the tab's dialog manager delegate. EngineCore's tabs have none,
+so showing it would dereference null. EngineCore replaces the picker
+through a callback, asks its embedder and shows macOS's own picker.
+---
+diff --git a/chrome/browser/media/webrtc/desktop_media_picker.h b/chrome/browser/media/webrtc/desktop_media_picker.h
+--- a/chrome/browser/media/webrtc/desktop_media_picker.h
++++ b/chrome/browser/media/webrtc/desktop_media_picker.h
+@@ -10,7 +10,7 @@
+ #include <utility>
+ 
+ #include "base/feature_list.h"
+-#include "base/functional/callback_forward.h"
++#include "base/functional/callback.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/types/expected.h"
+ #include "build/android_buildflags.h"
+@@ -149,6 +149,14 @@ class DesktopMediaPicker {
+   static std::unique_ptr<DesktopMediaPicker> Create(
+       const content::MediaStreamRequest* request);
+ 
++  // Replaces the picker Create makes. EngineCore (//engine_core) asks its
++  // embedder and shows macOS's picker, as its tabs have no browser window for
++  // Chrome's dialog. Returning null rejects the request.
++  using CreateCallback =
++      base::RepeatingCallback<std::unique_ptr<DesktopMediaPicker>(
++          const content::MediaStreamRequest* request)>;
++  static void SetCreateCallback(CreateCallback callback);
++
+   DesktopMediaPicker() = default;
+ 
+   DesktopMediaPicker(const DesktopMediaPicker&) = delete;
+diff --git a/chrome/browser/ui/views/desktop_capture/desktop_media_picker_views.cc b/chrome/browser/ui/views/desktop_capture/desktop_media_picker_views.cc
+--- a/chrome/browser/ui/views/desktop_capture/desktop_media_picker_views.cc
++++ b/chrome/browser/ui/views/desktop_capture/desktop_media_picker_views.cc
+@@ -104,6 +104,8 @@ const DesktopMediaSourceViewStyle& GetSingleScreenStyle() {
+ 
+ namespace {
+ 
++DesktopMediaPicker::CreateCallback* g_create_callback = nullptr;
++
+ // These values are persisted to logs. Entries should not be renumbered and
+ // numeric values should never be reused.
+ enum class AudioToggleStatus {
+@@ -1566,6 +1568,9 @@ void DesktopMediaPickerImpl::NotifyDialogResult(
+ // static
+ std::unique_ptr<DesktopMediaPicker> DesktopMediaPicker::Create(
+     const content::MediaStreamRequest* request) {
++  if (g_create_callback) {
++    return g_create_callback->Run(request);
++  }
+   if (request &&
+       request->video_type ==
+           blink::mojom::MediaStreamType::DISPLAY_VIDEO_CAPTURE_THIS_TAB) {
+@@ -1574,3 +1579,8 @@ std::unique_ptr<DesktopMediaPicker> DesktopMediaPicker::Create(
+     return std::make_unique<DesktopMediaPickerImpl>();
+   }
+ }
++
++// static
++void DesktopMediaPicker::SetCreateCallback(CreateCallback callback) {
++  g_create_callback = new CreateCallback(std::move(callback));
++}

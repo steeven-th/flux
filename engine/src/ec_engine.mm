@@ -112,7 +112,7 @@ NSMenu* g_dock_menu;
   // which cannot be undone, and Chrome expects the migration to stay on.
   strings.push_back(
       "--enable-features=PrepopulatedEnginesMigration,"
-      "ApplySearchEngineTypeMigration");
+      "ApplySearchEngineTypeMigration,UseSCContentSharingPicker");
   std::vector<const char*> argv;
   for (const std::string& s : strings) {
     argv.push_back(s.c_str());

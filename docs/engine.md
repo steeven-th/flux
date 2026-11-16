@@ -28,6 +28,24 @@ the page over it where DevTools ask, which leaves room for their panels and thei
 Patch 0102 makes Flux's pages "page" targets of the DevTools protocol, as Chrome's tabs are,
 instead of "other" ones.
 
+DevTools draw their own menus, such as the one listing the panels that don't fit. Chrome's native
+menus only show in a views widget, which Flux's window is not.
+
+## Dialogs Chrome shows in a browser window
+
+Chrome shows some of its prompts in a bubble or a dialog anchored to the tab's browser window,
+which Flux's pages don't have: without one they did nothing, or crashed. Patches hand them to the
+bridge through a callback, and the bridge asks Flux, which shows its own:
+
+- saving a card (0015), an address (0104) or an IBAN (0107) found in a submitted form
+- the username and password a site or a proxy asks for (0105)
+- the Bluetooth, USB, HID and serial device chooser (0106)
+- the screen share picker (0108): Flux asks for a screen or a window, then macOS's picker
+  (`UseSCContentSharingPicker`) which one, so Flux needs no Screen Recording permission
+
+Camera, microphone and screen capture requests go through Chrome's `MediaCaptureDevicesDispatcher`,
+as in Chrome's tabs, which asks for the permission like any other.
+
 ## Pages opened by a page
 
 A script's `window.open()` and links with a target open a page that Chromium creates itself, as in

@@ -83,6 +83,59 @@ NS_SWIFT_UI_ACTOR
 
 @end
 
+typedef NS_ENUM(NSInteger, FLXSaveOfferKind) {
+  FLXSaveOfferKindCard,
+  FLXSaveOfferKindAddress,
+  FLXSaveOfferKindIban,
+};
+
+/// A card, an address or an IBAN a submitted form held, which Chromium offers to keep on this Mac.
+@interface FLXSaveOffer : NSObject
+
+@property (nonatomic, readonly) FLXSaveOfferKind kind;
+/// For an address, new details for one saved already.
+@property (nonatomic, readonly, getter=isUpdate) BOOL update;
+/// What would be kept, one line each: the card's network and last digits, the address's lines,
+/// the IBAN masked.
+@property (nonatomic, readonly, copy) NSArray<NSString *> *lines;
+
+- (void)save;
+/// The user said no. Chromium offers it less.
+- (void)decline;
+/// Closed without an answer.
+- (void)ignore;
+
+- (instancetype)init NS_UNAVAILABLE;
+
+@end
+
+/// A page asking for a Bluetooth, USB, HID or serial device. The list fills in as devices are found.
+@interface FLXDeviceChooser : NSObject
+
+/// Already names the site.
+@property (nonatomic, readonly, copy) NSString *title;
+@property (nonatomic, readonly, copy) NSString *emptyText;
+@property (nonatomic, readonly, copy) NSString *selectTitle;
+@property (nonatomic, readonly, copy) NSArray<NSString *> *options;
+@property (nonatomic, readonly, getter=isScanning) BOOL scanning;
+@property (nonatomic, readonly) BOOL canRescan;
+@property (nonatomic, readonly, getter=isBluetoothOff) BOOL bluetoothOff;
+/// macOS doesn't let Flux use Bluetooth.
+@property (nonatomic, readonly, getter=isBluetoothRefused) BOOL bluetoothRefused;
+/// Called when any of the above changes.
+@property (nonatomic, copy, nullable) void (^onChange)(void);
+/// Called when Chromium drops the request, when the page goes elsewhere.
+@property (nonatomic, copy, nullable) void (^onCancel)(void);
+
+- (void)selectOptionAtIndex:(NSUInteger)index;
+- (void)cancel;
+- (void)rescan;
+- (void)openSystemSettings;
+
+- (instancetype)init NS_UNAVAILABLE;
+
+@end
+
 NS_SWIFT_UI_ACTOR
 @protocol FLXBrowserViewDelegate <NSObject>
 @optional
@@ -115,6 +168,11 @@ NS_SWIFT_UI_ACTOR
 /// Sent when the page asks for a permission. Without this method, Chromium shows its own prompt,
 /// which doesn't respond in Flux's windows.
 - (void)browserView:(FLXBrowserView *)browserView didRequestPermission:(FLXPermissionRequest *)request;
+/// Sent when a submitted form held a card, an address or an IBAN Chromium offers to keep. Without
+/// this method, offers are left unanswered.
+- (void)browserView:(FLXBrowserView *)browserView didOfferToSave:(FLXSaveOffer *)offer;
+/// Sent when the page asks for a device. Without this method, the request is cancelled.
+- (void)browserView:(FLXBrowserView *)browserView didRequestDevice:(FLXDeviceChooser *)chooser;
 /// Sent as a search in the page finds matches. `activeMatch` counts from 1, 0 without a match.
 /// Either is -1 when it hasn't changed since the last update.
 - (void)browserView:(FLXBrowserView *)browserView didFindMatches:(NSInteger)count activeMatch:(NSInteger)activeMatch;

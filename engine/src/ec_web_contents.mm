@@ -1,5 +1,6 @@
 // Changed for Flux: DevTools docked in the embedder's window (ECDevTools), permissions reset,
-// site data cleared and the certificate chain.
+// site data cleared, the certificate chain, HTTP authentication, device choosers, address and
+// IBAN offers, and camera, microphone and screen capture.
 #import "engine_core/ec_web_contents_private.h"
 
 #include <algorithm>
@@ -13,6 +14,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/pickle.h"
+#include "base/strings/string_split.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/supports_user_data.h"
 #include "base/task/bind_post_task.h"
@@ -28,18 +30,28 @@
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
 #include "chrome/browser/file_select_helper.h"
 #include "chrome/browser/history/history_tab_helper.h"
+#include "chrome/browser/media/webrtc/desktop_media_picker.h"
+#include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/permissions/permission_decision_auto_blocker_factory.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/printing/print_view_manager_common.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ssl/chrome_security_state_util.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
+#include "chrome/browser/ui/autofill/chrome_autofill_client.h"
 #include "chrome/browser/ui/autofill/payments/chrome_payments_autofill_client.h"
+#include "chrome/browser/ui/dialogs/browser_dialogs.h"
+#include "chrome/browser/ui/login/login_handler.h"
 #include "chrome/browser/ui/tab_helpers.h"
 #include "chrome/browser/ui/views/overlay/video_overlay_window_views.h"
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
+#include "components/autofill/core/browser/data_model/payments/iban.h"
+#include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/foundations/autofill_client.h"
+#include "components/autofill/core/browser/geo/phone_number_i18n.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/content_settings/core/browser/content_settings_registry.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
@@ -54,6 +66,9 @@
 #include "components/js_injection/browser/web_message_host.h"
 #include "components/js_injection/browser/web_message_host_factory.h"
 #include "components/js_injection/common/enum.mojom.h"
+#include "components/password_manager/core/browser/http_auth_manager.h"
+#include "components/password_manager/core/browser/http_auth_observer.h"
+#include "components/permissions/chooser_controller.h"
 #include "components/permissions/permission_decision_auto_blocker.h"
 #include "components/permissions/permission_prompt.h"
 #include "components/permissions/permission_request.h"
@@ -77,7 +92,9 @@
 #include "content/public/browser/browsing_data_filter_builder.h"
 #include "content/public/browser/browsing_data_remover.h"
 #include "content/public/browser/host_zoom_map.h"
+#include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/context_menu_params.h"
+#include "content/public/browser/desktop_capture.h"
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/file_select_listener.h"
 #include "content/public/browser/javascript_dialog_manager.h"
@@ -100,11 +117,15 @@
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/common/isolated_world_ids.h"
+#include "extensions/browser/extension_registry.h"
+#include "extensions/common/constants.h"
+#include "extensions/common/extension.h"
 #import "engine_core/ec_browser_context_private.h"
 #include "media/mojo/mojom/media_player.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/apple/url_conversions.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
+#include "net/base/auth.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
 #include "net/http/http_request_headers.h"
@@ -121,6 +142,7 @@
 #include "third_party/blink/public/mojom/link_to_text/link_to_text.mojom.h"
 #include "third_party/blink/public/mojom/loader/referrer.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/display/types/display_constants.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/origin.h"
@@ -129,6 +151,35 @@
 @interface ECCardOffer ()
 - (instancetype)initWithCard:(const autofill::CreditCard&)card
             securityCodeOnly:(BOOL)securityCodeOnly;
+@end
+
+@interface ECAddress ()
+- (instancetype)initWithProfile:(const autofill::AutofillProfile&)profile;
+@end
+
+@interface ECAddressOffer ()
+- (instancetype)initWithAddress:(ECAddress*)address
+                previousAddress:(nullable ECAddress*)previousAddress;
+@end
+
+@interface ECIbanOffer ()
+- (instancetype)initWithIban:(const autofill::Iban&)iban;
+@end
+
+@interface ECChooser ()
+- (instancetype)initWithController:
+                    (std::unique_ptr<permissions::ChooserController>)controller
+                 fullscreenBlocker:(base::ScopedClosureRunner)blocker;
+- (void)controllerChanged:(std::optional<bool>)scanning;
+- (void)adapterEnabledChanged:(bool)enabled;
+- (void)adapterAuthorizationChanged:(bool)authorized;
+- (void)engineDidClose;
+@end
+
+@interface ECAuthChallenge ()
+- (instancetype)initWithInfo:(const net::AuthChallengeInfo&)info
+                     message:(const std::u16string&)message
+                     warning:(const std::u16string&)warning;
 @end
 
 @interface ECContextMenu ()
@@ -297,6 +348,18 @@ class PermissionPromptBridge : public permissions::PermissionPrompt {
   base::WeakPtrFactory<PermissionPromptBridge> weak_factory_{this};
 };
 
+// The extension whose page made a request, for Chrome's media dispatcher.
+const extensions::Extension* ExtensionForOrigin(
+    content::BrowserContext* context,
+    const GURL& origin) {
+  if (!origin.SchemeIs(extensions::kExtensionScheme)) {
+    return nullptr;
+  }
+  return extensions::ExtensionRegistry::Get(context)
+      ->enabled_extensions()
+      .GetByID(std::string(origin.host()));
+}
+
 class WebContentsDelegateBridge : public content::WebContentsDelegate,
                                   public content::JavaScriptDialogManager,
                                   public content::WebContentsObserver,
@@ -305,6 +368,27 @@ class WebContentsDelegateBridge : public content::WebContentsDelegate,
   explicit WebContentsDelegateBridge(ECWebContents* owner) : owner_(owner) {}
 
   using content::WebContentsObserver::Observe;
+
+  // As Chrome's tabs: camera, microphone and screen capture go through its
+  // dispatcher, which asks for the permission and, for the screen, the picker.
+  void RequestMediaAccessPermission(
+      content::WebContents* contents,
+      const content::MediaStreamRequest& request,
+      content::MediaResponseCallback callback) override {
+    MediaCaptureDevicesDispatcher::GetInstance()->ProcessMediaAccessRequest(
+        contents, request, std::move(callback),
+        ExtensionForOrigin(contents->GetBrowserContext(),
+                           request.security_origin));
+  }
+
+  bool CheckMediaAccessPermission(content::RenderFrameHost* frame,
+                                  const url::Origin& origin,
+                                  blink::mojom::MediaStreamType type) override {
+    return MediaCaptureDevicesDispatcher::GetInstance()
+        ->CheckMediaAccessPermission(
+            frame, origin, type,
+            ExtensionForOrigin(frame->GetBrowserContext(), origin.GetURL()));
+  }
 
   void OnZoomChanged(
       const zoom::ZoomController::ZoomChangedEventData& data) override {
@@ -1086,7 +1170,626 @@ void OfferToSaveCard(
             }];
 }
 
+// In place of Chrome's login dialog, which needs a web-modal dialog host that
+// EngineCore's tabs don't have (patches/0105). Chrome keeps the rest: the
+// blank page under the prompt, the reload with the credentials, the other
+// prompts for the same realm, and the saved login it fills in.
+class EmbedderLoginHandler : public LoginHandler,
+                             public password_manager::HttpAuthObserver {
+ public:
+  EmbedderLoginHandler(
+      const net::AuthChallengeInfo& auth_info,
+      content::WebContents* web_contents,
+      content::LoginDelegate::LoginAuthRequiredCallback auth_required_callback)
+      : LoginHandler(auth_info, web_contents, std::move(auth_required_callback)) {}
+
+  ~EmbedderLoginHandler() override { CloseDialog(); }
+
+ protected:
+  bool BuildViewImpl(const std::u16string& authority,
+                     const std::u16string& explanation,
+                     LoginModelData* login_model_data) override {
+    ECWebContents* owner =
+        web_contents() ? [ECWebContents fromContents:web_contents()] : nil;
+    if (![owner.delegate respondsToSelector:@selector
+                         (webContents:requestsCredentials:completionHandler:)]) {
+      return false;
+    }
+    challenge_ = [[ECAuthChallenge alloc] initWithInfo:auth_info()
+                                               message:authority
+                                               warning:explanation];
+    if (login_model_data) {
+      auth_manager_ = login_model_data->model;
+      auth_manager_->SetObserverAndDeliverCredentials(this,
+                                                      *login_model_data->form);
+    }
+    base::WeakPtr<LoginHandler> handler = GetWeakPtr();
+    [owner.delegate webContents:owner
+            requestsCredentials:challenge_
+              completionHandler:^(NSString* username, NSString* password) {
+                // Later, as answering can destroy the handler, which an
+                // answer given at once would do inside ShowLoginPrompt.
+                base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+                    FROM_HERE,
+                    base::BindOnce(
+                        [](base::WeakPtr<LoginHandler> handler,
+                           std::optional<std::u16string> username,
+                           std::u16string password) {
+                          if (!handler) {
+                            return;
+                          }
+                          if (username) {
+                            handler->SetAuth(*username, password);
+                          } else {
+                            handler->CancelAuth(/*notify_others=*/true);
+                          }
+                        },
+                        handler,
+                        username ? std::optional<std::u16string>(
+                                       base::SysNSStringToUTF16(username))
+                                 : std::nullopt,
+                        base::SysNSStringToUTF16(password ?: @"")));
+              }];
+    return true;
+  }
+
+  // Also called once the shell answered, when its prompt is gone already.
+  void CloseDialog() override {
+    if (auth_manager_) {
+      auth_manager_->DetachObserver(this);
+      auth_manager_ = nullptr;
+    }
+    ECAuthChallenge* challenge = challenge_;
+    challenge_ = nil;
+    if (challenge.dismissHandler) {
+      challenge.dismissHandler();
+    }
+  }
+
+  void OnAutofillDataAvailable(std::u16string_view username,
+                               std::u16string_view password) override {
+    if (challenge_.savedLoginHandler) {
+      challenge_.savedLoginHandler(base::SysUTF16ToNSString(username),
+                                   base::SysUTF16ToNSString(password));
+    }
+  }
+
+  void OnLoginModelDestroying() override { auth_manager_ = nullptr; }
+
+ private:
+  ECAuthChallenge* __strong challenge_;
+  raw_ptr<password_manager::HttpAuthManager> auth_manager_ = nullptr;
+};
+
+// In place of Chrome's save address bubble, which needs a browser window
+// (patches/0104). Offers to move an address to a Google Account, which Flux
+// never signs in to, and those the shell can't take are declined as a
+// suppressed prompt is: unlike a dropped one, that still applies Chrome's
+// silent updates to the saved address.
+void OfferToSaveAddress(
+    content::WebContents* web_contents,
+    const autofill::AutofillProfile& profile,
+    const autofill::AutofillProfile* original_profile,
+    autofill::AutofillClient::SaveAddressBubbleType type,
+    autofill::AutofillClient::AddressProfileSavePromptCallback callback) {
+  using Client = autofill::AutofillClient;
+  using Decision = Client::AddressPromptUserDecision;
+  ECWebContents* owner = [ECWebContents fromContents:web_contents];
+  if (type != Client::SaveAddressBubbleType::kSave ||
+      ![owner.delegate respondsToSelector:@selector
+                       (webContents:offersToSaveAddress:completionHandler:)]) {
+    std::move(callback).Run(Decision::kAutoDeclined, std::nullopt);
+    return;
+  }
+  ECAddressOffer* offer = [[ECAddressOffer alloc]
+      initWithAddress:[[ECAddress alloc] initWithProfile:profile]
+      previousAddress:original_profile
+                          ? [[ECAddress alloc] initWithProfile:*original_profile]
+                          : nil];
+  // Taken by the first answer.
+  auto decision = std::make_shared<Client::AddressProfileSavePromptCallback>(
+      std::move(callback));
+  [owner.delegate webContents:owner
+          offersToSaveAddress:offer
+            completionHandler:^(ECAddressOfferAnswer answer) {
+              if (!*decision) {
+                return;
+              }
+              Decision chrome_decision = Decision::kIgnored;
+              switch (answer) {
+                case ECAddressOfferAnswerSave:
+                  chrome_decision = Decision::kAccepted;
+                  break;
+                case ECAddressOfferAnswerDecline:
+                  chrome_decision = Decision::kDeclined;
+                  break;
+                case ECAddressOfferAnswerIgnore:
+                  break;
+              }
+              std::move(*decision).Run(chrome_decision, std::nullopt);
+            }];
+}
+
+// In place of Chrome's save IBAN bubble, which needs a tab interface
+// (patches/0107). An offer Chrome would only show as an icon, and one the
+// shell can't take, are dropped unanswered. Chrome counts an ignored IBAN
+// offer against it like a declined one, so Ignore drops the offer too.
+void OfferToSaveIban(
+    content::WebContents* web_contents,
+    const autofill::Iban& iban,
+    bool should_show_prompt,
+    autofill::payments::PaymentsAutofillClient::SaveIbanPromptCallback
+        callback) {
+  using Client = autofill::payments::PaymentsAutofillClient;
+  ECWebContents* owner = [ECWebContents fromContents:web_contents];
+  if (!should_show_prompt ||
+      ![owner.delegate respondsToSelector:@selector
+                       (webContents:offersToSaveIban:completionHandler:)]) {
+    return;
+  }
+  ECIbanOffer* offer = [[ECIbanOffer alloc] initWithIban:iban];
+  // Taken by the first answer; Ignore destroys it unrun.
+  auto decision =
+      std::make_shared<Client::SaveIbanPromptCallback>(std::move(callback));
+  [owner.delegate webContents:owner
+             offersToSaveIban:offer
+            completionHandler:^(ECIbanOfferAnswer answer, NSString* nickname) {
+              if (!*decision) {
+                return;
+              }
+              switch (answer) {
+                case ECIbanOfferAnswerSave:
+                  std::move(*decision).Run(
+                      Client::SaveIbanOfferUserDecision::kAccepted,
+                      base::SysNSStringToUTF16(nickname ?: @""));
+                  break;
+                case ECIbanOfferAnswerDecline:
+                  std::move(*decision).Run(
+                      Client::SaveIbanOfferUserDecision::kDeclined, u"");
+                  break;
+                case ECIbanOfferAnswerIgnore:
+                  decision->Reset();
+                  break;
+              }
+            }];
+}
+
+// In place of Chrome's screen share dialog, which needs a browser window
+// (patches/0108). The shell chooses a screen or a window, macOS's picker
+// which one, without the Screen Recording permission.
+class DisplayMediaPickerBridge : public DesktopMediaPicker {
+ public:
+  explicit DisplayMediaPickerBridge(GURL origin) : origin_(std::move(origin)) {}
+
+  ~DisplayMediaPickerBridge() override {
+    // As Chrome's picker: a session nothing was picked from is closed.
+    if (session_id_ && !picked_) {
+      content::GetIOThreadTaskRunner({})->PostTask(
+          FROM_HERE,
+          base::BindOnce(
+              &content::desktop_capture::CloseNativeScreenCapturePicker,
+              content::DesktopMediaID(type_, *session_id_)));
+    }
+  }
+
+  void Show(const Params& params,
+            std::vector<std::unique_ptr<DesktopMediaList>> source_lists,
+            DoneCallback done_callback) override {
+    done_callback_ = std::move(done_callback);
+    ECWebContents* owner = params.web_contents
+                               ? [ECWebContents fromContents:params.web_contents]
+                               : nil;
+    ECDisplaySurfaces surfaces = 0;
+    for (const auto& list : source_lists) {
+      if (list->GetMediaListType() == DesktopMediaList::Type::kScreen) {
+        surfaces |= ECDisplaySurfacesScreen;
+      }
+      if (list->GetMediaListType() == DesktopMediaList::Type::kWindow) {
+        surfaces |= ECDisplaySurfacesWindow;
+      }
+    }
+    if (!surfaces ||
+        ![owner.delegate
+            respondsToSelector:@selector
+            (webContents:
+                requestsDisplayCaptureFromOrigin:surfaces:completionHandler:)]) {
+      Finish(base::unexpected(
+          blink::mojom::MediaStreamRequestResult::NOT_SUPPORTED));
+      return;
+    }
+    base::WeakPtr<DisplayMediaPickerBridge> weak = weak_factory_.GetWeakPtr();
+    [owner.delegate webContents:owner
+        requestsDisplayCaptureFromOrigin:net::NSURLWithGURL(origin_)
+                                surfaces:surfaces
+                       completionHandler:^(ECDisplaySurface surface) {
+                         content::GetUIThreadTaskRunner({})->PostTask(
+                             FROM_HERE,
+                             base::BindOnce(
+                                 &DisplayMediaPickerBridge::OpenSystemPicker,
+                                 weak, surface));
+                       }];
+  }
+
+ private:
+  void OpenSystemPicker(ECDisplaySurface surface) {
+    if (surface == ECDisplaySurfaceNone) {
+      Cancel();
+      return;
+    }
+    type_ = surface == ECDisplaySurfaceScreen
+                ? content::DesktopMediaID::TYPE_SCREEN
+                : content::DesktopMediaID::TYPE_WINDOW;
+    base::WeakPtr<DisplayMediaPickerBridge> weak = weak_factory_.GetWeakPtr();
+    content::GetIOThreadTaskRunner({})->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            &content::desktop_capture::OpenNativeScreenCapturePicker, type_,
+            base::BindPostTaskToCurrentDefault(
+                base::BindOnce(&DisplayMediaPickerBridge::OnOpened, weak)),
+            base::BindPostTaskToCurrentDefault(
+                base::BindOnce(&DisplayMediaPickerBridge::OnPicked, weak)),
+            base::BindPostTaskToCurrentDefault(
+                base::BindOnce(&DisplayMediaPickerBridge::Cancel, weak)),
+            base::BindPostTaskToCurrentDefault(
+                base::BindOnce(&DisplayMediaPickerBridge::Cancel, weak))));
+  }
+
+  void OnOpened(content::DesktopMediaID::Id id) { session_id_ = id; }
+
+  void OnPicked(webrtc::DesktopCapturer::Source source) {
+    picked_ = true;
+    content::DesktopMediaID id(type_, source.id);
+    id.id_type = content::DesktopMediaID::IdType::kNativePickerSession;
+    Finish(id);
+  }
+
+  void Cancel() {
+    Finish(base::unexpected(
+        blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED_BY_USER));
+  }
+
+  void Finish(DoneCallbackArgumentType result) {
+    if (done_callback_) {
+      std::move(done_callback_).Run(std::move(result));
+    }
+  }
+
+  GURL origin_;
+  content::DesktopMediaID::Type type_ = content::DesktopMediaID::TYPE_NONE;
+  std::optional<content::DesktopMediaID::Id> session_id_;
+  bool picked_ = false;
+  DoneCallback done_callback_;
+  base::WeakPtrFactory<DisplayMediaPickerBridge> weak_factory_{this};
+};
+
+// The current tab can't be offered: Flux's pages are no tabs of a tab strip.
+std::unique_ptr<DesktopMediaPicker> CreateDisplayMediaPicker(
+    const content::MediaStreamRequest* request) {
+  if (request &&
+      request->video_type ==
+          blink::mojom::MediaStreamType::DISPLAY_VIDEO_CAPTURE_THIS_TAB) {
+    return nullptr;
+  }
+  return std::make_unique<DisplayMediaPickerBridge>(
+      request ? request->security_origin : GURL());
+}
+
+class ChooserViewBridge : public permissions::ChooserController::View {
+ public:
+  explicit ChooserViewBridge(ECChooser* chooser) : chooser_(chooser) {}
+  void OnOptionsInitialized() override { Changed(false); }
+  void OnOptionAdded(size_t index) override { Changed(std::nullopt); }
+  void OnOptionRemoved(size_t index) override { Changed(std::nullopt); }
+  void OnOptionUpdated(size_t index) override { Changed(std::nullopt); }
+  void OnAdapterEnabledChanged(bool enabled) override {
+    [chooser_ adapterEnabledChanged:enabled];
+  }
+  void OnAdapterAuthorizationChanged(bool authorized) override {
+    [chooser_ adapterAuthorizationChanged:authorized];
+  }
+  void OnRefreshStateChanged(bool refreshing) override { Changed(refreshing); }
+
+ private:
+  void Changed(std::optional<bool> scanning) {
+    [chooser_ controllerChanged:scanning];
+  }
+  __weak ECChooser* chooser_;
+};
+
+// Choosers shown, kept until answered or closed.
+NSMutableSet<ECChooser*>* ShownChoosers() {
+  static NSMutableSet<ECChooser*>* choosers = [NSMutableSet set];
+  return choosers;
+}
+
+// In place of Chrome's chooser bubble, which needs a browser window
+// (patches/0106). As Chrome, the page leaves full screen first, which can
+// run events that destroy the frame.
+base::OnceClosure ShowDeviceChooser(
+    content::RenderFrameHost* owner,
+    std::unique_ptr<permissions::ChooserController> controller) {
+  content::WeakDocumentPtr document = owner->GetWeakDocumentPtr();
+  content::WebContents* web_contents =
+      content::WebContents::FromRenderFrameHost(owner);
+  ECWebContents* page = [ECWebContents fromContents:web_contents];
+  if (![page.delegate respondsToSelector:@selector(webContents:
+                                                   showChooser:)]) {
+    return base::DoNothing();
+  }
+  std::optional<base::ScopedClosureRunner> blocker =
+      web_contents->ForSecurityDropFullscreen(display::kInvalidDisplayId);
+  content::RenderFrameHost* frame = document.AsRenderFrameHostIfValid();
+  if (!blocker || !frame || !frame->IsActive()) {
+    return base::DoNothing();
+  }
+  page = [ECWebContents
+      fromContents:content::WebContents::FromRenderFrameHost(frame)];
+  if (![page.delegate respondsToSelector:@selector(webContents:
+                                                   showChooser:)]) {
+    return base::DoNothing();
+  }
+  ECChooser* chooser =
+      [[ECChooser alloc] initWithController:std::move(controller)
+                          fullscreenBlocker:std::move(*blocker)];
+  [ShownChoosers() addObject:chooser];
+  [page.delegate webContents:page showChooser:chooser];
+  __weak ECChooser* weak = chooser;
+  return base::BindOnce(^{
+    [weak engineDidClose];
+  });
+}
+
+std::unique_ptr<LoginHandler> CreateLoginHandler(
+    const net::AuthChallengeInfo& auth_info,
+    content::WebContents* web_contents,
+    content::LoginDelegate::LoginAuthRequiredCallback auth_required_callback) {
+  return std::make_unique<EmbedderLoginHandler>(
+      auth_info, web_contents, std::move(auth_required_callback));
+}
+
 }  // namespace
+
+@implementation ECAddress
+
+@synthesize name = _name;
+@synthesize organization = _organization;
+@synthesize streetLines = _streetLines;
+@synthesize city = _city;
+@synthesize postalCode = _postalCode;
+@synthesize region = _region;
+@synthesize country = _country;
+@synthesize email = _email;
+@synthesize phone = _phone;
+
+- (instancetype)initWithProfile:(const autofill::AutofillProfile&)profile {
+  if ((self = [super init])) {
+    const std::string& locale = g_browser_process->GetApplicationLocale();
+    auto info = [&](autofill::FieldType type) {
+      return base::SysUTF16ToNSString(profile.GetInfo(type, locale));
+    };
+    _name = info(autofill::NAME_FULL);
+    _organization = info(autofill::COMPANY_NAME);
+    // Kept in a variable: the split's views point into it.
+    const std::u16string street =
+        profile.GetInfo(autofill::ADDRESS_HOME_STREET_ADDRESS, locale);
+    NSMutableArray<NSString*>* lines = [NSMutableArray array];
+    for (std::u16string_view line :
+         base::SplitStringPiece(street, u"\n", base::TRIM_WHITESPACE,
+                                base::SPLIT_WANT_NONEMPTY)) {
+      [lines addObject:base::SysUTF16ToNSString(line)];
+    }
+    _streetLines = lines;
+    _city = info(autofill::ADDRESS_HOME_CITY);
+    _postalCode = info(autofill::ADDRESS_HOME_ZIP);
+    _region = info(autofill::ADDRESS_HOME_STATE);
+    _country = info(autofill::ADDRESS_HOME_COUNTRY);
+    _email = info(autofill::EMAIL_ADDRESS);
+    _phone = base::SysUTF16ToNSString(
+        autofill::i18n::GetFormattedPhoneNumberForDisplay(profile, locale));
+  }
+  return self;
+}
+
+@end
+
+@implementation ECAddressOffer
+
+@synthesize address = _address;
+@synthesize previousAddress = _previousAddress;
+
+- (instancetype)initWithAddress:(ECAddress*)address
+                previousAddress:(ECAddress*)previousAddress {
+  if ((self = [super init])) {
+    _address = address;
+    _previousAddress = previousAddress;
+  }
+  return self;
+}
+
+- (BOOL)isUpdate {
+  return _previousAddress != nil;
+}
+
+@end
+
+@implementation ECIbanOffer
+
+@synthesize maskedValue = _maskedValue;
+@synthesize nickname = _nickname;
+
+- (instancetype)initWithIban:(const autofill::Iban&)iban {
+  if ((self = [super init])) {
+    _maskedValue =
+        base::SysUTF16ToNSString(iban.GetIdentifierStringForAutofillDisplay());
+    _nickname = base::SysUTF16ToNSString(iban.nickname());
+  }
+  return self;
+}
+
+@end
+
+@implementation ECChooser {
+  std::unique_ptr<permissions::ChooserController> _controller;
+  std::unique_ptr<ChooserViewBridge> _view;
+  base::ScopedClosureRunner _fullscreenBlocker;
+  BOOL _finished;
+  // As the controller reports them. Its ShouldShowAdapter...View methods
+  // only say whether it has such views.
+  BOOL _adapterOff;
+  BOOL _unauthorized;
+}
+
+@synthesize title = _title;
+@synthesize noOptionsText = _noOptionsText;
+@synthesize selectButtonTitle = _selectButtonTitle;
+@synthesize options = _options;
+@synthesize scanning = _scanning;
+@synthesize updateHandler = _updateHandler;
+@synthesize dismissHandler = _dismissHandler;
+
+- (instancetype)initWithController:
+                    (std::unique_ptr<permissions::ChooserController>)controller
+                 fullscreenBlocker:(base::ScopedClosureRunner)blocker {
+  if ((self = [super init])) {
+    _controller = std::move(controller);
+    _fullscreenBlocker = std::move(blocker);
+    _title = base::SysUTF16ToNSString(_controller->GetTitle());
+    _noOptionsText = base::SysUTF16ToNSString(_controller->GetNoOptionsText());
+    _selectButtonTitle =
+        base::SysUTF16ToNSString(_controller->GetOkButtonLabel());
+    _scanning = YES;
+    _view = std::make_unique<ChooserViewBridge>(self);
+    _controller->set_view(_view.get());
+    [self readOptions];
+  }
+  return self;
+}
+
+- (void)readOptions {
+  NSMutableArray<NSString*>* options = [NSMutableArray array];
+  for (size_t i = 0; _controller && i < _controller->NumOptions(); ++i) {
+    [options addObject:base::SysUTF16ToNSString(_controller->GetOption(i))];
+  }
+  _options = options;
+}
+
+- (BOOL)canRescan {
+  return _controller && _controller->ShouldShowReScanButton();
+}
+
+- (ECChooserAdapterState)adapterState {
+  if (_unauthorized) {
+    return ECChooserAdapterStateUnauthorized;
+  }
+  if (_adapterOff) {
+    return ECChooserAdapterStateOff;
+  }
+  return ECChooserAdapterStateReady;
+}
+
+- (void)adapterEnabledChanged:(bool)enabled {
+  _adapterOff = !enabled;
+  if (enabled) {
+    _unauthorized = NO;
+  }
+  [self controllerChanged:std::nullopt];
+}
+
+- (void)adapterAuthorizationChanged:(bool)authorized {
+  _unauthorized = !authorized;
+  [self controllerChanged:std::nullopt];
+}
+
+- (void)controllerChanged:(std::optional<bool>)scanning {
+  if (scanning) {
+    _scanning = *scanning;
+  }
+  [self readOptions];
+  if (_updateHandler) {
+    _updateHandler();
+  }
+}
+
+// Selecting can close the chooser from inside the call (Bluetooth), so it is
+// marked finished first.
+- (void)selectOptionAtIndex:(NSUInteger)index {
+  if (_finished || !_controller || index >= _controller->NumOptions()) {
+    return;
+  }
+  _finished = YES;
+  _controller->Select({index});
+  [self finish];
+}
+
+- (void)cancel {
+  if (_finished || !_controller) {
+    return;
+  }
+  _finished = YES;
+  _controller->Cancel();
+  [self finish];
+}
+
+- (void)rescan {
+  if (!_finished && self.canRescan) {
+    _controller->RefreshOptions();
+  }
+}
+
+- (void)openSystemSettings {
+  if (_controller) {
+    _controller->OpenPermissionPreferences();
+  }
+}
+
+- (void)engineDidClose {
+  if (_finished) {
+    return;
+  }
+  _finished = YES;
+  void (^dismiss)(void) = _dismissHandler;
+  [self finish];
+  if (dismiss) {
+    dismiss();
+  }
+}
+
+// Destroying the controller answers a request still waiting, as cancelled.
+- (void)finish {
+  if (_controller) {
+    _controller->set_view(nullptr);
+  }
+  _controller.reset();
+  _fullscreenBlocker.RunAndReset();
+  _updateHandler = nil;
+  _dismissHandler = nil;
+  [ShownChoosers() removeObject:self];
+}
+
+@end
+
+@implementation ECAuthChallenge
+
+@synthesize host = _host;
+@synthesize proxy = _proxy;
+@synthesize message = _message;
+@synthesize warning = _warning;
+@synthesize savedLoginHandler = _savedLoginHandler;
+@synthesize dismissHandler = _dismissHandler;
+
+- (instancetype)initWithInfo:(const net::AuthChallengeInfo&)info
+                     message:(const std::u16string&)message
+                     warning:(const std::u16string&)warning {
+  if ((self = [super init])) {
+    _host = base::SysUTF8ToNSString(info.challenger.host());
+    _proxy = info.is_proxy;
+    _message = base::SysUTF16ToNSString(message);
+    _warning = warning.empty() ? nil : base::SysUTF16ToNSString(warning);
+  }
+  return self;
+}
+
+@end
 
 @implementation ECCardOffer
 
@@ -1300,6 +2003,15 @@ void OfferToSaveCard(
     autofill::payments::ChromePaymentsAutofillClient::
         SetShowSaveCreditCardLocallyCallback(
             base::BindRepeating(&OfferToSaveCard));
+    autofill::ChromeAutofillClient::SetConfirmSaveAddressProfileCallback(
+        base::BindRepeating(&OfferToSaveAddress));
+    autofill::payments::ChromePaymentsAutofillClient::
+        SetConfirmSaveIbanLocallyCallback(base::BindRepeating(&OfferToSaveIban));
+    LoginHandler::SetCreateCallback(base::BindRepeating(&CreateLoginHandler));
+    chrome::SetShowDeviceChooserCallback(
+        base::BindRepeating(&ShowDeviceChooser));
+    DesktopMediaPicker::SetCreateCallback(
+        base::BindRepeating(&CreateDisplayMediaPicker));
   }
 }
 

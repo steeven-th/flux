@@ -261,6 +261,16 @@
         }
       }
     },
+    "A Window" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une fenêtre"
+          }
+        }
+      }
+    },
     "About Flux" : {
       "localizations" : {
         "fr" : {
@@ -567,6 +577,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bloqué par macOS"
+          }
+        }
+      }
+    },
+    "Bluetooth is off." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le Bluetooth est désactivé."
           }
         }
       }
@@ -1341,6 +1361,16 @@
         }
       }
     },
+    "Entire Screen" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'écran entier"
+          }
+        }
+      }
+    },
     "Export them from %@, in Settings > Passwords > ⋯ > Export Passwords, then import the file here." : {
       "localizations" : {
         "fr" : {
@@ -1931,6 +1961,16 @@
         }
       }
     },
+    "Kept on this Mac, in this space. Flux fills it in for you next time." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gardé sur ce Mac, dans cet espace. Flux le remplira pour vous la prochaine fois."
+          }
+        }
+      }
+    },
     "Keyboard Shortcuts" : {
       "localizations" : {
         "fr" : {
@@ -2091,6 +2131,16 @@
         }
       }
     },
+    "macOS doesn't let Flux use Bluetooth." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS n'autorise pas Flux à utiliser le Bluetooth."
+          }
+        }
+      }
+    },
     "macOS doesn't let Flux use your camera." : {
       "localizations" : {
         "fr" : {
@@ -2117,6 +2167,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "macOS n'autorise pas Flux à utiliser votre micro."
+          }
+        }
+      }
+    },
+    "macOS then asks which one to share." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS vous demandera ensuite quoi partager."
           }
         }
       }
@@ -2481,6 +2541,16 @@
         }
       }
     },
+    "No Thanks" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non merci"
+          }
+        }
+      }
+    },
     "No tools" : {
       "localizations" : {
         "fr" : {
@@ -2807,6 +2877,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Les pages que vous traduisez sont envoyées à %@. Le texte sélectionné est traduit par macOS."
+          }
+        }
+      }
+    },
+    "Password" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mot de passe"
           }
         }
       }
@@ -3391,6 +3471,46 @@
         }
       }
     },
+    "Save the security code?" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrer le code de sécurité ?"
+          }
+        }
+      }
+    },
+    "Save this address?" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrer cette adresse ?"
+          }
+        }
+      }
+    },
+    "Save this card?" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrer cette carte ?"
+          }
+        }
+      }
+    },
+    "Save this IBAN?" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrer cet IBAN ?"
+          }
+        }
+      }
+    },
     "Save to the Downloads folder" : {
       "localizations" : {
         "fr" : {
@@ -3401,12 +3521,32 @@
         }
       }
     },
+    "Save?" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrer ?"
+          }
+        }
+      }
+    },
     "Saves passwords on this Mac, in this profile. No account needed." : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enregistre les mots de passe sur ce Mac, dans ce profil. Aucun compte nécessaire."
+          }
+        }
+      }
+    },
+    "Scan Again" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechercher à nouveau"
           }
         }
       }
@@ -3701,6 +3841,16 @@
         }
       }
     },
+    "Share your screen with %@?" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partager votre écran avec %@ ?"
+          }
+        }
+      }
+    },
     "Shares its sign-ins, passwords, history and extensions with these spaces." : {
       "localizations" : {
         "fr" : {
@@ -3847,6 +3997,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Afficher la fenêtre d'accueil"
+          }
+        }
+      }
+    },
+    "Sign In" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter"
+          }
+        }
+      }
+    },
+    "Sign in to %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter à %@"
+          }
+        }
+      }
+    },
+    "Sign in to the proxy %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter au proxy %@"
           }
         }
       }
@@ -4321,12 +4501,32 @@
         }
       }
     },
+    "Update" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mettre à jour"
+          }
+        }
+      }
+    },
     "Update Available…" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mise à jour disponible…"
+          }
+        }
+      }
+    },
+    "Update this address?" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mettre à jour cette adresse ?"
           }
         }
       }
@@ -4437,6 +4637,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Utilisé quand ce que vous tapez dans la barre de commande n'est pas une adresse. Vous pourrez le changer dans les Réglages."
+          }
+        }
+      }
+    },
+    "Username" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nom d'utilisateur"
           }
         }
       }
