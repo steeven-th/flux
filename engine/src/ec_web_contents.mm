@@ -171,6 +171,8 @@
                     (std::unique_ptr<permissions::ChooserController>)controller
                  fullscreenBlocker:(base::ScopedClosureRunner)blocker;
 - (void)controllerChanged:(std::optional<bool>)scanning;
+- (void)adapterEnabledChanged:(bool)enabled;
+- (void)adapterAuthorizationChanged:(bool)authorized;
 - (void)engineDidClose;
 @end
 
@@ -1480,10 +1482,10 @@ class ChooserViewBridge : public permissions::ChooserController::View {
   void OnOptionRemoved(size_t index) override { Changed(std::nullopt); }
   void OnOptionUpdated(size_t index) override { Changed(std::nullopt); }
   void OnAdapterEnabledChanged(bool enabled) override {
-    Changed(std::nullopt);
+    [chooser_ adapterEnabledChanged:enabled];
   }
   void OnAdapterAuthorizationChanged(bool authorized) override {
-    Changed(std::nullopt);
+    [chooser_ adapterAuthorizationChanged:authorized];
   }
   void OnRefreshStateChanged(bool refreshing) override { Changed(refreshing); }
 
@@ -1631,6 +1633,10 @@ std::unique_ptr<LoginHandler> CreateLoginHandler(
   std::unique_ptr<ChooserViewBridge> _view;
   base::ScopedClosureRunner _fullscreenBlocker;
   BOOL _finished;
+  // As the controller reports them. Its ShouldShowAdapter...View methods
+  // only say whether it has such views.
+  BOOL _adapterOff;
+  BOOL _unauthorized;
 }
 
 @synthesize title = _title;
@@ -1672,13 +1678,26 @@ std::unique_ptr<LoginHandler> CreateLoginHandler(
 }
 
 - (ECChooserAdapterState)adapterState {
-  if (_controller && _controller->ShouldShowAdapterUnauthorizedView()) {
+  if (_unauthorized) {
     return ECChooserAdapterStateUnauthorized;
   }
-  if (_controller && _controller->ShouldShowAdapterOffView()) {
+  if (_adapterOff) {
     return ECChooserAdapterStateOff;
   }
   return ECChooserAdapterStateReady;
+}
+
+- (void)adapterEnabledChanged:(bool)enabled {
+  _adapterOff = !enabled;
+  if (enabled) {
+    _unauthorized = NO;
+  }
+  [self controllerChanged:std::nullopt];
+}
+
+- (void)adapterAuthorizationChanged:(bool)authorized {
+  _unauthorized = !authorized;
+  [self controllerChanged:std::nullopt];
 }
 
 - (void)controllerChanged:(std::optional<bool>)scanning {
