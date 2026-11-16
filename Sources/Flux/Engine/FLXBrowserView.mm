@@ -774,12 +774,14 @@ const CGFloat FLXPageCornerRadius = 18;
   if (_contents) [self webContents:_contents requestsNewWindowWithURL:url disposition:disposition];
 }
 
-static FLXOpenDisposition FluxDisposition(ECWindowOpenDisposition disposition) {
+// Chromium asks for a foreground tab both for a link with a target and for a ⌘⇧-click. Only the
+// page's own links and window.open() come with a page Chromium created, the clicks with a URL.
+static FLXOpenDisposition FluxDisposition(ECWindowOpenDisposition disposition, BOOL openedByPage) {
   switch (disposition) {
     case ECWindowOpenDispositionNewBackgroundTab: return FLXOpenDispositionBackgroundTab;
     case ECWindowOpenDispositionNewWindow: return FLXOpenDispositionShiftClick;
     case ECWindowOpenDispositionNewPopup: return FLXOpenDispositionLinkTarget;
-    default: return FLXOpenDispositionForegroundTab;
+    default: return openedByPage ? FLXOpenDispositionLinkTarget : FLXOpenDispositionForegroundTab;
   }
 }
 
@@ -789,7 +791,7 @@ static FLXOpenDisposition FluxDisposition(ECWindowOpenDisposition disposition) {
   id<FLXBrowserViewDelegate> delegate = self.delegate;
   if (![delegate respondsToSelector:@selector(browserView:didOpenPage:disposition:)]) return;
   FLXBrowserView *page = [[FLXBrowserView alloc] initWithURL:url.absoluteString profile:_profile];
-  [delegate browserView:self didOpenPage:page disposition:FluxDisposition(disposition)];
+  [delegate browserView:self didOpenPage:page disposition:FluxDisposition(disposition, NO)];
 }
 
 - (void)webContents:(ECWebContents *)contents
@@ -800,7 +802,7 @@ static FLXOpenDisposition FluxDisposition(ECWindowOpenDisposition disposition) {
   id<FLXBrowserViewDelegate> delegate = self.delegate;
   if (![delegate respondsToSelector:@selector(browserView:didOpenPage:disposition:)]) return;
   FLXBrowserView *page = [[FLXBrowserView alloc] initWithOpenedContents:opened URL:url.absoluteString profile:_profile];
-  [delegate browserView:self didOpenPage:page disposition:FluxDisposition(disposition)];
+  [delegate browserView:self didOpenPage:page disposition:FluxDisposition(disposition, YES)];
 }
 
 - (void)webContents:(ECWebContents *)contents
