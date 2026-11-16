@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.3.0](https://github.com/steeven-th/flux/compare/v0.2.1...v0.3.0) (2026-11-16)
+
+
+### New
+
+* **page-menu:** choose when a tab sleeps and change the site's zoom ([3762008](https://github.com/steeven-th/flux/commit/376200855ca8284bf9ba37db2687980bbd38893f))
+* **page-menu:** set a site's permissions, clear its data and show its certificate again ([fcd10a1](https://github.com/steeven-th/flux/commit/fcd10a12c28bcfefc7bd660e05baee54c1566b2e))
+* **page:** offer to save the addresses, cards and IBANs a form held ([60acfe6](https://github.com/steeven-th/flux/commit/60acfe6a452b1f40276f75f89a918e9728175286))
+* **page:** pick the Bluetooth, USB, HID or serial device a site asks for ([60acfe6](https://github.com/steeven-th/flux/commit/60acfe6a452b1f40276f75f89a918e9728175286))
+* **page:** play videos full screen ([60acfe6](https://github.com/steeven-th/flux/commit/60acfe6a452b1f40276f75f89a918e9728175286))
+* **page:** share the screen or a window ([60acfe6](https://github.com/steeven-th/flux/commit/60acfe6a452b1f40276f75f89a918e9728175286))
+* **page:** show where the link under the pointer leads ([60acfe6](https://github.com/steeven-th/flux/commit/60acfe6a452b1f40276f75f89a918e9728175286))
+* **page:** sign in to sites that ask for a username and a password ([60acfe6](https://github.com/steeven-th/flux/commit/60acfe6a452b1f40276f75f89a918e9728175286))
+
+
+### Fixed
+
+* **devtools:** open the list of hidden panels and the context menus ([3a5c7c2](https://github.com/steeven-th/flux/commit/3a5c7c25ff8fdfa1d4c53987648d9a78705f90c1))
+* **engine:** stop crashing when a form with an address is sent ([6730d50](https://github.com/steeven-th/flux/commit/6730d50e38a0e7e5b69909bb5f66e61cfd5ec496))
+* **page:** let sites use the camera and the microphone ([60acfe6](https://github.com/steeven-th/flux/commit/60acfe6a452b1f40276f75f89a918e9728175286))
+* **shortcuts:** zoom in with ⌘+ on every keyboard ([d5fa13f](https://github.com/steeven-th/flux/commit/d5fa13f2a87a67d2251bdb5554e6332db33ceaeb))
+
 ## [0.2.1](https://github.com/steeven-th/flux/compare/v0.2.0...v0.2.1) (2026-11-16)
 
 
