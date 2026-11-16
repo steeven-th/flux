@@ -1,4 +1,5 @@
-// Changed for Flux: DevTools docked in the embedder's window (ECDevTools).
+// Changed for Flux: DevTools docked in the embedder's window (ECDevTools), permissions reset,
+// site data cleared and the certificate chain.
 #import "engine_core/ec_web_contents_private.h"
 
 #include <algorithm>
@@ -19,6 +20,7 @@
 #include "base/time/time.h"
 #include "base/i18n/rtl.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/browsing_data/chrome_browsing_data_remover_constants.h"
 #include "chrome/browser/chrome_content_browser_client_navigation_throttles.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/devtools/devtools_toggle_action.h"
@@ -26,6 +28,7 @@
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
 #include "chrome/browser/file_select_helper.h"
 #include "chrome/browser/history/history_tab_helper.h"
+#include "chrome/browser/permissions/permission_decision_auto_blocker_factory.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/printing/print_view_manager_common.h"
 #include "chrome/browser/profiles/profile.h"
@@ -51,6 +54,7 @@
 #include "components/js_injection/browser/web_message_host.h"
 #include "components/js_injection/browser/web_message_host_factory.h"
 #include "components/js_injection/common/enum.mojom.h"
+#include "components/permissions/permission_decision_auto_blocker.h"
 #include "components/permissions/permission_prompt.h"
 #include "components/permissions/permission_request.h"
 #include "components/permissions/permission_request_manager.h"
@@ -70,6 +74,8 @@
 #include "content/browser/media/media_web_contents_observer.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/browsing_data_filter_builder.h"
+#include "content/public/browser/browsing_data_remover.h"
 #include "content/public/browser/host_zoom_map.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/download_manager.h"
@@ -88,6 +94,7 @@
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/restore_type.h"
+#include "content/public/browser/ssl_status.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
@@ -98,6 +105,8 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/apple/url_conversions.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
+#include "net/cert/x509_certificate.h"
+#include "net/cert/x509_util.h"
 #include "net/http/http_request_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/data_element.h"
@@ -143,6 +152,24 @@ namespace {
 constexpr int kSessionStateVersion = 1;
 constexpr int kSessionEntryMaxSize = 1 << 20;
 
+// The content setting a permission key stands for, the one Chrome checks when
+// several map to the same request type (GEOLOCATION and
+// GEOLOCATION_WITH_OPTIONS).
+std::optional<ContentSettingsType> PermissionContentSettingsType(
+    std::string_view permission) {
+  for (const content_settings::ContentSettingsInfo* info :
+       *content_settings::ContentSettingsRegistry::GetInstance()) {
+    std::optional<permissions::RequestType> request =
+        permissions::ContentSettingsTypeToRequestTypeIfExists(
+            info->website_settings_info()->type());
+    if (request &&
+        permission == permissions::PermissionKeyForRequestType(*request)) {
+      return permissions::RequestTypeToContentSettingsType(*request);
+    }
+  }
+  return std::nullopt;
+}
+
 // The content settings of permissions the user set for the URL's site.
 NSDictionary<NSString*, NSNumber*>* SitePermissions(Profile* profile,
                                                      const GURL& url) {
@@ -155,7 +182,8 @@ NSDictionary<NSString*, NSNumber*>* SitePermissions(Profile* profile,
     ContentSettingsType type = info->website_settings_info()->type();
     std::optional<permissions::RequestType> request =
         permissions::ContentSettingsTypeToRequestTypeIfExists(type);
-    if (!request || !permissions::PermissionUtil::IsPermission(type)) {
+    if (!request || !permissions::PermissionUtil::IsPermission(type) ||
+        permissions::RequestTypeToContentSettingsType(*request) != type) {
       continue;
     }
     content_settings::SettingInfo setting_info;
@@ -174,26 +202,46 @@ NSDictionary<NSString*, NSNumber*>* SitePermissions(Profile* profile,
   return permissions;
 }
 
+// As Chrome's page info: the rule that decides for the URL is changed, a
+// decision taken in a prompt included, and a site no longer blocked leaves
+// its embargo. No setting puts the permission back to asking.
 void SetSitePermission(Profile* profile,
                        const GURL& url,
                        NSString* permission,
-                       BOOL allowed) {
-  for (const content_settings::ContentSettingsInfo* info :
-       *content_settings::ContentSettingsRegistry::GetInstance()) {
-    ContentSettingsType type = info->website_settings_info()->type();
-    std::optional<permissions::RequestType> request =
-        permissions::ContentSettingsTypeToRequestTypeIfExists(type);
-    if (request &&
-        std::string_view(permission.UTF8String) ==
-            permissions::PermissionKeyForRequestType(*request)) {
-      HostContentSettingsMapFactory::GetForProfile(profile)
-          ->SetContentSettingDefaultScope(
-              url, url, type,
-              allowed ? CONTENT_SETTING_ALLOW : CONTENT_SETTING_BLOCK);
-      return;
-    }
+                       std::optional<ContentSetting> setting) {
+  std::optional<ContentSettingsType> type =
+      PermissionContentSettingsType(permission.UTF8String);
+  if (!type) {
+    return;
   }
+  if (setting != CONTENT_SETTING_BLOCK) {
+    PermissionDecisionAutoBlockerFactory::GetForProfile(profile)
+        ->RemoveEmbargoAndResetCounts(url, *type);
+  }
+  std::optional<PermissionSetting> value;
+  if (setting) {
+    value = PermissionSetting(*setting);
+  }
+  HostContentSettingsMapFactory::GetForProfile(profile)
+      ->SetNarrowestContentSetting(url, url, *type, value);
 }
+
+// Runs the completion of clearSiteDataForURL:, then deletes itself.
+class SiteDataRemoval : public content::BrowsingDataRemover::Observer {
+ public:
+  explicit SiteDataRemoval(void (^completion)(void))
+      : completion_(completion) {}
+
+  void OnBrowsingDataRemoverDone(uint64_t failed_data_types) override {
+    if (completion_) {
+      completion_();
+    }
+    delete this;
+  }
+
+ private:
+  void (^completion_)(void);
+};
 
 // Asks the shell instead of showing Chrome's permission bubble.
 class PermissionPromptBridge : public permissions::PermissionPrompt {
@@ -1546,6 +1594,22 @@ void OfferToSaveCard(
   }
 }
 
+- (NSArray<NSData*>*)certificateChain {
+  content::NavigationEntry* entry =
+      _contents ? _contents->GetController().GetLastCommittedEntry() : nullptr;
+  if (!entry || !entry->GetSSL().certificate) {
+    return @[];
+  }
+  NSMutableArray<NSData*>* chain = [NSMutableArray array];
+  for (const bssl::UniquePtr<CRYPTO_BUFFER>& buffer :
+       entry->GetSSL().certificate->cert_buffers()) {
+    base::span<const uint8_t> bytes =
+        net::x509_util::CryptoBufferAsSpan(buffer.get());
+    [chain addObject:[NSData dataWithBytes:bytes.data() length:bytes.size()]];
+  }
+  return chain;
+}
+
 - (BOOL)isSecure {
   return _contents && chrome_security_state::GetSecurityLevel(
                           _contents.get()) == security_state::SECURE;
@@ -1586,7 +1650,15 @@ void OfferToSaveCard(
 - (void)setSitePermission:(NSString*)permission allowed:(BOOL)allowed {
   if (_contents) {
     SetSitePermission(_context.profile, _contents->GetLastCommittedURL(),
-                      permission, allowed);
+                      permission,
+                      allowed ? CONTENT_SETTING_ALLOW : CONTENT_SETTING_BLOCK);
+  }
+}
+
+- (void)resetSitePermission:(NSString*)permission {
+  if (_contents) {
+    SetSitePermission(_context.profile, _contents->GetLastCommittedURL(),
+                      permission, std::nullopt);
   }
 }
 
@@ -2110,7 +2182,28 @@ static ECWindowOpenDisposition ECDisposition(WindowOpenDisposition disposition) 
               allowed:(BOOL)allowed
             forOrigin:(NSURL*)origin {
   SetSitePermission(self.profile, net::GURLWithNSURL(origin), permission,
-                    allowed);
+                    allowed ? CONTENT_SETTING_ALLOW : CONTENT_SETTING_BLOCK);
+}
+
+- (void)resetPermission:(NSString*)permission forOrigin:(NSURL*)origin {
+  SetSitePermission(self.profile, net::GURLWithNSURL(origin), permission,
+                    std::nullopt);
+}
+
+- (void)clearSiteDataForURL:(NSURL*)url completion:(void (^)(void))completion {
+  GURL site = net::GURLWithNSURL(url);
+  std::string host(site.host());
+  std::string domain = net::registry_controlled_domains::GetDomainAndRegistry(
+      host, net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
+  std::unique_ptr<content::BrowsingDataFilterBuilder> filter =
+      content::BrowsingDataFilterBuilder::Create(
+          content::BrowsingDataFilterBuilder::Mode::kDelete);
+  filter->AddRegisterableDomain(domain.empty() ? host : domain);
+  self.profile->GetBrowsingDataRemover()->RemoveWithFilterAndReply(
+      base::Time(), base::Time::Max(),
+      chrome_browsing_data_remover::DATA_TYPE_SITE_DATA,
+      content::BrowsingDataRemover::ORIGIN_TYPE_UNPROTECTED_WEB,
+      std::move(filter), new SiteDataRemoval(completion));
 }
 
 // As ZoomController's zoomPercent reads the level the host's pages get.

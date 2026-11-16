@@ -28,6 +28,11 @@ struct PermissionPrompt: View {
                 }
             }
 
+            let refused = SystemAccess.requested(in: request.permissions).filter(\.isRefused)
+            if !refused.isEmpty {
+                SystemAccessNotice(accesses: refused)
+            }
+
             HStack {
                 Spacer()
                 Button("Block") { onAnswer(false) }

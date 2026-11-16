@@ -25,9 +25,16 @@ struct DeveloperBar: View {
     var body: some View {
         let isInSplit = state.split(of: tab) != nil
         HStack(spacing: 2) {
-            Image(systemName: URL(string: tab.url)?.scheme == "https" ? "lock.fill" : "lock.open.fill")
-                .font(.system(size: 11))
-                .padding(.trailing, 4)
+            let isSecure = URL(string: tab.url)?.scheme == "https"
+            Button { SiteCertificate.show(for: tab) } label: {
+                Image(systemName: isSecure ? "lock.fill" : "lock.open.fill")
+                    .font(.system(size: 11))
+                    .padding(.trailing, 4)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!isSecure)
+            .help("Show the Site's Certificate")
             DeveloperAddressField(state: state, tab: tab)
             Spacer(minLength: 12)
             CopyLinkButton(url: tab.url).modifier(BarHighlight())

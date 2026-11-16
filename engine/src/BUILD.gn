@@ -1,4 +1,5 @@
-# Changed for Flux: ec_devtools.mm, for DevTools docked in the embedder's window.
+# Changed for Flux: ec_devtools.mm, for DevTools docked in the embedder's window, and the browsing
+# data constants.
 config("exports") {
   if (!is_component_build) {
     inputs = [ "EngineCore.exports" ]
@@ -45,11 +46,13 @@ source_set("engine_core") {
     "//chrome/browser:app_controller_mac",
     "//chrome/browser:file_select_helper",
     "//chrome/browser/autocomplete",
+    "//chrome/browser/browsing_data:constants",
     "//chrome/browser/devtools",
     "//chrome/browser/extensions",
     "//chrome/browser/favicon",
     "//chrome/browser/history",
     "//chrome/browser/password_manager/factories",
+    "//chrome/browser/permissions",
     "//chrome/browser/picture_in_picture",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/profiles:profile_manager",

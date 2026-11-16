@@ -1,4 +1,5 @@
-// Changed for Flux: DevTools docked in the embedder's window (ECDevTools).
+// Changed for Flux: DevTools docked in the embedder's window (ECDevTools), permissions reset,
+// site data cleared and the certificate chain.
 #import <AppKit/AppKit.h>
 
 #define EC_EXPORT __attribute__((visibility("default")))
@@ -281,6 +282,11 @@ EC_EXPORT
 - (void)setPermission:(NSString*)permission
               allowed:(BOOL)allowed
             forOrigin:(NSURL*)origin;
+- (void)resetPermission:(NSString*)permission forOrigin:(NSURL*)origin;
+// Deletes the cookies and storage of the URL's site (its registrable domain,
+// subdomains included), as Chrome's page info does. `completion` runs on the
+// main thread once they are gone.
+- (void)clearSiteDataForURL:(NSURL*)url completion:(void (^)(void))completion;
 // The host's remembered page zoom as a percentage, 100 at the default, as
 // web contents' zoomPercent shows on its pages; setting it changes the zoom
 // of the host's open pages too.
@@ -677,6 +683,9 @@ EC_EXPORT
     NS_SWIFT_NAME(exitFullscreen(resizingView:));
 // Whether the page has Chrome's secure (lock) security level.
 @property(readonly, getter=isSecure) BOOL secure;
+// The committed page's certificate then the ones that issued it, DER
+// encoded. Empty without one.
+@property(readonly) NSArray<NSData*>* certificateChain;
 // The name of the language "Translate to" would translate the page into,
 // nil if it cannot be translated.
 @property(readonly, nullable) NSString* translationLanguage;
@@ -734,6 +743,8 @@ EC_EXPORT
 - (void)print;
 - (void)translate;
 - (void)setSitePermission:(NSString*)permission allowed:(BOOL)allowed;
+// Forgets the decision, so the site asks again.
+- (void)resetSitePermission:(NSString*)permission;
 // The URL with a text fragment that scrolls to and highlights the selection
 // in the focused frame, in `completion` (nil if none could be made).
 - (void)linkToHighlight:(void (^)(NSURL* _Nullable URL))completion

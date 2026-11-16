@@ -486,7 +486,25 @@ const CGFloat FLXPageCornerRadius = 18;
 }
 
 - (NSArray<NSData *> *)certificateChain {
-  return @[];
+  return _contents ? _contents.certificateChain : @[];
+}
+
+- (NSDictionary<NSString *, NSNumber *> *)sitePermissions {
+  return _contents ? _contents.sitePermissions : @{};
+}
+
+- (void)setSitePermission:(NSString *)permission allowed:(BOOL)allowed {
+  [_contents setSitePermission:permission allowed:allowed];
+}
+
+- (void)resetSitePermission:(NSString *)permission {
+  [_contents resetSitePermission:permission];
+}
+
+- (void)clearSiteDataWithCompletion:(void (^)(void))completion {
+  NSURL *url = _contents.URL;
+  if (!url || !_profile.context) return completion();
+  [_profile.context clearSiteDataForURL:url completion:completion];
 }
 
 - (void)focus {

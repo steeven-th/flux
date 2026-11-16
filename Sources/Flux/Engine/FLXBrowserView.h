@@ -193,6 +193,15 @@ NS_SWIFT_UI_ACTOR
 /// The page's certificate then the ones that issued it, DER encoded. Empty without https.
 @property (nonatomic, readonly) NSArray<NSData *> *certificateChain;
 
+/// The permissions the user allowed (YES) or blocked (NO) for the page's site, by Chromium's key
+/// ("geolocation", "notifications", "media_stream_camera"…). Those left out ask.
+@property (nonatomic, readonly) NSDictionary<NSString *, NSNumber *> *sitePermissions;
+- (void)setSitePermission:(NSString *)permission allowed:(BOOL)allowed;
+/// Forgets the decision, so the site asks again.
+- (void)resetSitePermission:(NSString *)permission;
+/// Deletes the cookies and storage of the page's site, subdomains included.
+- (void)clearSiteDataWithCompletion:(void (^)(void))completion;
+
 @property (nonatomic, readonly) BOOL canGoBack;
 @property (nonatomic, readonly) BOOL canGoForward;
 

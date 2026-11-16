@@ -401,6 +401,16 @@
         }
       }
     },
+    "Allow Flux in System Settings, then reload the page." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autorisez Flux dans les Réglages Système, puis rechargez la page."
+          }
+        }
+      }
+    },
     "Also import Today's tabs" : {
       "localizations" : {
         "fr" : {
@@ -491,6 +501,16 @@
         }
       }
     },
+    "Ask" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demander"
+          }
+        }
+      }
+    },
     "Ask before closing a pinned tab or a favorite" : {
       "localizations" : {
         "fr" : {
@@ -541,6 +561,16 @@
         }
       }
     },
+    "Blocked by macOS" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bloqué par macOS"
+          }
+        }
+      }
+    },
     "Bookmarks Menu" : {
       "localizations" : {
         "fr" : {
@@ -567,6 +597,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Récupérez vos onglets, votre historique, vos mots de passe et vos connexions depuis un autre navigateur."
+          }
+        }
+      }
+    },
+    "Camera" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Caméra"
           }
         }
       }
@@ -727,6 +767,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Effacer les cookies et recharger"
+          }
+        }
+      }
+    },
+    "Clear cookies and site data for %@?" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacer les cookies et données de %@ ?"
+          }
+        }
+      }
+    },
+    "Clear Site Data…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacer les données du site…"
           }
         }
       }
@@ -2001,6 +2061,16 @@
         }
       }
     },
+    "Location" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Position"
+          }
+        }
+      }
+    },
     "Lock and use your pointer" : {
       "localizations" : {
         "fr" : {
@@ -2017,6 +2087,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rechercher « %@ »"
+          }
+        }
+      }
+    },
+    "macOS doesn't let Flux use your camera." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS n'autorise pas Flux à utiliser votre caméra."
+          }
+        }
+      }
+    },
+    "macOS doesn't let Flux use your location." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS n'autorise pas Flux à utiliser votre position."
+          }
+        }
+      }
+    },
+    "macOS doesn't let Flux use your microphone." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS n'autorise pas Flux à utiliser votre micro."
           }
         }
       }
@@ -2067,6 +2167,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mémoire"
+          }
+        }
+      }
+    },
+    "Microphone" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Micro"
           }
         }
       }
@@ -2631,6 +2741,16 @@
         }
       }
     },
+    "Open System Settings…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir les Réglages Système…"
+          }
+        }
+      }
+    },
     "Open Tab in Chrome Window" : {
       "localizations" : {
         "fr" : {
@@ -2667,6 +2787,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Traduction des pages"
+          }
+        }
+      }
+    },
+    "Page Zoom" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom"
           }
         }
       }
@@ -2777,6 +2907,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Performances"
+          }
+        }
+      }
+    },
+    "Permissions" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autorisations"
           }
         }
       }
@@ -3721,12 +3861,12 @@
         }
       }
     },
-    "Sleep After" : {
+    "Sleep" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mise en veille après"
+            "value" : "Mise en veille"
           }
         }
       }
@@ -4397,6 +4537,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vous pourrez les importer plus tard depuis Fichier > Importer depuis un navigateur."
+          }
+        }
+      }
+    },
+    "You will be signed out of this site, and the data it keeps on this Mac will be deleted, in this space only." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous serez déconnecté de ce site, et les données qu'il garde sur ce Mac seront supprimées, dans cet espace seulement."
           }
         }
       }
