@@ -37,7 +37,7 @@ shortcuts and can't be taken. Minimize acts on the window the page belongs to.
 | Stop Loading | ⌘. |
 | Back | ⌘[ (and ⌘← out of text fields) |
 | Forward | ⌘] (and ⌘→ out of text fields) |
-| Zoom In | ⌘= |
+| Zoom In | ⌘+ or ⌘= |
 | Zoom Out | ⌘- |
 | Actual Size | ⌘0 |
 | View Page Source | ⌥⌘U |

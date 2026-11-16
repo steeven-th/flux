@@ -75,7 +75,7 @@ enum MainMenu {
             NSMenuItem(title: String(localized: "Back"), action: #selector(AppDelegate.goBack(_:)), keyEquivalent: "["),
             NSMenuItem(title: String(localized: "Forward"), action: #selector(AppDelegate.goForward(_:)), keyEquivalent: "]"),
             .separator(),
-            NSMenuItem(title: String(localized: "Zoom In"), action: #selector(AppDelegate.zoomIn(_:)), keyEquivalent: "="),
+            NSMenuItem(title: String(localized: "Zoom In"), action: #selector(AppDelegate.zoomIn(_:)), keyEquivalent: "+"),
             NSMenuItem(title: String(localized: "Zoom Out"), action: #selector(AppDelegate.zoomOut(_:)), keyEquivalent: "-"),
             NSMenuItem(title: String(localized: "Actual Size"), action: #selector(AppDelegate.resetZoom(_:)), keyEquivalent: "0"),
             .separator(),
@@ -83,7 +83,7 @@ enum MainMenu {
             optionCommand(NSMenuItem(title: String(localized: "Developer Tools"), action: #selector(AppDelegate.toggleDevTools(_:)), keyEquivalent: "i")),
             optionCommand(NSMenuItem(title: String(localized: "JavaScript Console"), action: #selector(AppDelegate.showConsole(_:)), keyEquivalent: "j")),
             optionCommand(NSMenuItem(title: String(localized: "Inspect Element"), action: #selector(AppDelegate.inspectElement(_:)), keyEquivalent: "c")),
-        ]) + arrowNavigationItems()))
+        ]) + arrowNavigationItems() + [zoomInWithoutShiftItem()]))
         menu.addItem(submenu(title: String(localized: "Tab"), items: customizable([
             control(NSMenuItem(title: String(localized: "Select Next Tab"), action: #selector(AppDelegate.showNextTab(_:)), keyEquivalent: "\t")),
             controlShift(NSMenuItem(title: String(localized: "Select Previous Tab"), action: #selector(AppDelegate.showPreviousTab(_:)), keyEquivalent: "\t")),
@@ -180,6 +180,16 @@ enum MainMenu {
     }
 
     static let arrowNavigationTag = 1
+
+    /// ⌘= zooms in too, as in Chrome, so the key under + needs no Shift. AppKit must not move it:
+    /// on a French keyboard it would put it on another key.
+    private static func zoomInWithoutShiftItem() -> NSMenuItem {
+        let item = NSMenuItem(title: String(localized: "Zoom In"), action: #selector(AppDelegate.zoomIn(_:)), keyEquivalent: "=")
+        item.isHidden = true
+        item.allowsKeyEquivalentWhenHidden = true
+        item.allowsAutomaticKeyEquivalentLocalization = false
+        return item
+    }
 
     /// ⌘1 to ⌘8 select the first tabs and ⌘9 the last. Hidden, as in other browsers, but their
     /// shortcuts work.
