@@ -346,6 +346,18 @@ class PermissionPromptBridge : public permissions::PermissionPrompt {
   base::WeakPtrFactory<PermissionPromptBridge> weak_factory_{this};
 };
 
+// The extension whose page made a request, for Chrome's media dispatcher.
+const extensions::Extension* ExtensionForOrigin(
+    content::BrowserContext* context,
+    const GURL& origin) {
+  if (!origin.SchemeIs(extensions::kExtensionScheme)) {
+    return nullptr;
+  }
+  return extensions::ExtensionRegistry::Get(context)
+      ->enabled_extensions()
+      .GetByID(std::string(origin.host()));
+}
+
 class WebContentsDelegateBridge : public content::WebContentsDelegate,
                                   public content::JavaScriptDialogManager,
                                   public content::WebContentsObserver,
@@ -1338,17 +1350,6 @@ void OfferToSaveIban(
                   break;
               }
             }];
-}
-
-const extensions::Extension* ExtensionForOrigin(
-    content::BrowserContext* context,
-    const GURL& origin) {
-  if (!origin.SchemeIs(extensions::kExtensionScheme)) {
-    return nullptr;
-  }
-  return extensions::ExtensionRegistry::Get(context)
-      ->enabled_extensions()
-      .GetByID(std::string(origin.host()));
 }
 
 // In place of Chrome's screen share dialog, which needs a browser window
