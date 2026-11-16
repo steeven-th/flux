@@ -1,0 +1,33 @@
+Subject: [PATCH] Decline the save address offer without a browser window
+
+When a submitted form holds an address, Chrome offers to save it in a
+bubble that it asks the tab's browser window for. EngineCore's tabs have no
+browser window, so the lookup returned null and the browser process crashed
+on every such form. Without a window, the offer is now declined as a
+suppressed prompt is.
+---
+diff --git a/chrome/browser/ui/autofill/chrome_autofill_client.cc b/chrome/browser/ui/autofill/chrome_autofill_client.cc
+--- a/chrome/browser/ui/autofill/chrome_autofill_client.cc
++++ b/chrome/browser/ui/autofill/chrome_autofill_client.cc
+@@ -225,6 +225,7 @@
+ #include "chrome/browser/ui/autofill/email_verifier/email_verification_controller.h"
+ #include "chrome/browser/ui/autofill/payments/offer_notification_bubble_controller_impl.h"
+ #include "chrome/browser/ui/browser_commands.h"
++#include "chrome/browser/ui/browser_window.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+ #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+ #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+@@ -877,6 +878,13 @@ void ChromeAutofillClient::ConfirmSaveAddressProfile(
+           : SaveUpdateAddressProfilePromptMode::kSaveNewProfile,
+       std::move(callback));
+ #else
++  // The bubble needs a browser window, which EngineCore's tabs don't have:
++  // without one it crashed. The offer is declined as a suppressed prompt is.
++  if (!BrowserWindow::FindBrowserWindowWithWebContents(web_contents())) {
++    std::move(callback).Run(AddressPromptUserDecision::kAutoDeclined,
++                            std::nullopt);
++    return;
++  }
+   AddressBubblesController::SetUpAndShowSaveOrUpdateAddressBubble(
+       web_contents(), profile, original_profile, save_address_bubble_type,
+       !GetPersonalDataManager().address_data_manager().GetProfiles().empty(),
