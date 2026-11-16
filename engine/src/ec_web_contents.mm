@@ -2167,7 +2167,8 @@ static ECWindowOpenDisposition ECDisposition(WindowOpenDisposition disposition) 
 }
 
 - (void)clearSiteDataForURL:(NSURL*)url completion:(void (^)(void))completion {
-  std::string host = net::GURLWithNSURL(url).host();
+  GURL site = net::GURLWithNSURL(url);
+  std::string host(site.host());
   std::string domain = net::registry_controlled_domains::GetDomainAndRegistry(
       host, net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
   std::unique_ptr<content::BrowsingDataFilterBuilder> filter =
