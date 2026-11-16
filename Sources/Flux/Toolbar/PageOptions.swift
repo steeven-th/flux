@@ -66,6 +66,8 @@ struct PageOptions: View {
                     state.setDeveloperMode(!isDeveloperMode, for: tab.url)
                 }
                 .disabled(URL(string: tab.url)?.host() == nil)
+                SleepRow(tab: tab, standard: state.tabSleepDelay)
+                ZoomRow(percent: Int((tab.zoomFactor * 100).rounded()), zoom: zoom)
             }
 
             Divider()
@@ -119,6 +121,12 @@ struct PageOptions: View {
         state.newTab(url: "chrome://settings/content/siteDetails?site=\(origin)")
     }
 
+    /// Chromium zooms every page of the site in the profile, so other tabs are read again.
+    private func zoom(_ zoom: FLXZoom) {
+        tab.zoom(zoom)
+        state.tabs.forEach { $0.refreshZoom() }
+    }
+
     private func captureArea() {
         dismiss()
         PageCapture.captureArea(of: tab, state: state)
@@ -154,6 +162,66 @@ private struct SettingRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// How long the tab stays loaded unseen, for this tab only.
+private struct SleepRow: View {
+    @Bindable var tab: Tab
+    let standard: TabSleepDelay
+
+    var body: some View {
+        HStack(spacing: 10) {
+            RowIcon(symbol: "moon.zzz.fill")
+            Text("Sleep After").fontWeight(.medium)
+            Spacer(minLength: 0)
+            Picker("Sleep After", selection: $tab.sleepDelay) {
+                Text("Default (\(standard.name))").tag(TabSleepDelay?.none)
+                Divider()
+                ForEach(TabSleepDelay.allCases) { delay in
+                    Text(delay.name).tag(Optional(delay))
+                }
+            }
+            .labelsHidden()
+            .fixedSize()
+        }
+        .help("Unseen for this long, the page is unloaded to free memory. Pages playing sound or a video stay awake.")
+    }
+}
+
+private struct ZoomRow: View {
+    let percent: Int
+    let zoom: (FLXZoom) -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            RowIcon(symbol: "plus.magnifyingglass")
+            Text("Zoom").fontWeight(.medium)
+            Spacer(minLength: 0)
+            Button { zoom(.out) } label: { Image(systemName: "minus").frame(width: 22, height: 22).contentShape(Rectangle()) }
+                .buttonStyle(.plain)
+                .help("Zoom Out")
+            Button { zoom(.reset) } label: {
+                Text(percent, format: .percent.scale(1)).monospacedDigit().frame(minWidth: 44)
+            }
+            .buttonStyle(.plain)
+            .disabled(percent == 100)
+            .help("Actual Size")
+            Button { zoom(.in) } label: { Image(systemName: "plus").frame(width: 22, height: 22).contentShape(Rectangle()) }
+                .buttonStyle(.plain)
+                .help("Zoom In")
+        }
+    }
+}
+
+private struct RowIcon: View {
+    let symbol: String
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 14, weight: .semibold))
+            .frame(width: 34, height: 34)
+            .background(Circle().fill(Color.primary.opacity(0.1)))
     }
 }
 

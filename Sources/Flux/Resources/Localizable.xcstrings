@@ -1011,6 +1011,16 @@
         }
       }
     },
+    "Default (%@)" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par défaut (%@)"
+          }
+        }
+      }
+    },
     "Default browser" : {
       "localizations" : {
         "fr" : {
@@ -3711,6 +3721,16 @@
         }
       }
     },
+    "Sleep After" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mise en veille après"
+          }
+        }
+      }
+    },
     "Sources" : {
       "localizations" : {
         "fr" : {
@@ -4147,6 +4167,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Retirer de la barre d'adresse"
+          }
+        }
+      }
+    },
+    "Unseen for this long, the page is unloaded to free memory. Pages playing sound or a video stay awake." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non affichée pendant ce délai, la page est déchargée pour libérer la mémoire. Les pages qui jouent du son ou une vidéo restent éveillées."
           }
         }
       }

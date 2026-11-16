@@ -40,6 +40,8 @@ struct SidebarNode: Codable, Identifiable, FetchableRecord, PersistableRecord {
     var share: Double?
     /// For tabs, the pages before and after `url`.
     var history: NavigationHistory?
+    /// For tabs, how long the page stays loaded unseen. Nil follows the setting for every tab.
+    var sleepDelay: TabSleepDelay?
 }
 
 /// A tab of Today that was closed or left unseen for too long.
@@ -143,6 +145,11 @@ final class ProfileDatabase: Sendable {
         migrator.registerMigration("v8 navigation history") { db in
             try db.alter(table: "node") { t in
                 t.add(column: "history", .jsonText)
+            }
+        }
+        migrator.registerMigration("v9 tab sleep delay") { db in
+            try db.alter(table: "node") { t in
+                t.add(column: "sleepDelay", .text)
             }
         }
         return migrator

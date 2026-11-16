@@ -25,6 +25,13 @@ final class Tab: NSObject, Identifiable {
     private(set) var permissionRequest: FLXPermissionRequest?
     /// 1 at the default size. Chromium keeps it per site, so it changes as the page does.
     private(set) var zoomFactor = 1.0
+    /// How long this page stays loaded unseen, instead of the setting for every tab.
+    var sleepDelay: TabSleepDelay? {
+        didSet {
+            node.sleepDelay = sleepDelay
+            onChange?(self)
+        }
+    }
     /// The page's DevTools while open, shown in its place with the page laid over them.
     private(set) var devTools: FLXPageDevTools?
     /// Where DevTools put the page, from their top left corner.
@@ -77,6 +84,7 @@ final class Tab: NSObject, Identifiable {
         spaceID = node.spaceID
         url = node.url ?? ""
         title = node.title
+        sleepDelay = node.sleepDelay
         self.node = node
         self.profile = profile
         self.favicons = favicons

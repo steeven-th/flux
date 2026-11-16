@@ -1,7 +1,7 @@
 import Foundation
 
 /// How long a loaded tab can stay unseen before its page is unloaded to free its memory.
-enum TabSleepDelay: String, CaseIterable, Identifiable {
+enum TabSleepDelay: String, CaseIterable, Codable, Identifiable {
     case fifteenMinutes = "15m"
     case thirtyMinutes = "30m"
     case oneHour = "1h"

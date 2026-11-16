@@ -85,7 +85,8 @@ with Web Audio shows no speaker, but Tab > Mute Tab still mutes it.
 ## Zoom
 
 Chromium keeps the zoom per site in each profile, so every tab of the site follows it. The address
-shows the zoom when it isn't 100 %, and clicking it goes back to the actual size.
+shows the zoom when it isn't 100 %, and clicking it goes back to the actual size. The page menu,
+next to the address, shows it too, with buttons to change it.
 
 ## How shortcuts reach Flux
 

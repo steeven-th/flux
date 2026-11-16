@@ -706,12 +706,12 @@ final class BrowserState {
     }
 
     private func sleepInactiveTabs() {
-        guard let interval = tabSleepDelay.interval else { return }
-        let limit = Date().addingTimeInterval(-interval)
+        let now = Date()
         let shown = tabsShownInAnyWindow
         let inactive = tabs.filter { tab in
-            tab.isLoaded && tab.devTools == nil && !shown.contains { $0 === tab }
-                && (tab.node.lastActiveAt ?? tab.node.createdAt) < limit
+            guard let interval = (tab.sleepDelay ?? tabSleepDelay).interval else { return false }
+            return tab.isLoaded && tab.devTools == nil && !shown.contains { $0 === tab }
+                && (tab.node.lastActiveAt ?? tab.node.createdAt) < now.addingTimeInterval(-interval)
         }
         for tab in inactive {
             // A page playing sound or a video keeps playing.
