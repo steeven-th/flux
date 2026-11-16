@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/steeven-th/flux/compare/v0.2.0...v0.2.1) (2026-11-16)
+
+
+### Fixed
+
+* **peek:** open links with a target in a Peek again ([30eeb3e](https://github.com/steeven-th/flux/commit/30eeb3e29570020f91a7f8e43aa44238e55869b6))
+
 ## [0.2.0](https://github.com/steeven-th/flux/compare/v0.1.0...v0.2.0) (2026-11-15)
 
 
