@@ -9,7 +9,10 @@ window without leaking into each other.
 Flux runs on Chrome's own framework, built from Chromium, so sites, Chrome extensions and DevTools
 work as they do in Chrome. The app itself is native Swift.
 
-Flux is at an early stage and not usable yet.
+**See what Flux looks like on [flux-browser.com](https://flux-browser.com/)**, with a short video
+for each feature.
+
+Flux is young: expect rough edges, and report them in the issues.
 
 ## Installing
 
