@@ -193,7 +193,7 @@ private struct SettingRow: View {
 /// Chromium may take long to report every kind of data gone, while what the page needs goes at
 /// once: the page reloads when Chromium is done, or after a second at most.
 @MainActor
-private final class ReloadOnce: Sendable {
+final class ReloadOnce: Sendable {
     private let page: FLXBrowserView
     private var isDone = false
 

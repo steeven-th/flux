@@ -3451,6 +3451,16 @@
         }
       }
     },
+    "Run" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exécuter"
+          }
+        }
+      }
+    },
     "Same as %@" : {
       "localizations" : {
         "fr" : {
@@ -4487,6 +4497,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Désactiver celui de Chromium"
+          }
+        }
+      }
+    },
+    "Turn Off Developer Mode" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactiver le mode développeur"
+          }
+        }
+      }
+    },
+    "Turn On Developer Mode" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activer le mode développeur"
           }
         }
       }

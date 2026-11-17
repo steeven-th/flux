@@ -22,6 +22,7 @@ final class CommandBarModel {
         case site(ChromiumHistory.Page)
         case url(String)
         case search(String)
+        case command(Command)
 
         var id: String {
             switch self {
@@ -30,6 +31,7 @@ final class CommandBarModel {
             case .site(let page): "site:\(page.url)"
             case .url(let url): "url:\(url)"
             case .search(let query): "search:\(query)"
+            case .command(let command): "command:\(command.id)"
             }
         }
     }
@@ -46,10 +48,13 @@ final class CommandBarModel {
     private var historySearch: Task<Void, Never>?
 
     let state: BrowserState
+    /// What the menus offer when the bar opens. A split pane takes pages only.
+    private let commands: [Command]
 
     init(state: BrowserState, target: Target) {
         self.state = state
         self.target = target
+        if case .splitPane = target { commands = [] } else { commands = Command.available(in: state) }
         query = target == .selectedTab ? state.selectedTab?.url ?? "" : ""
         refresh()
     }
@@ -73,6 +78,11 @@ final class CommandBarModel {
     func performSelected(inBackground background: Bool = false) {
         guard suggestions.indices.contains(selectedIndex) else { return }
         switch suggestions[selectedIndex] {
+        case .command(let command):
+            onFinish?()
+            // Once the bar is gone, so the action reaches the window, like from its menu.
+            DispatchQueue.main.async { command.perform() }
+            return
         case .tab(let tab):
             if case .splitPane(let after) = target, state.canSplit(with: tab) {
                 state.addToSplit(tab, after: after)
@@ -159,11 +169,23 @@ final class CommandBarModel {
             if !isHome { typed.insert(.url(url), at: 0) }
         }
 
+        // A command whose name starts with three letters typed or more is likely what was meant,
+        // as in Arc. Shorter text still searches when return is pressed.
+        let found: [(command: Command, relevance: Int)] = text.count < 2 ? [] : commands.compactMap { command in
+            let relevance = command.relevance(to: text)
+            return relevance > 0 ? (command, relevance) : nil
+        }
+        let first = text.count < 3 ? [] : found.filter { $0.relevance == 2 }.prefix(2).map(\.command)
+        let others = found.filter { item in !first.contains { $0.id == item.command.id } }
+            .sorted { $0.relevance > $1.relevance }.prefix(3).map(\.command)
+
         var list: [Suggestion] = []
         if let best { list.append(.tab(best)) }
         if let bestPage { list.append(bestPage == home ? .site(bestPage) : .page(bestPage)) }
+        list += first.map(Suggestion.command)
         list += typed
         list += matches.filter { $0 !== best }.map(Suggestion.tab)
+        list += others.map(Suggestion.command)
         list += newPages.filter { $0 != bestPage }.map(Suggestion.page)
         return Array(list.prefix(Self.maximumSuggestions))
     }

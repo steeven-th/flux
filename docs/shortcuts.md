@@ -9,6 +9,10 @@ Flux asks before taking it from that action. The editing commands (Undo, Cut, Co
 and Match Style ⌥⇧⌘V...), Hide Flux ⌘H, Hide Others ⌥⌘H, Minimize ⌘M and Quit ⌘Q keep their
 shortcuts and can't be taken. Minimize acts on the window the page belongs to.
 
+The command bar (⌘T or ⌘L) runs these actions too, with or without a shortcut: type part of their
+name, Pin Tab or the name of a space for example. It also offers a few actions on the tab that only
+the sidebar or the page menu have, such as Add to Favorites, Clear Site Cache and Developer Mode.
+
 ## Defaults
 
 | Action | Shortcut |

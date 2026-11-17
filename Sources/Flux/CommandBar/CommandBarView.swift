@@ -79,6 +79,11 @@ private struct SuggestionRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 12)
+            if case .command(let command) = suggestion, let shortcut = command.shortcut {
+                Text(shortcut)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
             Text(action)
                 .font(.callout)
                 .foregroundStyle(isSelected ? .primary : .secondary)
@@ -109,6 +114,8 @@ private struct SuggestionRow: View {
             Image(systemName: "globe").foregroundStyle(.secondary)
         case .search:
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+        case .command:
+            Image(systemName: "command").foregroundStyle(.secondary)
         }
     }
 
@@ -118,6 +125,7 @@ private struct SuggestionRow: View {
         case .page(let page), .site(let page): page.title.isEmpty ? ChromiumHistory.shortAddress(of: page.url) : page.title
         case .url(let url): url
         case .search(let query): query
+        case .command(let command): command.title
         }
     }
 
@@ -126,6 +134,7 @@ private struct SuggestionRow: View {
         case .tab(let tab): ChromiumHistory.shortAddress(of: tab.url)
         case .page(let page), .site(let page): ChromiumHistory.shortAddress(of: page.url)
         case .url, .search: nil
+        case .command(let command): command.place
         }
     }
 
@@ -134,6 +143,7 @@ private struct SuggestionRow: View {
         case .tab: String(localized: "Switch to Tab")
         case .page, .site, .url: String(localized: "Open")
         case .search: String(localized: "Search \(searchEngineName)")
+        case .command: String(localized: "Run")
         }
     }
 }
