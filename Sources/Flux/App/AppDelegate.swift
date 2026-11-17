@@ -112,6 +112,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state.startArchiving()
         state.startSavingScrollPositions()
         state.startSleepingTabs()
+        Boosts.shared.start(database: database)
+        PageScripts.install()
         ContentBlocker.shared.start()
         firstState = state
         let windowController = openWindow(state)

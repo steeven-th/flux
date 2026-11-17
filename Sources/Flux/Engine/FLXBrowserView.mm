@@ -118,6 +118,12 @@ NSString *const kContentHidingRequest = @R"(
   const channel = globalThis.__fluxContentHiding;
   if (window !== window.top || !channel) return;
   channel.postMessage('');
+  // The element zapper runs in an isolated world, and leaves the selector of what it hid here.
+  document.addEventListener('flux-zap', () => {
+    const selector = document.documentElement.getAttribute('data-flux-zap');
+    document.documentElement.removeAttribute('data-flux-zap');
+    if (selector) channel.postMessage('zap:' + selector);
+  });
   const seen = new Set();
   let pending = [];
   let timer = null;
@@ -151,7 +157,7 @@ NSString *const kContentHidingRequest = @R"(
 })();
 )";
 
-static NSString *_Nullable (^g_content_hiding_script_provider)(NSString *, NSString *) = nil;
+static NSString *_Nullable (^g_page_script_provider)(NSString *, NSString *, BOOL) = nil;
 
 // The Chrome Web Store asks to switch to Chrome in a popup and a banner, and names Chrome on its
 // install button, which installs in Flux all the same. The popup and the banner are hidden with a
@@ -452,18 +458,18 @@ static NSArray<NSString *> *AddressLines(ECAddress *address) {
   NSTextField *_linkLabel;
 }
 
-+ (NSString *_Nullable (^)(NSString *, NSString *))contentHidingScriptProvider {
-  return g_content_hiding_script_provider;
++ (NSString *_Nullable (^)(NSString *, NSString *, BOOL))pageScriptProvider {
+  return g_page_script_provider;
 }
 
-+ (void)setContentHidingScriptProvider:(NSString *_Nullable (^)(NSString *, NSString *))provider {
-  g_content_hiding_script_provider = [provider copy];
++ (void)setPageScriptProvider:(NSString *_Nullable (^)(NSString *, NSString *, BOOL))provider {
+  g_page_script_provider = [provider copy];
 }
 
 // From the message's origin: the page's URL may not be the new one yet.
-- (void)hideContentOfOrigin:(NSURL *)origin message:(NSString *)message {
-  if (!g_content_hiding_script_provider || ![_profile.context blocksContentForURL:origin]) return;
-  NSString *script = g_content_hiding_script_provider(origin.host, message);
+- (void)runPageScriptForOrigin:(NSURL *)origin message:(NSString *)message {
+  if (!g_page_script_provider || !_profile.context) return;
+  NSString *script = g_page_script_provider(origin.host, message, [_profile.context blocksContentForURL:origin]);
   if (script.length) [_contents evaluateJavaScript:script completion:^(NSString *) {}];
 }
 
@@ -1347,7 +1353,7 @@ static FLXOpenDisposition FluxDisposition(ECWindowOpenDisposition disposition, B
                origin:(NSURL *)origin
             mainFrame:(BOOL)mainFrame {
   if ([name isEqualToString:kContentHidingObject]) {
-    if (mainFrame && origin.host) [self hideContentOfOrigin:origin message:message];
+    if (mainFrame && origin.host) [self runPageScriptForOrigin:origin message:message];
     return;
   }
   if (![name isEqualToString:kMediaObject]) return;

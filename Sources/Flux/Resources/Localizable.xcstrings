@@ -291,6 +291,16 @@
         }
       }
     },
+    "Add a style sheet and a script to this site." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajoutez une feuille de style et un script à ce site."
+          }
+        }
+      }
+    },
     "Add Extensions from the Chrome Web Store" : {
       "localizations" : {
         "fr" : {
@@ -457,6 +467,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Application"
+          }
+        }
+      }
+    },
+    "Applies to %@ in every space. The script runs apart from the page's own, once the page is parsed." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S'applique à %@ dans tous les espaces. Le script s'exécute à part de celui de la page, une fois la page analysée."
           }
         }
       }
@@ -637,6 +657,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Menu des marque-pages"
+          }
+        }
+      }
+    },
+    "Boost" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boost"
+          }
+        }
+      }
+    },
+    "Boost for %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boost pour %@"
           }
         }
       }
@@ -877,6 +917,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cliquez sur un raccourci, puis tapez le nouveau. Effacement le retire, Échap annule."
+          }
+        }
+      }
+    },
+    "Click elements of the page to hide them on this site for good." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cliquez sur des éléments de la page pour les masquer définitivement sur ce site."
+          }
+        }
+      }
+    },
+    "Click what to hide on this site. Escape ends." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cliquez sur ce qu'il faut masquer sur ce site. Échap pour terminer."
           }
         }
       }
@@ -1261,6 +1321,16 @@
         }
       }
     },
+    "Done" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminé"
+          }
+        }
+      }
+    },
     "Dots" : {
       "localizations" : {
         "fr" : {
@@ -1357,6 +1427,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Édition"
+          }
+        }
+      }
+    },
+    "Edit Boost…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifier le Boost…"
           }
         }
       }
@@ -3691,6 +3771,16 @@
         }
       }
     },
+    "Script" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Script"
+          }
+        }
+      }
+    },
     "Search" : {
       "localizations" : {
         "fr" : {
@@ -4041,6 +4131,16 @@
         }
       }
     },
+    "Show Again" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réafficher"
+          }
+        }
+      }
+    },
     "Show All" : {
       "localizations" : {
         "fr" : {
@@ -4167,6 +4267,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Afficher la fenêtre d'accueil"
+          }
+        }
+      }
+    },
+    "Show Zapped Elements Again (%lld)" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réafficher les éléments masqués (%lld)"
           }
         }
       }
@@ -4327,6 +4437,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Arrêter le chargement"
+          }
+        }
+      }
+    },
+    "Style" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Style"
           }
         }
       }
@@ -5037,6 +5157,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vos onglets vivent dans une barre latérale. Les espaces séparent vos connexions, mots de passe et extensions, et les extensions Chrome que vous utilisez fonctionnent aussi ici."
+          }
+        }
+      }
+    },
+    "Zap Elements" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masquer des éléments"
+          }
+        }
+      }
+    },
+    "Zapped Elements" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Éléments masqués"
           }
         }
       }

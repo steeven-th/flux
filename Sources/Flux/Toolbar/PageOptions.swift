@@ -86,6 +86,19 @@ struct PageOptions: View {
                         .help("Fetches the site's pages, files and redirects again. You stay signed in.")
                     ActionRow(symbol: "trash", title: "Clear Site Data…", action: clearSiteData)
                 }
+                if let host = URL(string: tab.url)?.host() {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Boost").font(.headline)
+                        ActionRow(symbol: "scope", title: "Zap Elements", action: zapElements)
+                            .help("Click elements of the page to hide them on this site for good.")
+                        ActionRow(symbol: "paintbrush", title: "Edit Boost…") { editBoost(host: host) }
+                            .help("Add a style sheet and a script to this site.")
+                        let zapped = Boosts.shared.boost(forHost: host).zapped.count
+                        if zapped > 0 {
+                            ActionRow(symbol: "eye", title: "Show Zapped Elements Again (\(zapped))") { showZapped(host: host) }
+                        }
+                    }
+                }
             }
 
             Divider()
@@ -124,6 +137,28 @@ struct PageOptions: View {
     private func showCertificate() {
         dismiss()
         SiteCertificate.show(for: tab)
+    }
+
+    private func zapElements() {
+        dismiss()
+        let script = Boosts.zapperScript(
+            hint: String(localized: "Click what to hide on this site. Escape ends."),
+            done: String(localized: "Done")
+        )
+        tab.browserView.evaluateJavaScript(script) { _ in }
+    }
+
+    private func editBoost(host: String) {
+        dismiss()
+        BoostEditorWindow.show(host: host) { [weak tab] in tab?.browserView.reload() }
+    }
+
+    private func showZapped(host: String) {
+        dismiss()
+        var boost = Boosts.shared.boost(forHost: host)
+        boost.zapped = []
+        Boosts.shared.set(boost, forHost: host)
+        tab.browserView.reload()
     }
 
     private func clearSiteCache() {

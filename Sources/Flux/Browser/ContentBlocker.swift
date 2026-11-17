@@ -35,7 +35,7 @@ final class ContentBlocker {
     private var sources: String { Self.lists.map(\.absoluteString).joined(separator: "\n") }
     private var isUpdating = false
     private var timer: Timer?
-    private var hiding: ElementHiding?
+    private(set) var hiding: ElementHiding?
 
     /// Chromium keeps the rules it indexed last, so the version on disk only needs indexing once.
     func start() {
@@ -43,9 +43,6 @@ final class ContentBlocker {
         if FileManager.default.fileExists(atPath: rulesURL.path),
            let version = try? String(contentsOf: versionURL, encoding: .utf8) {
             FLXEngine.useContentBlockingRules(at: rulesURL, version: version)
-        }
-        FLXBrowserView.contentHidingScriptProvider = { host, message in
-            MainActor.assumeIsolated { ContentBlocker.shared.hiding?.script(forHost: host, message: message) }
         }
         loadElementHiding()
         updateIfNeeded()
