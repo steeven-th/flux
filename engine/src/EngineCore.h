@@ -661,6 +661,8 @@ EC_EXPORT
 // The pointer moved onto a link (its URL) or off it (nil).
 - (void)webContents:(ECWebContents*)contents
     didUpdateTargetURL:(nullable NSURL*)URL;
+// The number of requests content blocking stopped on the page shown changed.
+- (void)webContentsDidChangeBlockedRequestCount:(ECWebContents*)contents;
 // The page closed itself (window.close()), or a new tab only downloaded
 // (it started a download before committing anything). The shell closes the
 // web contents.
@@ -827,6 +829,9 @@ EC_EXPORT
 // Whether the page is playing sound, and whether its sound is muted. Changes
 // are reported to webContentsDidUpdate:.
 @property(readonly, getter=isAudible) BOOL audible;
+// The requests content blocking stopped on the page shown: its frames' and
+// their documents' subresources, counted as each document finishes loading.
+@property(readonly) NSInteger blockedRequestCount;
 @property(getter=isMuted) BOOL muted;
 // The page's media as Chrome's media session sees it, or while the session has
 // none (a video that never played sound, any media in a muted tab), the player

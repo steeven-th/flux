@@ -1,0 +1,71 @@
+Subject: [PATCH] Tell subresource filter observers what a document's load disallowed
+
+The renderer reports how many subresource loads the filter disallowed in a
+frame's document once it has loaded, for UMA only. Observers now get the
+count too, so an embedder can show how many requests it blocked.
+---
+diff --git a/components/subresource_filter/content/browser/content_subresource_filter_throttle_manager.cc b/components/subresource_filter/content/browser/content_subresource_filter_throttle_manager.cc
+--- a/components/subresource_filter/content/browser/content_subresource_filter_throttle_manager.cc
++++ b/components/subresource_filter/content/browser/content_subresource_filter_throttle_manager.cc
+@@ -843,6 +843,12 @@
+   if (statistics_) {
+     statistics_->OnDocumentLoadStatistics(*statistics);
+   }
++  content::RenderFrameHost* frame = &receiver_.CurrentTargetFrame();
++  if (auto* observers = SubresourceFilterObserverManager::FromWebContents(
++          content::WebContents::FromRenderFrameHost(frame))) {
++    observers->NotifyDocumentLoadsDisallowed(frame,
++                                             statistics->num_loads_disallowed);
++  }
+ }
+ 
+ void ContentSubresourceFilterThrottleManager::OnAdsViolationTriggered(
+diff --git a/components/subresource_filter/content/browser/subresource_filter_observer.h b/components/subresource_filter/content/browser/subresource_filter_observer.h
+--- a/components/subresource_filter/content/browser/subresource_filter_observer.h
++++ b/components/subresource_filter/content/browser/subresource_filter_observer.h
+@@ -65,6 +65,12 @@
+   // time in the case of an initial synchronous load or at
+   // ReadyToCommitNavigation otherwise.
+   virtual void OnFrameTaggedAsAd(content::RenderFrameHost* render_frame_host) {}
++
++  // Called when a frame's document has loaded, with the number of its
++  // subresource loads the filter disallowed until then.
++  virtual void OnDocumentLoadsDisallowed(
++      content::RenderFrameHost* render_frame_host,
++      int count) {}
+ };
+ 
+ }  // namespace subresource_filter
+diff --git a/components/subresource_filter/content/browser/subresource_filter_observer_manager.cc b/components/subresource_filter/content/browser/subresource_filter_observer_manager.cc
+--- a/components/subresource_filter/content/browser/subresource_filter_observer_manager.cc
++++ b/components/subresource_filter/content/browser/subresource_filter_observer_manager.cc
+@@ -68,6 +68,14 @@
+   }
+ }
+ 
++void SubresourceFilterObserverManager::NotifyDocumentLoadsDisallowed(
++    content::RenderFrameHost* render_frame_host,
++    int count) {
++  for (auto& observer : observers_) {
++    observer.OnDocumentLoadsDisallowed(render_frame_host, count);
++  }
++}
++
+ WEB_CONTENTS_USER_DATA_KEY_IMPL(SubresourceFilterObserverManager);
+ 
+ }  // namespace subresource_filter
+diff --git a/components/subresource_filter/content/browser/subresource_filter_observer_manager.h b/components/subresource_filter/content/browser/subresource_filter_observer_manager.h
+--- a/components/subresource_filter/content/browser/subresource_filter_observer_manager.h
++++ b/components/subresource_filter/content/browser/subresource_filter_observer_manager.h
+@@ -72,6 +72,11 @@
+   // detected as an ad.
+   void NotifyFrameTaggedAsAd(content::RenderFrameHost* render_frame_host);
+ 
++  // Called when a frame's document has loaded.
++  void NotifyDocumentLoadsDisallowed(
++      content::RenderFrameHost* render_frame_host,
++      int count);
++
+  private:
+   friend class content::WebContentsUserData<SubresourceFilterObserverManager>;
+   base::ObserverList<SubresourceFilterObserver>::Unchecked observers_;
