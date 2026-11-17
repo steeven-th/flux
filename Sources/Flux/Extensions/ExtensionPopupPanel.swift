@@ -38,12 +38,7 @@ final class ExtensionPopupPanel: NSPanel {
         backgroundColor = .clear
         level = .popUpMenu
 
-        let container = NSView()
-        container.wantsLayer = true
-        container.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
-        container.layer?.cornerRadius = Self.cornerRadius
-        container.layer?.cornerCurve = .continuous
-        container.layer?.masksToBounds = true
+        let container = WindowBackgroundView(cornerRadius: Self.cornerRadius)
         popup.view.frame = container.bounds
         popup.view.autoresizingMask = [.width, .height]
         container.addSubview(popup.view)

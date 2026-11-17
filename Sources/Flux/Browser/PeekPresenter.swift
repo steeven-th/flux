@@ -39,12 +39,7 @@ final class PeekPresenter {
         card.isOpaque = false
         card.backgroundColor = .clear
         card.hasShadow = true
-        let container = NSView()
-        container.wantsLayer = true
-        container.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
-        container.layer?.cornerRadius = Self.cornerRadius
-        container.layer?.cornerCurve = .continuous
-        container.layer?.masksToBounds = true
+        let container = WindowBackgroundView(cornerRadius: Self.cornerRadius)
         card.contentView = container
 
         let bar = NSHostingView(rootView: PeekBar(peek: peek, state: state))
