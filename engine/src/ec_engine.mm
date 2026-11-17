@@ -131,11 +131,14 @@ NSMenu* g_dock_menu;
   // Profiles that ran with that config have migrated their search engines,
   // which cannot be undone, and Chrome expects the migration to stay on.
   // The subresource filter blocks on every site, not only on the ones Safe
-  // Browsing flags for abusive ads. Chrome reads one --enable-features only.
+  // Browsing flags for abusive ads. Above the priority of Chrome's presets,
+  // or ad tagging's dry run on every site would win. Chrome reads one
+  // --enable-features only.
   strings.push_back(
       "--enable-features=PrepopulatedEnginesMigration,"
       "ApplySearchEngineTypeMigration,UseSCContentSharingPicker,"
-      "SubresourceFilter:activation_scope/all_sites/activation_state/enabled");
+      "SubresourceFilter:activation_scope/all_sites/activation_state/enabled/"
+      "activation_priority/2000");
   std::vector<const char*> argv;
   for (const std::string& s : strings) {
     argv.push_back(s.c_str());
