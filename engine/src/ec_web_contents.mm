@@ -14,6 +14,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/pickle.h"
+#include "base/scoped_observation.h"
 #include "base/strings/string_split.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/supports_user_data.h"
@@ -116,6 +117,8 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "components/subresource_filter/content/browser/subresource_filter_observer.h"
+#include "components/subresource_filter/content/browser/subresource_filter_observer_manager.h"
 #include "content/public/common/isolated_world_ids.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/constants.h"
@@ -359,6 +362,74 @@ const extensions::Extension* ExtensionForOrigin(
       ->enabled_extensions()
       .GetByID(std::string(origin.host()));
 }
+
+// Adds up what content blocking stopped on the primary page: frames it kept
+// from loading, and the subresources each document reports once it has
+// loaded (patches/0113).
+class BlockedRequestCounter
+    : public subresource_filter::SubresourceFilterObserver,
+      public content::WebContentsObserver {
+ public:
+  BlockedRequestCounter(content::WebContents* contents, ECWebContents* owner)
+      : content::WebContentsObserver(contents), owner_(owner) {
+    if (auto* observers =
+            subresource_filter::SubresourceFilterObserverManager::
+                FromWebContents(contents)) {
+      observation_.Observe(observers);
+    }
+  }
+
+  int count() const { return blocked_frames_ + loads_; }
+
+  void OnDocumentLoadsDisallowed(content::RenderFrameHost* frame,
+                                 int count) override {
+    if (count <= 0 || !IsOnPrimaryPage(frame)) {
+      return;
+    }
+    loads_ += count;
+    Report();
+  }
+
+  void OnChildFrameNavigationEvaluated(
+      content::NavigationHandle* navigation_handle,
+      subresource_filter::LoadPolicy load_policy) override {
+    if (load_policy != subresource_filter::LoadPolicy::DISALLOW ||
+        !IsOnPrimaryPage(navigation_handle->GetParentFrame())) {
+      return;
+    }
+    blocked_frames_++;
+    Report();
+  }
+
+  void OnSubresourceFilterGoingAway() override { observation_.Reset(); }
+
+  void PrimaryPageChanged(content::Page& page) override {
+    blocked_frames_ = 0;
+    loads_ = 0;
+    Report();
+  }
+
+ private:
+  bool IsOnPrimaryPage(content::RenderFrameHost* frame) const {
+    return frame && web_contents() &&
+           &frame->GetPage() == &web_contents()->GetPrimaryPage();
+  }
+
+  void Report() {
+    ECWebContents* owner = owner_;
+    if ([owner.delegate respondsToSelector:@selector
+                        (webContentsDidChangeBlockedRequestCount:)]) {
+      [owner.delegate webContentsDidChangeBlockedRequestCount:owner];
+    }
+  }
+
+  __weak ECWebContents* owner_;
+  int blocked_frames_ = 0;
+  int loads_ = 0;
+  base::ScopedObservation<subresource_filter::SubresourceFilterObserverManager,
+                          subresource_filter::SubresourceFilterObserver>
+      observation_{this};
+};
 
 class WebContentsDelegateBridge : public content::WebContentsDelegate,
                                   public content::JavaScriptDialogManager,
@@ -1986,6 +2057,7 @@ std::unique_ptr<LoginHandler> CreateLoginHandler(
   std::unique_ptr<content::WebContents> _contents;
   // The main-world scripts and message objects, made on first use.
   std::unique_ptr<js_injection::JsCommunicationHost> _scriptHost;
+  std::unique_ptr<BlockedRequestCounter> _blockedRequests;
   // Kept past close, so the view outlives the web contents, detached and
   // empty.
   NSView* _view;
@@ -2044,6 +2116,8 @@ std::unique_ptr<LoginHandler> CreateLoginHandler(
     _contents = std::unique_ptr<content::WebContents>(contents);
     _contents->SetUserData(Owner::kKey, std::make_unique<Owner>(self));
     EngineCoreTabHelpers::Attach(_contents.get());
+    _blockedRequests =
+        std::make_unique<BlockedRequestCounter>(_contents.get(), self);
     // The manager's only seam for a prompt other than Chrome's bubble.
     permissions::PermissionRequestManager::FromWebContents(_contents.get())
         ->set_view_factory_for_testing(base::BindRepeating(
@@ -2069,6 +2143,10 @@ std::unique_ptr<LoginHandler> CreateLoginHandler(
 // that its destruction reports nothing to a delegate.
 - (void)dealloc {
   [self close];
+}
+
+- (NSInteger)blockedRequestCount {
+  return _blockedRequests ? _blockedRequests->count() : 0;
 }
 
 - (NSView*)view {
@@ -2691,6 +2769,7 @@ static ECWindowOpenDisposition ECDisposition(WindowOpenDisposition disposition) 
   if (!_contents) {
     return;
   }
+  _blockedRequests.reset();
   [_devTools close];
   _devTools = nil;
   [_window tabWillClose:self];

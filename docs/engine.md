@@ -72,7 +72,9 @@ its `SubresourceFilter` feature, and takes its rules from the embedder
 patch 0111 leaves out. Chrome's Ads setting turns it off for a profile or a site. Patch 0112 keeps
 the filter from writing metadata for every site it activates on. The engine ships
 `Helpers/ruleset_converter`, which Flux runs to turn EasyList into rules (see
-[content-blocking.md](content-blocking.md)).
+[content-blocking.md](content-blocking.md)). Patch 0113 hands the filter's observers the number of
+subresources a document's load disallowed, which the renderer only sent to UMA, so web contents
+can count what blocking stopped on their page.
 
 ## Building
 
