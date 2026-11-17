@@ -691,6 +691,10 @@ static NSArray<NSString *> *AddressLines(ECAddress *address) {
   [_profile.context clearSiteCacheForURL:url completion:completion];
 }
 
+- (NSInteger)blockedRequestCount {
+  return _contents.blockedRequestCount;
+}
+
 - (BOOL)blocksContentOnSite {
   NSURL *url = _contents.URL;
   return url && _profile.context ? [_profile.context blocksContentForURL:url] : NO;
@@ -749,6 +753,13 @@ static NSArray<NSString *> *AddressLines(ECAddress *address) {
 }
 
 #pragma mark - Link under the pointer
+
+- (void)webContentsDidChangeBlockedRequestCount:(ECWebContents *)contents {
+  id<FLXBrowserViewDelegate> delegate = self.delegate;
+  if ([delegate respondsToSelector:@selector(browserViewDidChangeBlockedRequestCount:)]) {
+    [delegate browserViewDidChangeBlockedRequestCount:self];
+  }
+}
 
 - (void)webContents:(ECWebContents *)contents didUpdateTargetURL:(NSURL *)url {
   if (!url) {

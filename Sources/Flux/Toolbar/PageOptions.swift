@@ -68,7 +68,10 @@ struct PageOptions: View {
                 .disabled(URL(string: tab.url)?.host() == nil)
                 if URL(string: tab.url)?.host() != nil {
                     let blocksContent = state.blocksContent(on: tab)
-                    SettingRow(symbol: "hand.raised.fill", title: "Block Ads and Trackers", isOn: blocksContent) {
+                    SettingRow(
+                        symbol: "hand.raised.fill", title: "Block Ads and Trackers", isOn: blocksContent,
+                        detail: blocksContent && tab.blockedRequestCount > 0 ? Text("Blocked on this page: \(tab.blockedRequestCount)") : nil
+                    ) {
                         state.setBlocksContent(!blocksContent, on: tab)
                     }
                 }
@@ -174,6 +177,8 @@ private struct SettingRow: View {
     let symbol: String
     let title: LocalizedStringKey
     let isOn: Bool
+    /// In place of On or Off.
+    var detail: Text?
     let action: () -> Void
 
     var body: some View {
@@ -186,7 +191,7 @@ private struct SettingRow: View {
                     .background(Circle().fill(isOn ? Color.accentColor : Color.primary.opacity(0.1)))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title).fontWeight(.medium)
-                    (isOn ? Text("On") : Text("Off")).font(.callout).foregroundStyle(.secondary)
+                    (detail ?? (isOn ? Text("On") : Text("Off"))).font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
             }

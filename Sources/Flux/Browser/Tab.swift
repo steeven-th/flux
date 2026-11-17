@@ -17,6 +17,8 @@ final class Tab: NSObject, Identifiable {
     private(set) var isPlayingAudio = false
     /// What the page plays, for the mini player. Nil until something has played in it.
     private(set) var media: TabMedia?
+    /// What content blocking stopped on the page shown.
+    private(set) var blockedRequestCount = 0
     /// When the page last started playing, so the mini player shows the latest one.
     private(set) var mediaStartedAt: Date?
     /// Closed from the mini player, until the page plays again.
@@ -598,6 +600,10 @@ extension Tab: FLXBrowserViewDelegate {
             self.deviceChooser = nil
         }
         deviceChooser = chooser
+    }
+
+    func browserViewDidChangeBlockedRequestCount(_ browserView: FLXBrowserView) {
+        blockedRequestCount = browserView.blockedRequestCount
     }
 
     func browserView(_ browserView: FLXBrowserView, didChangeMedia media: [String: Any]?) {

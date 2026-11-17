@@ -611,6 +611,16 @@
         }
       }
     },
+    "Blocked on this page: %lld" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bloqués sur cette page : %lld"
+          }
+        }
+      }
+    },
     "Bluetooth is off." : {
       "localizations" : {
         "fr" : {

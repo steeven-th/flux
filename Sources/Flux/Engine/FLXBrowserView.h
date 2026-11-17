@@ -165,6 +165,8 @@ NS_SWIFT_UI_ACTOR
 /// whether it has previous and next tracks, and its volume. Nil once nothing in the page plays
 /// or has played.
 - (void)browserView:(FLXBrowserView *)browserView didChangeMedia:(nullable NSDictionary<NSString *, id> *)media;
+/// Content blocking stopped more requests on the page, or a new page started.
+- (void)browserViewDidChangeBlockedRequestCount:(FLXBrowserView *)browserView;
 /// Sent when the page asks for a permission. Without this method, Chromium shows its own prompt,
 /// which doesn't respond in Flux's windows.
 - (void)browserView:(FLXBrowserView *)browserView didRequestPermission:(FLXPermissionRequest *)request;
@@ -269,6 +271,8 @@ NS_SWIFT_UI_ACTOR
 /// Whether the content blocking rules apply to the page's site, an exception to the profile's
 /// choice when they differ.
 @property (nonatomic) BOOL blocksContentOnSite;
+/// The requests content blocking stopped on the page, counted as its documents finish loading.
+@property (nonatomic, readonly) NSInteger blockedRequestCount;
 
 @property (nonatomic, readonly) BOOL canGoBack;
 @property (nonatomic, readonly) BOOL canGoForward;

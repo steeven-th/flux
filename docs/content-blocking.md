@@ -24,6 +24,9 @@ network rule of the lists matches them. The page itself always loads.
 Rules with options the filter doesn't know, such as `$redirect`, `$removeparam` or `$csp`, are left
 out.
 
+The page menu shows how many requests blocking stopped on the page, counted as its documents and
+frames finish loading: an ad a page loads later only counts at its next load.
+
 ## Hiding elements
 
 Some ads come from the site itself, like the sponsored listings of a classifieds site, and blocking
