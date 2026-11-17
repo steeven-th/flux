@@ -391,6 +391,11 @@ final class Tab: NSObject, Identifiable {
         onChange?(self)
     }
 
+    func setGlobalTileID(_ id: UUID?) {
+        node.globalTileID = id
+        onChange?(self)
+    }
+
     func setLastActive(_ date: Date?) {
         node.lastActiveAt = date
         onChange?(self)
@@ -625,6 +630,13 @@ extension Tab: FLXBrowserViewDelegate {
         guard let y = scrollToRestore else { return }
         scrollToRestore = nil
         browserView.evaluateJavaScript("window.scrollTo(0, \(y))") { _ in }
+    }
+
+    /// For a tab that has not loaded its page yet, the icon another tab of the same site has.
+    func useFavicon(_ favicon: NSImage) {
+        guard self.favicon == nil else { return }
+        self.favicon = favicon
+        favicons.store(favicon, for: url)
     }
 
     func browserView(_ browserView: FLXBrowserView, didChangeFavicon favicon: NSImage) {

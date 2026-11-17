@@ -42,6 +42,8 @@ struct SidebarNode: Codable, Identifiable, FetchableRecord, PersistableRecord {
     var history: NavigationHistory?
     /// For tabs, how long the page stays loaded unseen. Nil follows the setting for every tab.
     var sleepDelay: TabSleepDelay?
+    /// For pinned tabs shown in every space, the tile they stand for in this space.
+    var globalTileID: UUID?
 }
 
 /// A tab of Today that was closed or left unseen for too long.
@@ -150,6 +152,11 @@ final class ProfileDatabase: Sendable {
         migrator.registerMigration("v9 tab sleep delay") { db in
             try db.alter(table: "node") { t in
                 t.add(column: "sleepDelay", .text)
+            }
+        }
+        migrator.registerMigration("v10 global pinned tiles") { db in
+            try db.alter(table: "node") { t in
+                t.add(column: "globalTileID", .blob)
             }
         }
         return migrator

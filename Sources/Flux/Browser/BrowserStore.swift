@@ -14,6 +14,8 @@ final class BrowserStore {
     var archiveRevision = 0
     var settingsRevision = 0
     var linkRules: [LinkRule] = []
+    /// Read once from the app's database, which keeps them.
+    @ObservationIgnored var globalTiles: [BrowserState.GlobalTile]?
     /// One per window, in the order they opened.
     var windows: [BrowserState] = []
     /// A tab dragged from a sidebar, which any window showing its space can take.

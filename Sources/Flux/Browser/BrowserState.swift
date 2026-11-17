@@ -33,6 +33,7 @@ final class BrowserState {
     private static let linkTargetsOpenPeekKey = "linkTargetsOpenPeek"
     private static let shiftClickOpensPeekKey = "shiftClickOpensPeek"
     private static let groupsOpenedTabsKey = "groupsOpenedTabs"
+    private static let globalTilesKey = "globalPinnedTiles"
     private static let outsideLinksOpenLittleWindowKey = "outsideLinksOpenLittleWindow"
     private static let linkSourceAppsKey = "linkSourceApps"
     /// Archived tabs are kept this long. The pages stay in the history after that.
@@ -180,6 +181,7 @@ final class BrowserState {
         for record in records {
             try open(record)
         }
+        shareGlobalTileFavicons()
         if let first = savedWindows.first { selectedTabIDs.merge(first.selectedTabIDs) { _, saved in saved } }
         windowsToRestore = Array(savedWindows.dropFirst())
         store.windows = [self]
@@ -321,6 +323,7 @@ final class BrowserState {
         for split in splits where split.spaceID == space.id {
             dissolveIfNeeded(split)
         }
+        addGlobalTiles(to: space.id)
     }
 
     private func makeTab(_ node: SidebarNode, page: FLXBrowserView? = nil) -> Tab {
@@ -367,6 +370,7 @@ final class BrowserState {
         // Before Chromium opens the profile, which it does as soon as the space opens.
         if other == nil { prepare?(AppPaths.profileFolder(named: record.profileFolder)) }
         save { try open(record) }
+        shareGlobalTileFavicons()
         selectedSpaceID = id
         return id
     }
@@ -655,6 +659,7 @@ final class BrowserState {
             if archiving, tab.node.section == .today {
                 archive(tab)
             }
+            if tab.node.globalTileID != nil { stopShowingInEverySpace(tab) }
             // Deleting the node would delete its group's with it.
             dissolveGroup(of: tab)
             tabs.removeAll { $0 === tab }
@@ -1143,7 +1148,13 @@ final class BrowserState {
         let splitEntries = splits
             .filter { $0.spaceID == spaceID && $0.node.section == section && $0.node.parentID == parentID }
             .map(SidebarEntry.split)
-        return (tabEntries + folderEntries + splitEntries).sorted { $0.node.position < $1.node.position }
+        let sorted = (tabEntries + folderEntries + splitEntries).sorted { $0.node.position < $1.node.position }
+        guard section == .pinned else { return sorted }
+        // Tiles shown in every space come first, in the same order everywhere.
+        let order = globalTiles.map(\.id)
+        let global = sorted.filter { $0.node.globalTileID != nil }
+            .sorted { (order.firstIndex(of: $0.node.globalTileID!) ?? .max) < (order.firstIndex(of: $1.node.globalTileID!) ?? .max) }
+        return global + sorted.filter { $0.node.globalTileID == nil }
     }
 
     func entry(id: UUID) -> SidebarEntry? {
@@ -1232,6 +1243,96 @@ final class BrowserState {
         }
     }
 
+    // Pinned tiles shown in every space. Each space has its own tab for the tile, in its own
+    // profile, so a tile signs in with the account of the space it shows in, as in Arc.
+
+    struct GlobalTile: Codable {
+        var id: UUID
+        var url: String
+        var title: String
+    }
+
+    private(set) var globalTiles: [GlobalTile] {
+        get {
+            if let tiles = store.globalTiles { return tiles }
+            let tiles = (try? appDatabase.setting(Self.globalTilesKey))
+                .flatMap { try? JSONDecoder().decode([GlobalTile].self, from: Data($0.utf8)) } ?? []
+            store.globalTiles = tiles
+            return tiles
+        }
+        set {
+            store.globalTiles = newValue
+            let json = newValue.isEmpty ? nil : (try? JSONEncoder().encode(newValue)).flatMap { String(data: $0, encoding: .utf8) }
+            save { try appDatabase.setSetting(Self.globalTilesKey, to: json) }
+        }
+    }
+
+    func isShownInEverySpace(_ tab: Tab) -> Bool {
+        tab.node.globalTileID != nil
+    }
+
+    /// The tile's page as it was pinned becomes a tile of every space.
+    func showInEverySpace(_ tab: Tab) {
+        guard !isPrivate, tab.isPinned, tab.node.globalTileID == nil else { return }
+        let tile = GlobalTile(id: UUID(), url: tab.node.originalURL ?? tab.url, title: tab.title)
+        globalTiles.append(tile)
+        tab.setGlobalTileID(tile.id)
+        for space in spaces where space.id != tab.spaceID {
+            addGlobalTiles(to: space.id)
+        }
+        shareGlobalTileFavicons()
+        sidebarRevision += 1
+    }
+
+    /// A tile's tab in another space shows the icon before it loads its page there.
+    private func shareGlobalTileFavicons() {
+        let copies = Dictionary(grouping: tabs.filter { $0.node.globalTileID != nil }) { $0.node.globalTileID! }
+        for tabs in copies.values {
+            guard let favicon = tabs.lazy.compactMap(\.favicon).first else { continue }
+            tabs.forEach { $0.useFavicon(favicon) }
+        }
+    }
+
+    /// The tile stays in its own space only, and leaves the others.
+    func stopShowingInEverySpace(_ tab: Tab) {
+        guard let tileID = tab.node.globalTileID else { return }
+        globalTiles.removeAll { $0.id == tileID }
+        tab.setGlobalTileID(nil)
+        for copy in tabs where copy !== tab && copy.node.globalTileID == tileID {
+            copy.setGlobalTileID(nil)
+            close(copy, removing: true, archiving: false)
+        }
+        sidebarRevision += 1
+    }
+
+    private func moveGlobalTile(_ id: UUID, to index: Int) {
+        var tiles = globalTiles
+        guard let current = tiles.firstIndex(where: { $0.id == id }) else { return }
+        let tile = tiles.remove(at: current)
+        tiles.insert(tile, at: min(index, tiles.count))
+        globalTiles = tiles
+        sidebarRevision += 1
+    }
+
+    /// Gives the space a tab for each tile shown in every space it lacks.
+    private func addGlobalTiles(to spaceID: UUID) {
+        guard !isPrivate else { return }
+        let present = Set(tabs.filter { $0.spaceID == spaceID }.compactMap(\.node.globalTileID))
+        let missing = globalTiles.filter { !present.contains($0.id) }
+        guard !missing.isEmpty else { return }
+        var last = entries(in: .pinned, parentID: nil, spaceID: spaceID).last?.node.position
+        for tile in missing {
+            last = FractionalIndex.between(last, nil)
+            var node = SidebarNode(
+                id: UUID(), spaceID: spaceID, parentID: nil, kind: .tab, section: .pinned, position: last!,
+                title: tile.title, url: tile.url, originalURL: tile.url, isExpanded: true, lastActiveAt: nil, createdAt: Date()
+            )
+            node.globalTileID = tile.id
+            save { try profileDatabases[spaceID]?.save(node) }
+            tabs.append(makeTab(node))
+        }
+    }
+
     func pin(_ tab: Tab) {
         move(.tab(tab), to: .pinned, parentID: nil, index: nil)
     }
@@ -1300,7 +1401,20 @@ final class BrowserState {
     func move(_ entry: SidebarEntry, to section: SidebarNode.Section, parentID: UUID?, index: Int?) -> Bool {
         guard canMove(entry, to: section, parentID: parentID) else { return false }
 
-        let siblings = entries(in: section, parentID: parentID, spaceID: entry.node.spaceID).filter { $0.id != entry.id }
+        var siblings = entries(in: section, parentID: parentID, spaceID: entry.node.spaceID).filter { $0.id != entry.id }
+        var index = index
+        if section == .pinned, case .tab(let tab) = entry {
+            let globalCount = siblings.count { $0.node.globalTileID != nil }
+            if let tileID = tab.node.globalTileID {
+                moveGlobalTile(tileID, to: min(index ?? globalCount, globalCount))
+                return true
+            }
+            // Other tiles come after the ones shown in every space, and keep their own order.
+            siblings.removeFirst(globalCount)
+            index = index.map { max($0 - globalCount, 0) }
+        } else if case .tab(let tab) = entry, tab.node.globalTileID != nil {
+            stopShowingInEverySpace(tab)
+        }
         let insertion = min(index ?? siblings.count, siblings.count)
         let before = insertion > 0 ? siblings[insertion - 1].node.position : nil
         let after = insertion < siblings.count ? siblings[insertion].node.position : nil

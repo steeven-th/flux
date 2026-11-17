@@ -175,8 +175,21 @@ struct PinnedGrid: NSViewRepresentable {
                 return []
             }
             dropOperation.pointee = .before
-            preview(entry, at: proposedIndexPath.pointee.item)
+            let proposed = allowedIndex(for: entry, proposed: proposedIndexPath.pointee.item)
+            proposedIndexPath.pointee = NSIndexPath(forItem: proposed, inSection: 0)
+            preview(entry, at: proposed)
             return .move
+        }
+
+        /// Tiles shown in every space stay first, so the preview shows where a tile really lands.
+        private func allowedIndex(for entry: BrowserState.SidebarEntry, proposed: Int) -> Int {
+            let isGlobal = { (tab: Tab?) in tab.map { $0.id != entry.id && $0.node.globalTileID != nil } ?? false }
+            if entry.node.globalTileID != nil {
+                let firstOther = tiles.firstIndex { tab in tab.map { $0.id != entry.id && $0.node.globalTileID == nil } ?? false }
+                return min(proposed, firstOther ?? tiles.count)
+            }
+            let lastGlobal = tiles.lastIndex(where: isGlobal)
+            return max(proposed, lastGlobal.map { $0 + 1 } ?? 0)
         }
 
         /// Moves the dragged tile, or an empty slot for an item from the outline, to where it would
@@ -274,6 +287,17 @@ struct PinnedGrid: NSViewRepresentable {
                 menu.addItem(MenuAction.item("Go Back to Original Page") { tab.goBackToOriginalURL() })
             }
             menu.addItem(MenuAction.item("Unload") { [weak self] in self?.state.close(tab) })
+            let everySpace = MenuAction.item("Show in All Spaces") { [weak self] in
+                guard let self else { return }
+                if self.state.isShownInEverySpace(tab) {
+                    self.state.stopShowingInEverySpace(tab)
+                } else {
+                    self.state.showInEverySpace(tab)
+                }
+            }
+            everySpace.state = state.isShownInEverySpace(tab) ? .on : .off
+            everySpace.isEnabled = !state.isPrivate && state.spaces.count > 1
+            menu.addItem(everySpace)
             menu.addItem(.separator())
             let unpin = NSMenuItem(title: String(localized: "Unpin"), action: nil, keyEquivalent: "")
             let submenu = NSMenu()
@@ -487,6 +511,15 @@ struct PinnedTile: View {
         .background(shape.fill(Color.primary.opacity(fillOpacity)))
         .overlay(shape.strokeBorder(Color.primary.opacity(isSelected ? 0.25 : 0.12), lineWidth: 1))
         .overlay(alignment: .topTrailing) { AudioButton(tab: tab) }
+        .overlay(alignment: .bottomTrailing) {
+            if tab.node.globalTileID != nil {
+                Image(systemName: "square.on.square")
+                    .font(.system(size: 7, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                    .padding(4)
+                    .help("Shown in all spaces")
+            }
+        }
         .help(tab.displayTitle)
     }
 }

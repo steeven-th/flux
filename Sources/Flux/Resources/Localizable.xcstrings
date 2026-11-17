@@ -4011,6 +4011,16 @@
         }
       }
     },
+    "Show in All Spaces" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afficher dans tous les espaces"
+          }
+        }
+      }
+    },
     "Show in Finder" : {
       "localizations" : {
         "fr" : {
@@ -4077,6 +4087,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Afficher la fenêtre d'accueil"
+          }
+        }
+      }
+    },
+    "Shown in all spaces" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affiché dans tous les espaces"
           }
         }
       }
