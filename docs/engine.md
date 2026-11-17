@@ -63,6 +63,17 @@ Chrome keeps its crash reports in `~/Library/Application Support/Chromium/Crashp
 `--user-data-dir` says. Patch 0110 keeps them in the user data directory Flux passes, so each
 instance of Flux keeps its own, next to its profiles.
 
+## Content blocking
+
+Chrome's subresource filter blocks a page's requests that match a ruleset, on the sites Safe
+Browsing flags for abusive ads. The engine activates it on every site, through the parameters of
+its `SubresourceFilter` feature, and takes its rules from the embedder
+(`useContentBlockingRulesAtPath:licenseAtPath:version:`) rather than from Chrome's component, which
+patch 0111 leaves out. Chrome's Ads setting turns it off for a profile or a site. Patch 0112 keeps
+the filter from writing metadata for every site it activates on. The engine ships
+`Helpers/ruleset_converter`, which Flux runs to turn EasyList into rules (see
+[content-blocking.md](content-blocking.md)).
+
 ## Building
 
 `scripts/engine.env` pins the Chromium version, a build name, and the SHA-256 of the archive.

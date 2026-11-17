@@ -148,17 +148,20 @@ build() {
     # Ninja never removes a helper app a patch renamed, so a resumed build would ship both. The
     # helpers are only copied into the framework, which makes them cheap to copy again.
     rm -rf "$OUT/EngineCore.framework/Versions/$ENGINE_CHROMIUM_VERSION/Helpers"
+    # The shell turns filter lists into rules for content blocking with ruleset_converter.
+    local targets=(chrome_framework components/subresource_filter/tools:ruleset_converter)
     if [[ -n "${1:-}" ]]; then
         # siso stops cleanly on SIGINT and the next build resumes from there.
-        gtimeout --signal INT --kill-after 10m "$1" autoninja -C "$OUT" chrome_framework
+        gtimeout --signal INT --kill-after 10m "$1" autoninja -C "$OUT" "${targets[@]}"
     else
-        autoninja -C "$OUT" chrome_framework
+        autoninja -C "$OUT" "${targets[@]}"
     fi
 }
 
 package() {
     local archive="$BUILD_DIR/EngineCore-$ENGINE_CHROMIUM_VERSION-$ENGINE_BUILD-arm64.zip"
     rm -f "$archive"
+    cp "$SRC/$OUT/ruleset_converter" "$SRC/$OUT/EngineCore.framework/Versions/$ENGINE_CHROMIUM_VERSION/Helpers/"
     ditto -c -k --keepParent "$SRC/$OUT/EngineCore.framework" "$archive"
     echo "$archive"
 }

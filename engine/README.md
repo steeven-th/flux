@@ -212,8 +212,8 @@ denied or cancelled (permissions stay pending, Chrome's context menu shows).
   extension with the profile's `ComponentLoader` (`AddOrReplace`, the one
   entry that skips the component allowlist), so it loads for the session, in
   incognito too, and is spared by `ManifestV2Handler`, which disables every
-  Manifest V2 extension but component ones. The shell bundles uBlock Origin
-  this way. Its manifest needs a "key", which gives a stable ID.
+  Manifest V2 extension but component ones. Its manifest needs a "key",
+  which gives a stable ID. Flux bundles none at the moment.
 
 The engine starts Chrome with `--disable-field-trial-config`. Non-official
 builds otherwise enable the experiments in

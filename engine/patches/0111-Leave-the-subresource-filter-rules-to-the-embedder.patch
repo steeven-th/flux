@@ -1,0 +1,20 @@
+Subject: [PATCH] Leave the subresource filter rules to the embedder
+
+Chrome downloads its ruleset for the subresource filter as a component, the
+list of abusive ad networks Safe Browsing uses. EngineCore's embedder gives
+rules of its own, for content blocking on every site, and the component's
+would replace them when it updates.
+---
+diff --git a/chrome/browser/component_updater/registration.cc b/chrome/browser/component_updater/registration.cc
+--- a/chrome/browser/component_updater/registration.cc
++++ b/chrome/browser/component_updater/registration.cc
+@@ -152,7 +152,8 @@
+   RegisterWidevineCdmComponent(cus);
+ #endif  // BUILDFLAG(ENABLE_WIDEVINE_CDM_COMPONENT)
+ 
+-  RegisterSubresourceFilterComponent(cus);
++  // EngineCore's embedder gives rules of its own, which Chrome's ruleset
++  // would replace.
+   RegisterOnDeviceHeadSuggestComponent(
+       cus, g_browser_process->GetApplicationLocale());
+   RegisterOptimizationHintsComponent(cus);

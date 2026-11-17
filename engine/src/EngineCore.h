@@ -33,6 +33,14 @@ EC_EXPORT
 // github.io included), or the host itself when it has none (an IP address,
 // localhost, a public suffix).
 + (NSString*)registrableDomainForHost:(NSString*)host;
+// Blocks the requests of every page that match these rules, in unindexed
+// form as ruleset_converter writes them (Helpers/ruleset_converter turns
+// EasyList-style lists into them). Chromium indexes them in the background
+// and keeps the result, so the same version is indexed once. The license
+// file is optional.
++ (void)useContentBlockingRulesAtPath:(NSString*)path
+                        licenseAtPath:(nullable NSString*)licensePath
+                              version:(NSString*)version;
 @end
 
 // Matches download::DownloadItem::DownloadState.
@@ -284,6 +292,11 @@ EC_EXPORT
               allowed:(BOOL)allowed
             forOrigin:(NSURL*)origin;
 - (void)resetPermission:(NSString*)permission forOrigin:(NSURL*)origin;
+// Whether the content blocking rules apply to the profile's pages, and to the
+// URL's site, which can be an exception either way.
+@property(nonatomic) BOOL blocksContent;
+- (BOOL)blocksContentForURL:(NSURL*)url;
+- (void)setBlocksContent:(BOOL)blocks forURL:(NSURL*)url;
 // Deletes the cookies and storage of the URL's site (its registrable domain,
 // subdomains included), as Chrome's page info does. `completion` runs on the
 // main thread once they are gone.

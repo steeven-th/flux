@@ -7,6 +7,9 @@
 #include <vector>
 
 #include "base/strings/sys_string_conversions.h"
+#include "chrome/browser/browser_process.h"
+#include "components/subresource_filter/content/browser/ruleset_service.h"
+#include "components/subresource_filter/core/browser/ruleset_version.h"
 #import "chrome/browser/app_controller_mac.h"
 #import "engine_core/ec_browser_context_private.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
@@ -80,6 +83,23 @@ NSMenu* g_dock_menu;
   return domain.empty() ? host : base::SysUTF8ToNSString(domain);
 }
 
++ (void)useContentBlockingRulesAtPath:(NSString*)path
+                        licenseAtPath:(NSString*)licensePath
+                              version:(NSString*)version {
+  subresource_filter::RulesetService* service =
+      g_browser_process->subresource_filter_ruleset_service();
+  if (!service) {
+    return;
+  }
+  subresource_filter::UnindexedRulesetInfo info;
+  info.content_version = base::SysNSStringToUTF8(version);
+  info.ruleset_path = base::FilePath(base::SysNSStringToUTF8(path));
+  if (licensePath) {
+    info.license_path = base::FilePath(base::SysNSStringToUTF8(licensePath));
+  }
+  service->IndexAndStoreAndPublishRulesetIfNeeded(info);
+}
+
 + (void)startWithArguments:(NSArray<NSString*>*)args {
   // AppController is NSApp's delegate by now and AppKit has not yet delivered
   // any open or reopen events.
@@ -110,9 +130,15 @@ NSMenu* g_dock_menu;
   strings.push_back("--disable-field-trial-config");
   // Profiles that ran with that config have migrated their search engines,
   // which cannot be undone, and Chrome expects the migration to stay on.
+  // The subresource filter blocks on every site, not only on the ones Safe
+  // Browsing flags for abusive ads. Above the priority of Chrome's presets,
+  // or ad tagging's dry run on every site would win. Chrome reads one
+  // --enable-features only.
   strings.push_back(
       "--enable-features=PrepopulatedEnginesMigration,"
-      "ApplySearchEngineTypeMigration,UseSCContentSharingPicker");
+      "ApplySearchEngineTypeMigration,UseSCContentSharingPicker,"
+      "SubresourceFilter:activation_scope/all_sites/activation_state/enabled/"
+      "activation_priority/2000");
   std::vector<const char*> argv;
   for (const std::string& s : strings) {
     argv.push_back(s.c_str());
