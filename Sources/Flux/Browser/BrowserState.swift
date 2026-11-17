@@ -32,6 +32,7 @@ final class BrowserState {
     private static let archiveDelayKey = "archiveDelay"
     private static let linkTargetsOpenPeekKey = "linkTargetsOpenPeek"
     private static let shiftClickOpensPeekKey = "shiftClickOpensPeek"
+    private static let groupsOpenedTabsKey = "groupsOpenedTabs"
     private static let outsideLinksOpenLittleWindowKey = "outsideLinksOpenLittleWindow"
     private static let linkSourceAppsKey = "linkSourceApps"
     /// Archived tabs are kept this long. The pages stay in the history after that.
@@ -752,7 +753,14 @@ final class BrowserState {
         set { save { try appDatabase.setSetting(Self.shiftClickOpensPeekKey, to: newValue ? nil : "false") } }
     }
 
-    /// A page opened by another one goes to a Peek, or to a tab of the same space.
+    /// Whether a tab opened from a tab of Today goes below it, in its group.
+    var groupsOpenedTabs: Bool {
+        get { (try? appDatabase.setting(Self.groupsOpenedTabsKey)) != "false" }
+        set { save { try appDatabase.setSetting(Self.groupsOpenedTabsKey, to: newValue ? nil : "false") } }
+    }
+
+    /// A page opened by another one goes to a Peek, or to a tab of the same space. ⌥ held with
+    /// the click opens it as a tab of its own, out of the opener's group.
     private func open(_ page: FLXBrowserView, from opener: Tab, disposition: FLXOpenDisposition) {
         let spaceID = opener.spaceID
         let peeks = switch disposition {
@@ -761,7 +769,11 @@ final class BrowserState {
         default: false
         }
         guard peeks, spaceID == selectedSpaceID else {
-            newTab(url: page.currentURL, in: spaceID, page: page, selecting: disposition != .backgroundTab, openedFrom: opener)
+            let groups = groupsOpenedTabs && !NSEvent.modifierFlags.contains(.option)
+            newTab(
+                url: page.currentURL, in: spaceID, page: page, selecting: disposition != .backgroundTab,
+                openedFrom: groups ? opener : nil
+            )
             return
         }
         closePeek()
@@ -1423,6 +1435,14 @@ final class BrowserState {
         guard head.node.isExpanded != isExpanded else { return }
         head.setExpanded(isExpanded)
         save { try profileDatabases[head.spaceID]?.save(head.node) }
+    }
+
+    /// The tab becomes a tab of Today of its own, right below its group.
+    func removeFromGroup(_ tab: Tab) {
+        guard let head = groupHead(of: tab), head.node.section == .today, head.node.parentID == nil,
+              let index = entries(in: .today, parentID: nil, spaceID: tab.spaceID).firstIndex(where: { $0.id == head.id })
+        else { return }
+        _ = move(.tab(tab), to: .today, parentID: nil, index: index + 1)
     }
 
     /// The cross of a group closes all of its tabs.

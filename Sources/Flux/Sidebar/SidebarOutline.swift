@@ -31,6 +31,10 @@ struct SidebarOutline: NSViewRepresentable {
         outline.middleClickHandler = { [weak coordinator = context.coordinator] item in
             if let tab = item as? Tab { coordinator?.state.close(tab) }
         }
+        outline.dropZone = { [weak coordinator = context.coordinator, weak outline] info in
+            guard let coordinator, let outline else { return nil }
+            return coordinator.groupEdgeZone(outline, info: info)
+        }
         outline.groupClickHandler = { [weak coordinator = context.coordinator] item in
             coordinator?.toggle(item)
         }
@@ -371,9 +375,48 @@ struct SidebarOutline: NSViewRepresentable {
             _ outlineView: NSOutlineView, validateDrop info: NSDraggingInfo,
             proposedItem item: Any?, proposedChildIndex index: Int
         ) -> NSDragOperation {
+            var (item, index) = (item, index)
+            if let retargeted = groupEdgeTarget(outlineView, info: info) {
+                (item, index) = retargeted
+                outlineView.setDropItem(item, dropChildIndex: index)
+            }
             guard let entry = draggedEntry(info), let target = destination(item, index: index),
                   state.canMove(entry, to: target.section, parentID: target.parentID) else { return [] }
             return .move
+        }
+
+        /// Below the last tab of an open group, the dragged row decides: indented like the group's
+        /// tabs it joins the group, further left it lands below the group, and the drop line shows
+        /// which.
+        /// Worked out from the drag, as AppKit proposes that gap in several ways, or not at all
+        /// when the group ends the sidebar.
+        /// Which side of a group's end the drag is on, nil away from one.
+        func groupEdgeZone(_ outlineView: NSOutlineView, info: NSDraggingInfo) -> String? {
+            groupEdgeTarget(outlineView, info: info).map { target in
+                "\(target.item.map { ObjectIdentifier($0 as AnyObject).hashValue } ?? 0) \(target.index)"
+            }
+        }
+
+        private func groupEdgeTarget(_ outlineView: NSOutlineView, info: NSDraggingInfo) -> (item: Any?, index: Int)? {
+            let point = outlineView.convert(info.draggingLocation, from: nil)
+            let rowUnder = outlineView.row(at: point)
+            let rowAbove: Int
+            if rowUnder < 0 {
+                guard outlineView.numberOfRows > 0, point.y > outlineView.rect(ofRow: outlineView.numberOfRows - 1).maxY else { return nil }
+                rowAbove = outlineView.numberOfRows - 1
+            } else {
+                rowAbove = point.y > outlineView.rect(ofRow: rowUnder).midY ? rowUnder : rowUnder - 1
+            }
+            guard rowAbove >= 0, let last = outlineView.item(atRow: rowAbove) as? Tab,
+                  let head = state.groupHead(of: last), outlineView.isItemExpanded(head),
+                  state.members(of: head).last === last else { return nil }
+            let headRow = outlineView.row(forItem: head)
+            guard headRow >= 0 else { return nil }
+            // The dragged row's left edge, wherever it was grabbed, halfway to the group's indent.
+            let rowStart = outlineView.convert(info.draggedImageLocation, from: nil).x
+            let threshold = outlineView.frameOfCell(atColumn: 0, row: headRow).minX + outlineView.indentationPerLevel / 2
+            if rowStart >= threshold { return (head, state.members(of: head).count) }
+            return (outlineView.parent(forItem: head), outlineView.childIndex(forItem: head) + 1)
         }
 
         func outlineView(
@@ -431,6 +474,9 @@ struct SidebarOutline: NSViewRepresentable {
                 menu.addItem(.separator())
                 if state.isGroupHead(tab) {
                     menu.addItem(MenuAction.item("Close Group") { [weak self] in self?.state.closeGroup(tab) })
+                }
+                if tab.node.section == .today, state.groupHead(of: tab) != nil {
+                    menu.addItem(MenuAction.item("Remove from Group") { [weak self] in self?.state.removeFromGroup(tab) })
                 }
                 if tab.isKept {
                     menu.addItem(MenuAction.item("Unload Tab") { [weak self] in self?.state.close(tab) })
@@ -498,6 +544,24 @@ private final class HostingCell: NSTableCellView {
 private final class SidebarOutlineView: NSOutlineView {
     var middleClickHandler: ((Any) -> Void)?
     var groupClickHandler: ((Any) -> Void)?
+    /// Where the drag is for drops AppKit can't tell apart, such as either side of a group's end.
+    var dropZone: ((NSDraggingInfo) -> String?)?
+    private var lastDropZone: String?
+
+    // AppKit validates a drop again only when its own proposal changes, which moving sideways
+    // below a group doesn't do. Entering again makes it ask.
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        lastDropZone = dropZone?(sender)
+        return super.draggingEntered(sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        let zone = dropZone?(sender)
+        guard zone != lastDropZone else { return super.draggingUpdated(sender) }
+        lastDropZone = zone
+        super.draggingExited(sender)
+        return super.draggingEntered(sender)
+    }
 
     override func mouseDown(with event: NSEvent) {
         let row = row(at: convert(event.locationInWindow, from: nil))

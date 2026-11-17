@@ -1661,6 +1661,16 @@
         }
       }
     },
+    "Group tabs opened from a tab below it" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ranger sous un onglet les onglets ouverts depuis lui"
+          }
+        }
+      }
+    },
     "Height:" : {
       "localizations" : {
         "fr" : {
@@ -1777,6 +1787,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Historique"
+          }
+        }
+      }
+    },
+    "Hold ⌥ as you ⌘-click or middle-click a link to open it as a tab of its own. Right-click a tab of a group to take it out." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maintenez ⌥ en faisant ⌘-clic ou clic molette sur un lien pour l'ouvrir dans un onglet à part. Clic droit sur un onglet d'un groupe pour l'en sortir."
           }
         }
       }
@@ -3327,6 +3347,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Retirer des favoris…"
+          }
+        }
+      }
+    },
+    "Remove from Group" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sortir du groupe"
           }
         }
       }

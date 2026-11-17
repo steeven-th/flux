@@ -5,6 +5,7 @@ struct LinkSettings: View {
 
     @State private var linkTargetsOpenPeek = true
     @State private var shiftClickOpensPeek = true
+    @State private var groupsOpenedTabs = true
     @State private var outsideLinksOpenLittleWindow = true
     @State private var rules: [LinkRule] = []
     @State private var editedRule: LinkRule?
@@ -48,6 +49,13 @@ struct LinkSettings: View {
                     .foregroundStyle(.secondary)
             }
             Section {
+                Toggle("Group tabs opened from a tab below it", isOn: $groupsOpenedTabs)
+            } footer: {
+                Text("Hold ⌥ as you ⌘-click or middle-click a link to open it as a tab of its own. Right-click a tab of a group to take it out.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section {
                 Toggle("Open links that open a new tab in Peek", isOn: $linkTargetsOpenPeek)
                 Toggle("Open links in Peek with ⇧-click", isOn: $shiftClickOpensPeek)
             } header: {
@@ -78,11 +86,13 @@ struct LinkSettings: View {
             rules = state.linkRules
             linkTargetsOpenPeek = state.linkTargetsOpenPeek
             shiftClickOpensPeek = state.shiftClickOpensPeek
+            groupsOpenedTabs = state.groupsOpenedTabs
             outsideLinksOpenLittleWindow = state.outsideLinksOpenLittleWindow
         }
         .onChange(of: outsideLinksOpenLittleWindow) { state.outsideLinksOpenLittleWindow = outsideLinksOpenLittleWindow }
         .onChange(of: linkTargetsOpenPeek) { state.linkTargetsOpenPeek = linkTargetsOpenPeek }
         .onChange(of: shiftClickOpensPeek) { state.shiftClickOpensPeek = shiftClickOpensPeek }
+        .onChange(of: groupsOpenedTabs) { state.groupsOpenedTabs = groupsOpenedTabs }
     }
 
     private func delete(_ rule: LinkRule) {
