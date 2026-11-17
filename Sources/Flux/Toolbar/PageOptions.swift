@@ -11,7 +11,7 @@ struct PageOptions: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
-                if let url = URL(string: tab.url) {
+                if let url = URL(string: CleanLink.cleaned(tab.url)) {
                     ShareLink(item: url) {
                         OptionTile(symbol: "square.and.arrow.up")
                     }

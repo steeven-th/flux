@@ -48,7 +48,7 @@ shortcuts and can't be taken. Minimize acts on the window the page belongs to.
 | Select Previous Tab | ⌃⇧⇥ |
 | Select Tab 1 to 8 | ⌘1 to ⌘8 |
 | Select Last Tab | ⌘9 |
-| Copy Address | ⇧⌘C |
+| Copy Address (without tracking parameters such as `utm_*` or `fbclid`) | ⇧⌘C |
 | Reopen Closed Tab | ⇧⌘T |
 | Show All History | ⌘Y |
 | Show Archive | ⇧⌘A |

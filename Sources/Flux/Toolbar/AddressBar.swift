@@ -91,7 +91,8 @@ struct AddressBar: View {
     }
 }
 
-/// Copies the page's address, then shows a check mark for a moment.
+/// Copies the page's address without its tracking parameters, then shows a check mark for a
+/// moment.
 struct CopyLinkButton: View {
     let url: String
 
@@ -100,7 +101,7 @@ struct CopyLinkButton: View {
     var body: some View {
         Button {
             NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(url, forType: .string)
+            NSPasteboard.general.setString(CleanLink.cleaned(url), forType: .string)
             copied = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
         } label: {

@@ -437,12 +437,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state.duplicate(tab)
     }
 
-    /// The little window's page when one has the keyboard.
+    /// The little window's page when one has the keyboard, without its tracking parameters.
     @objc func copyAddress(_ sender: Any?) {
         guard let url = LittleWindowController.key?.model.url ?? state?.selectedTab?.url,
               let window = NSApp.keyWindow.map({ $0.parent ?? $0 }) else { return }
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(url, forType: .string)
+        NSPasteboard.general.setString(CleanLink.cleaned(url), forType: .string)
         Toast.show(String(localized: "Address Copied"), over: window)
     }
 
