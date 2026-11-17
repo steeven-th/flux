@@ -115,10 +115,12 @@ list may need to change.
 
 ## New Chromium versions
 
-Chrome's stable updates carry its security fixes, and the engine should follow them. Every day,
-the Chromium versions workflow compares `ENGINE_CHROMIUM_VERSION` with the latest stable Chrome
-for macOS, and keeps an issue labelled `chromium-update` open while a newer one is out, with
-whether the patches apply to it.
+Chrome's updates carry its security fixes, and the engine should follow them. Google keeps every
+other major version on Extended Stable, with security fixes for about eight more weeks, which gives
+time to port the engine to the next one. Every day, the Chromium versions workflow compares
+`ENGINE_CHROMIUM_VERSION` with the latest release of its major version, then with the latest
+stable Chrome for macOS, and keeps an issue labelled `chromium-update` open while a newer one is
+out, with whether the patches apply to it.
 
 `scripts/check-engine-patches.sh VERSION` tells the same in a minute, without a checkout: it
 downloads only the files the patches change, at that version's tag, and applies the patches to

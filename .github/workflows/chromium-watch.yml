@@ -1,8 +1,9 @@
 name: Chromium versions
 
-# Every day, compares the engine's Chromium version with the latest stable Chrome for macOS. When a
-# newer one is out, keeps one issue open about it, labelled chromium-update, saying whether the
-# engine's patches apply to it. See "New Chromium versions" in docs/engine.md.
+# Every day, compares the engine's Chromium version with the latest release of its major version,
+# Extended Stable included, then with the latest stable Chrome for macOS. When a newer one is out,
+# keeps one issue open about it, labelled chromium-update, saying whether the engine's patches apply
+# to it. See "New Chromium versions" in docs/engine.md.
 on:
   schedule:
     - cron: "17 6 * * *"
@@ -22,12 +23,24 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           source scripts/engine.env
-          latest="$(curl --fail --silent --show-error \
-            'https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Mac&num=1' |
-            jq -r '.[0].version')"
-          echo "Engine: $ENGINE_CHROMIUM_VERSION, Chrome stable: $latest"
-          newest="$(printf '%s\n%s\n' "$ENGINE_CHROMIUM_VERSION" "$latest" | sort -V | tail -1)"
-          if [[ "$newest" == "$ENGINE_CHROMIUM_VERSION" ]]; then
+          releases() {
+            curl --fail --silent --show-error \
+              "https://chromiumdash.appspot.com/fetch_releases?channel=$1&platform=Mac&num=20" |
+              jq -r '.[].version'
+          }
+          stable="$(releases Stable | head -1)"
+          # Extended Stable keeps a major version on security fixes for longer.
+          major="${ENGINE_CHROMIUM_VERSION%%.*}"
+          same_major="$( (releases Extended; releases Stable) | grep "^$major\." | sort -V | tail -1)"
+          echo "Engine: $ENGINE_CHROMIUM_VERSION, latest $major: ${same_major:-none}, Chrome stable: $stable"
+          newer() { [[ -n "$1" && "$(printf '%s\n%s\n' "$ENGINE_CHROMIUM_VERSION" "$1" | sort -V | tail -1)" != "$ENGINE_CHROMIUM_VERSION" ]]; }
+          if newer "$same_major"; then
+            latest="$same_major"
+            note="It is a security update of the engine's major version, which takes no patch changes in general. Chrome stable is $stable."
+          elif newer "$stable"; then
+            latest="$stable"
+            note="It is a new major version."
+          else
             exit 0
           fi
 
@@ -37,7 +50,7 @@ jobs:
             summary="Some of the engine's patches don't apply to it and need updating."
           fi
           body="$(cat <<BODY
-          Chrome $latest is the latest stable version for macOS. The engine runs Chromium $ENGINE_CHROMIUM_VERSION.
+          Chromium $latest is out for macOS. The engine runs Chromium $ENGINE_CHROMIUM_VERSION. $note
 
           $summary
 
