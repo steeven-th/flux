@@ -1,5 +1,5 @@
-# Changed for Flux: ec_devtools.mm, for DevTools docked in the embedder's window, and the browsing
-# data constants.
+# Changed for Flux: ec_devtools.mm, for DevTools docked in the embedder's window, the browsing data
+# constants, and the subresource filter for content blocking.
 config("exports") {
   if (!is_component_build) {
     inputs = [ "EngineCore.exports" ]
@@ -75,6 +75,8 @@ source_set("engine_core") {
     "//components/find_in_page",
     "//components/history/core/browser",
     "//components/js_injection/browser",
+    "//components/subresource_filter/content/browser",
+    "//components/subresource_filter/core/browser",
     "//components/js_injection/common:common_mojom",
     "//components/input",
     "//components/zoom",

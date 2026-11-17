@@ -2905,6 +2905,38 @@ static ECWindowOpenDisposition ECDisposition(WindowOpenDisposition disposition) 
                     std::nullopt);
 }
 
+// Chrome's "Ads" setting turns the subresource filter off where it allows.
+- (BOOL)blocksContent {
+  return HostContentSettingsMapFactory::GetForProfile(self.profile)
+             ->GetDefaultContentSetting(ContentSettingsType::ADS) !=
+         CONTENT_SETTING_ALLOW;
+}
+
+- (void)setBlocksContent:(BOOL)blocks {
+  HostContentSettingsMapFactory::GetForProfile(self.profile)
+      ->SetDefaultContentSetting(
+          ContentSettingsType::ADS,
+          blocks ? CONTENT_SETTING_BLOCK : CONTENT_SETTING_ALLOW);
+}
+
+- (BOOL)blocksContentForURL:(NSURL*)url {
+  GURL site = net::GURLWithNSURL(url);
+  return HostContentSettingsMapFactory::GetForProfile(self.profile)
+             ->GetContentSetting(site, site, ContentSettingsType::ADS) !=
+         CONTENT_SETTING_ALLOW;
+}
+
+// Matching the profile's choice removes the site's own.
+- (void)setBlocksContent:(BOOL)blocks forURL:(NSURL*)url {
+  GURL site = net::GURLWithNSURL(url);
+  HostContentSettingsMapFactory::GetForProfile(self.profile)
+      ->SetContentSettingDefaultScope(
+          site, site, ContentSettingsType::ADS,
+          blocks == self.blocksContent
+              ? CONTENT_SETTING_DEFAULT
+              : (blocks ? CONTENT_SETTING_BLOCK : CONTENT_SETTING_ALLOW));
+}
+
 - (void)clearSiteDataForURL:(NSURL*)url completion:(void (^)(void))completion {
   [self removeData:chrome_browsing_data_remover::DATA_TYPE_SITE_DATA
             forURL:url

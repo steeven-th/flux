@@ -1,0 +1,26 @@
+Subject: [PATCH] Keep no ads metadata for every site the filter activates on
+
+The subresource filter records in the profile's content settings which
+sites it activated on, for Chrome's UI about sites flagged for abusive ads.
+Activated on every site for content blocking, it would keep an entry for
+each site visited.
+---
+diff --git a/components/subresource_filter/content/browser/profile_interaction_manager.cc b/components/subresource_filter/content/browser/profile_interaction_manager.cc
+--- a/components/subresource_filter/content/browser/profile_interaction_manager.cc
++++ b/components/subresource_filter/content/browser/profile_interaction_manager.cc
+@@ -109,13 +109,9 @@
+     *decision = ActivationDecision::ACTIVATED;
+   }
+ 
++  // Activated on every site, the filter would keep metadata for each one, which
++  // only serves Chrome's UI for sites flagged for abusive ads.
+   const GURL& url(navigation_handle->GetURL());
+-  if (url.SchemeIsHTTPOrHTTPS()) {
+-    profile_context_->settings_manager()->SetSiteMetadataBasedOnActivation(
+-        url, effective_activation_level == mojom::ActivationLevel::kEnabled,
+-        SubresourceFilterContentSettingsManager::ActivationSource::
+-            kSafeBrowsing);
+-  }
+ 
+   if (profile_context_->settings_manager()->GetSitePermission(url) ==
+       CONTENT_SETTING_ALLOW) {
