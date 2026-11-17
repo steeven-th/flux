@@ -15,6 +15,8 @@ struct SidebarOutline: NSViewRepresentable {
         let outline = SidebarOutlineView()
         outline.headerView = nil
         outline.style = .sourceList
+        // The rows draw the selection themselves, inside their padding.
+        outline.selectionHighlightStyle = .none
         outline.backgroundColor = .clear
         outline.rowSizeStyle = .custom
         outline.rowHeight = 30
@@ -210,20 +212,39 @@ struct SidebarOutline: NSViewRepresentable {
             case is SeparatorItem: SeparatorRowView()
             case let tab as Tab:
                 if let head = state.groupHead(of: tab) ?? (state.isGroupHead(tab) ? tab : nil) {
-                    GroupRowView(headID: head.id, hover: groupHover) { [weak self, weak head] in
-                        guard let self, let head, let outline = self.outline else { return .single }
-                        if tab === head { return outline.isItemExpanded(head) ? .top : .single }
-                        return self.state.members(of: head).last === tab ? .bottom : .middle
+                    GroupRowView(headID: head.id, hover: groupHover) { [weak self, weak tab] in
+                        tab.flatMap { self?.groupPart(of: $0) } ?? .middle
                     }
                 } else {
                     HoverRowView()
                 }
+            case is NewTabItem: HoverRowView { Self.newTabPadding }
             default: HoverRowView()
             }
         }
 
         func outlineView(_ outlineView: NSOutlineView, heightOfRowByItem item: Any) -> CGFloat {
-            item is SeparatorItem ? 17 : outlineView.rowHeight
+            if item is SeparatorItem { return 17 }
+            let padding = padding(for: item)
+            return outlineView.rowHeight + padding.top + padding.bottom
+        }
+
+        private static let newTabPadding = RowPadding(top: 0, bottom: 8)
+
+        /// Room above and below a row's content: a group's frame keeps the same space around its
+        /// tabs on every side, and New Tab stands apart from the tabs below it.
+        private func padding(for item: Any) -> RowPadding {
+            switch item {
+            case is NewTabItem: Self.newTabPadding
+            case let tab as Tab: groupPart(of: tab)?.padding ?? RowPadding()
+            default: RowPadding()
+            }
+        }
+
+        fileprivate func groupPart(of tab: Tab) -> GroupRowView.Part? {
+            if state.isGroupHead(tab) { return outline?.isItemExpanded(tab) == true ? .top : .single }
+            guard let head = state.groupHead(of: tab) else { return nil }
+            return state.members(of: head).last === tab ? .bottom : .middle
         }
 
         func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
@@ -266,7 +287,7 @@ struct SidebarOutline: NSViewRepresentable {
                 return nil
             }
             let cell = outlineView.makeView(withIdentifier: HostingCell.identifier, owner: nil) as? HostingCell ?? HostingCell()
-            cell.show(row)
+            cell.show(row, padding: padding(for: item))
             return cell
         }
 
@@ -351,6 +372,18 @@ struct SidebarOutline: NSViewRepresentable {
                 state.setCollapsed(section.section, !isExpanded)
             case let head as Tab:
                 state.setExpanded(head, isExpanded)
+                // A closed group's row gives room to the frame below it too. The outline ignores a
+                // height change while it expands or collapses.
+                DispatchQueue.main.async { [weak outline] in
+                    guard let outline else { return }
+                    let row = outline.row(forItem: head)
+                    guard row >= 0 else { return }
+                    NSAnimationContext.runAnimationGroup { context in
+                        context.duration = 0
+                        outline.noteHeightOfRows(withIndexesChanged: IndexSet(integer: row))
+                    }
+                    outline.reloadItem(head)
+                }
             default:
                 break
             }
@@ -511,21 +544,24 @@ struct SidebarOutline: NSViewRepresentable {
     }
 }
 
-/// An outline cell showing a SwiftUI row.
+/// An outline cell showing a SwiftUI row, below and above the row's padding.
 private final class HostingCell: NSTableCellView {
     static let identifier = NSUserInterfaceItemIdentifier("HostingCell")
     private let host = NSHostingView(rootView: AnyView(EmptyView()))
+    private var top: NSLayoutConstraint!
+    private var bottom: NSLayoutConstraint!
 
     init() {
         super.init(frame: .zero)
         identifier = Self.identifier
         host.translatesAutoresizingMaskIntoConstraints = false
         addSubview(host)
+        top = host.topAnchor.constraint(equalTo: topAnchor)
+        bottom = host.bottomAnchor.constraint(equalTo: bottomAnchor)
         NSLayoutConstraint.activate([
             host.leadingAnchor.constraint(equalTo: leadingAnchor),
             host.trailingAnchor.constraint(equalTo: trailingAnchor),
-            host.topAnchor.constraint(equalTo: topAnchor),
-            host.bottomAnchor.constraint(equalTo: bottomAnchor),
+            top, bottom,
         ])
     }
 
@@ -534,8 +570,23 @@ private final class HostingCell: NSTableCellView {
         fatalError("init(coder:) is not available")
     }
 
-    func show(_ view: AnyView) {
+    /// Light text only on the blue of a selection that has the keyboard, not on its grey.
+    override var backgroundStyle: NSView.BackgroundStyle {
+        get { super.backgroundStyle }
+        set {
+            let row = superview as? NSTableRowView
+            super.backgroundStyle = row?.isSelected == true && row?.isEmphasized == true ? .emphasized : .normal
+        }
+    }
+
+    func updateBackgroundStyle() {
+        backgroundStyle = .normal
+    }
+
+    func show(_ view: AnyView, padding: RowPadding) {
         host.rootView = view
+        top.constant = padding.top
+        bottom.constant = -padding.bottom
     }
 }
 
@@ -595,9 +646,49 @@ private final class SeparatorRowView: NSTableRowView {
 /// Shows a background under the mouse, where the selection would show. The page window usually has
 /// the keyboard, so the row follows the mouse whichever window is key.
 private class HoverRowView: NSTableRowView {
+    private let padding: () -> RowPadding
     private var trackingArea: NSTrackingArea?
     private var isHovered = false {
         didSet { if isHovered != oldValue { needsDisplay = true } }
+    }
+
+    init(padding: @escaping () -> RowPadding = { RowPadding() }) {
+        self.padding = padding
+        super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not available")
+    }
+
+    /// The hover background and the selection, the same size in every row, with a small gap
+    /// between rows.
+    var highlightPath: NSBezierPath {
+        NSBezierPath(roundedRect: contentRect.insetBy(dx: 10, dy: 1), xRadius: 6, yRadius: 6)
+    }
+
+    private var contentRect: NSRect {
+        let padding = padding()
+        return NSRect(x: bounds.minX, y: bounds.minY + padding.top, width: bounds.width, height: bounds.height - padding.top - padding.bottom)
+    }
+
+    private var disclosureButton: NSButton? {
+        subviews.lazy.compactMap { $0 as? NSButton }.first { $0.identifier == NSOutlineView.disclosureButtonIdentifier }
+    }
+
+    // The outline centres the disclosure triangle in the whole row, padding included.
+    override func layout() {
+        super.layout()
+        guard let button = disclosureButton else { return }
+        button.frame.origin.y = (contentRect.midY - button.frame.height / 2).rounded()
+        updateDisclosureButton()
+    }
+
+    private func updateDisclosureButton() {
+        let isOnBlue = isSelected && isEmphasized
+        disclosureButton?.contentTintColor = isOnBlue ? .alternateSelectedControlTextColor : nil
+        (disclosureButton?.cell as? NSButtonCell)?.backgroundStyle = isOnBlue ? .emphasized : .normal
     }
 
     override func updateTrackingAreas() {
@@ -618,10 +709,34 @@ private class HoverRowView: NSTableRowView {
 
     override func drawBackground(in dirtyRect: NSRect) {
         super.drawBackground(in: dirtyRect)
-        guard isHovered, !isSelected else { return }
-        NSColor.labelColor.withAlphaComponent(0.06).setFill()
-        NSBezierPath(roundedRect: bounds.insetBy(dx: 10, dy: 0), xRadius: 6, yRadius: 6).fill()
+        if isSelected {
+            (isEmphasized ? NSColor.selectedContentBackgroundColor : NSColor.unemphasizedSelectedContentBackgroundColor).setFill()
+        } else if isHovered {
+            NSColor.labelColor.withAlphaComponent(0.06).setFill()
+        } else {
+            return
+        }
+        highlightPath.fill()
     }
+
+    override var isSelected: Bool {
+        didSet { if isSelected != oldValue { selectionDidChange() } }
+    }
+
+    override var isEmphasized: Bool {
+        didSet { if isEmphasized != oldValue { selectionDidChange() } }
+    }
+
+    private func selectionDidChange() {
+        needsDisplay = true
+        for case let cell as HostingCell in subviews { cell.updateBackgroundStyle() }
+        updateDisclosureButton()
+    }
+}
+
+struct RowPadding {
+    var top: CGFloat = 0
+    var bottom: CGFloat = 0
 }
 
 /// The group under the mouse, which shows a frame around its rows and its cross.
@@ -632,7 +747,19 @@ final class GroupHover {
 
 /// A row of a group, which draws its part of the frame around the group under the mouse.
 private final class GroupRowView: HoverRowView {
-    enum Part { case single, top, middle, bottom }
+    enum Part {
+        case single, top, middle, bottom
+
+        /// The frame's line is 1.5 from the row's edge, and as far from the tabs as on the sides.
+        var padding: RowPadding {
+            switch self {
+            case .single: RowPadding(top: 5, bottom: 5)
+            case .top: RowPadding(top: 5, bottom: 0)
+            case .middle: RowPadding()
+            case .bottom: RowPadding(top: 0, bottom: 5)
+            }
+        }
+    }
 
     private let headID: UUID
     private let hover: GroupHover
@@ -642,12 +769,7 @@ private final class GroupRowView: HoverRowView {
         self.headID = headID
         self.hover = hover
         self.part = part
-        super.init(frame: .zero)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) is not available")
+        super.init(padding: { part().padding })
     }
 
     override func mouseEntered(with event: NSEvent) {
@@ -671,7 +793,7 @@ private final class GroupRowView: HoverRowView {
     override func drawBackground(in dirtyRect: NSRect) {
         super.drawBackground(in: dirtyRect)
         guard hover.headID == headID else { return }
-        let rect = bounds.insetBy(dx: 6.5, dy: 0)
+        let rect = bounds.insetBy(dx: 5.5, dy: 0)
         let radius: CGFloat = 8
         let top = rect.minY + 1.5
         let bottom = rect.maxY - 1.5
