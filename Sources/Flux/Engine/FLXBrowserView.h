@@ -201,6 +201,11 @@ NS_SWIFT_UI_ACTOR
 
 - (instancetype)initWithURL:(NSString *)url profile:(FLXProfile *)profile;
 
+/// The script that hides a site's ads, for pages that block content, in answer to what a page
+/// reports: an empty message as it starts, then the class names and ids it holds, as a JSON array.
+/// Nil for nothing to run.
+@property (class, nonatomic, copy, nullable) NSString *_Nullable (^contentHidingScriptProvider)(NSString *host, NSString *message);
+
 /// A page drawn inside the view itself. Extensions don't see it as a tab, which suits pages that
 /// are not tabs, like extension popups.
 - (instancetype)initEmbeddedWithURL:(NSString *)url profile:(FLXProfile *)profile;

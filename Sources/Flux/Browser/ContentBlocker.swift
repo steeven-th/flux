@@ -35,6 +35,7 @@ final class ContentBlocker {
     private var sources: String { Self.lists.map(\.absoluteString).joined(separator: "\n") }
     private var isUpdating = false
     private var timer: Timer?
+    private var hiding: ElementHiding?
 
     /// Chromium keeps the rules it indexed last, so the version on disk only needs indexing once.
     func start() {
@@ -43,6 +44,10 @@ final class ContentBlocker {
            let version = try? String(contentsOf: versionURL, encoding: .utf8) {
             FLXEngine.useContentBlockingRules(at: rulesURL, version: version)
         }
+        FLXBrowserView.contentHidingScriptProvider = { host, message in
+            MainActor.assumeIsolated { ContentBlocker.shared.hiding?.script(forHost: host, message: message) }
+        }
+        loadElementHiding()
         updateIfNeeded()
         timer = Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { _ in
             MainActor.assumeIsolated { ContentBlocker.shared.updateIfNeeded() }
@@ -86,6 +91,18 @@ final class ContentBlocker {
         try version.write(to: versionURL, atomically: true, encoding: .utf8)
         try sources.write(to: sourcesURL, atomically: true, encoding: .utf8)
         FLXEngine.useContentBlockingRules(at: rulesURL, version: version)
+        loadElementHiding()
+    }
+
+    /// From the lists on disk, off the main thread: they hold a few hundred thousand lines.
+    private func loadElementHiding() {
+        let files = Self.lists.indices.map { folder.appending(path: "list-\($0).txt") }
+        Task.detached(priority: .utility) {
+            let lists = files.compactMap { try? String(contentsOf: $0, encoding: .utf8) }
+            guard !lists.isEmpty else { return }
+            let hiding = ElementHiding(lists: lists)
+            await MainActor.run { ContentBlocker.shared.hiding = hiding }
+        }
     }
 
     /// Rules with options Chromium doesn't support, and element hiding rules, are left out.

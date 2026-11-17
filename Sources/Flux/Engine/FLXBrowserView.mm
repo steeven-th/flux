@@ -109,6 +109,50 @@ NSString *const kMediaWatcher = @R"(
 
 NSString *const kMediaObject = @"__fluxMedia";
 
+// Tells Flux a page starts in the main frame, then the class names and ids its elements have, as
+// they appear, so Flux hides the site's ads and the ones rules for every site name. Flux takes the
+// site from the message's origin, not from what the page says.
+NSString *const kContentHidingObject = @"__fluxContentHiding";
+NSString *const kContentHidingRequest = @R"(
+(() => {
+  const channel = globalThis.__fluxContentHiding;
+  if (window !== window.top || !channel) return;
+  channel.postMessage('');
+  const seen = new Set();
+  let pending = [];
+  let timer = null;
+  const add = (token) => { if (!seen.has(token)) { seen.add(token); pending.push(token); } };
+  const collect = (root) => {
+    for (const element of [root, ...root.querySelectorAll('[id], [class]')]) {
+      if (element.id) add('#' + element.id);
+      for (const name of element.classList || []) add('.' + name);
+    }
+    if (pending.length && !timer) {
+      timer = setTimeout(() => {
+        timer = null;
+        channel.postMessage(JSON.stringify(pending));
+        pending = [];
+      }, 50);
+    }
+  };
+  const start = () => {
+    collect(document.documentElement);
+    new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) if (node.nodeType === 1) collect(node);
+      }
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start, { once: true });
+  } else {
+    start();
+  }
+})();
+)";
+
+static NSString *_Nullable (^g_content_hiding_script_provider)(NSString *, NSString *) = nil;
+
 // The Chrome Web Store asks to switch to Chrome in a popup and a banner, and names Chrome on its
 // install button, which installs in Flux all the same. The popup and the banner are hidden with a
 // style sheet, which the store's own scripts don't notice. 276336 is the store's logging id for the
@@ -408,6 +452,21 @@ static NSArray<NSString *> *AddressLines(ECAddress *address) {
   NSTextField *_linkLabel;
 }
 
++ (NSString *_Nullable (^)(NSString *, NSString *))contentHidingScriptProvider {
+  return g_content_hiding_script_provider;
+}
+
++ (void)setContentHidingScriptProvider:(NSString *_Nullable (^)(NSString *, NSString *))provider {
+  g_content_hiding_script_provider = [provider copy];
+}
+
+// From the message's origin: the page's URL may not be the new one yet.
+- (void)hideContentOfOrigin:(NSURL *)origin message:(NSString *)message {
+  if (!g_content_hiding_script_provider || ![_profile.context blocksContentForURL:origin]) return;
+  NSString *script = g_content_hiding_script_provider(origin.host, message);
+  if (script.length) [_contents evaluateJavaScript:script completion:^(NSString *) {}];
+}
+
 - (instancetype)initWithURL:(NSString *)url profile:(FLXProfile *)profile {
   return [self initWithURL:url profile:profile embedded:NO];
 }
@@ -468,6 +527,8 @@ static NSArray<NSString *> *AddressLines(ECAddress *address) {
   [_contents addDocumentStartScript:kWebStoreFixes];
   [_contents addMessageObjectNamed:kMediaObject];
   [_contents addDocumentStartScript:kMediaWatcher];
+  [_contents addMessageObjectNamed:kContentHidingObject];
+  [_contents addDocumentStartScript:kContentHidingRequest];
   NSView *view = _contents.view;
   view.frame = self.bounds;
   view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
@@ -1274,6 +1335,10 @@ static FLXOpenDisposition FluxDisposition(ECWindowOpenDisposition disposition, B
            fromObject:(NSString *)name
                origin:(NSURL *)origin
             mainFrame:(BOOL)mainFrame {
+  if ([name isEqualToString:kContentHidingObject]) {
+    if (mainFrame && origin.host) [self hideContentOfOrigin:origin message:message];
+    return;
+  }
   if (![name isEqualToString:kMediaObject]) return;
   NSString *frame = [NSString stringWithFormat:@"%d %@", mainFrame, origin.absoluteString ?: @""];
   _mediaStates[frame] = message;

@@ -21,7 +21,23 @@ licence. Flux doesn't ship them, it downloads them.
 The filter blocks the requests a page makes, for scripts, images, frames and the rest, when a
 network rule of the lists matches them. The page itself always loads.
 
-It doesn't hide elements: the rules that hide a page's ad slots, about a third of EasyList, are
-left out, so a blocked ad can leave an empty space. Rules with options the filter doesn't know,
-such as `$redirect`, `$removeparam` or `$csp`, are left out too. For more, uBlock Origin Lite
-installs from the Chrome Web Store.
+Rules with options the filter doesn't know, such as `$redirect`, `$removeparam` or `$csp`, are left
+out.
+
+## Hiding elements
+
+Some ads come from the site itself, like the sponsored listings of a classifieds site, and blocking
+them would block the site. The lists hide them instead, with CSS selectors. Flux applies three
+kinds of them, minus the lists' exceptions (`#@#`):
+
+- Rules for a site (`example.com##.sponsored`), for it and the domains above it, in a style sheet
+  added as the page starts.
+- Rules for every site (`##.ad-banner`), tens of thousands. As uBlock Origin does, the page reports
+  the class names and ids its elements have as they appear, and only gets the rules that start
+  with one of them.
+- Procedural rules for a site, which pick elements by their text (`:has-text(Sponsored)`) or by
+  what they hold (`:has(…)`), run by a script again as the page changes.
+
+The other procedural rules of uBlock Origin and Adblock Plus (`:upward`, `:matches-css`,
+scriptlets) are left out. A site can also keep the room it set aside for an ad it no longer gets:
+no rule names its box. For more, uBlock Origin Lite installs from the Chrome Web Store.
