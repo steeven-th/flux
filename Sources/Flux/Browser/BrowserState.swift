@@ -20,6 +20,7 @@ final class BrowserState {
     private static let pinnedExtensionsMigratedKey = "pinnedExtensionsMigrated"
     private static let collapsedSectionsKey = "collapsedSections"
     private static let developerSitesKey = "developerSites"
+    private static let developerSitesOffKey = "developerSitesOff"
     private static let devToolsOrderKey = "devToolsOrder"
     private static let devToolsShownKey = "devToolsShown"
     private static let translationProviderKey = "translationProvider"
@@ -886,12 +887,23 @@ final class BrowserState {
         "\(pinnedExtensionsMigratedKey) \(folder.lastPathComponent)"
     }
 
-    // Developer mode is turned on for a site, in one profile.
+    // Developer mode is turned on for a site, in one profile. It starts on for sites served from
+    // this Mac or a local network name, as in Arc, and can be turned off there.
 
     func isDeveloperMode(for url: String) -> Bool {
         _ = settingsRevision
         guard let host = URL(string: url)?.host() else { return false }
+        if Self.isLocalDevelopmentHost(host) {
+            return !loadSet(key: Self.developerSitesOffKey, profile: selectedSpace.profileFolder).contains(host)
+        }
         return loadSet(key: Self.developerSitesKey, profile: selectedSpace.profileFolder).contains(host)
+    }
+
+    /// .test and .localhost are reserved for this, .local is the Mac's own network names.
+    static func isLocalDevelopmentHost(_ host: String) -> Bool {
+        let host = host.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+        return ["localhost", "0.0.0.0", "::1"].contains(host) || host.hasPrefix("127.")
+            || [".localhost", ".local", ".test"].contains { host.hasSuffix($0) }
     }
 
     /// Every tool, in the order the user chose. Tools added to Flux later come at the end.
@@ -980,9 +992,11 @@ final class BrowserState {
 
     func setDeveloperMode(_ isOn: Bool, for url: String) {
         guard let host = URL(string: url)?.host() else { return }
-        var sites = loadSet(key: Self.developerSitesKey, profile: selectedSpace.profileFolder)
-        if isOn { sites.insert(host) } else { sites.remove(host) }
-        saveSet(sites, key: Self.developerSitesKey, profile: selectedSpace.profileFolder)
+        let isLocal = Self.isLocalDevelopmentHost(host)
+        let key = isLocal ? Self.developerSitesOffKey : Self.developerSitesKey
+        var sites = loadSet(key: key, profile: selectedSpace.profileFolder)
+        if isOn != isLocal { sites.insert(host) } else { sites.remove(host) }
+        saveSet(sites, key: key, profile: selectedSpace.profileFolder)
     }
 
     private func loadSet(key: String, profile folder: URL) -> Set<String> {
