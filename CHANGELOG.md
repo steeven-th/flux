@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.4.0](https://github.com/steeven-th/flux/compare/v0.3.0...v0.4.0) (2026-11-17)
+
+
+### New
+
+* **developer-mode:** turn it on by itself for sites served from this Mac ([87cce5f](https://github.com/steeven-th/flux/commit/87cce5fe82ed050308d201e09183586aafa89fe4))
+* **engine:** name the helper processes for Flux ([4da8b3e](https://github.com/steeven-th/flux/commit/4da8b3ec7019d5965a7c2d45582a970a78d8dc98))
+* **links:** copy page addresses without their tracking parameters ([9d7c0d8](https://github.com/steeven-th/flux/commit/9d7c0d86fe81b064ae85051b6ef0586f43996924))
+* **page-menu:** clear the site's cache without signing out ([57a0d68](https://github.com/steeven-th/flux/commit/57a0d6866ddba492f1dcb47fcb50db0cc983bf43))
+* **tabs:** ⌃⇥ goes back to the tab used last ([c1680e5](https://github.com/steeven-th/flux/commit/c1680e5dcc003abe2cc9abeee067b839de87de79))
+* **tabs:** open a link out of its tab's group, and take tabs out of groups ([e3f7766](https://github.com/steeven-th/flux/commit/e3f77665d0a9f55de26fbc2e9b003cbd27e16590))
+
+
+### Fixed
+
+* **engine:** keep crash reports with Flux's own data ([4da8b3e](https://github.com/steeven-th/flux/commit/4da8b3ec7019d5965a7c2d45582a970a78d8dc98))
+* **engine:** open another app after the user allows it ([4da8b3e](https://github.com/steeven-th/flux/commit/4da8b3ec7019d5965a7c2d45582a970a78d8dc98))
+* **peek:** follow the window's appearance in the Peek's background ([2360a20](https://github.com/steeven-th/flux/commit/2360a205c20454ead839bcbe6180c85373da3e6a))
+* **tabs:** keep tabs playing sound awake ([f91e71f](https://github.com/steeven-th/flux/commit/f91e71f4319001eedab57ea48e8c092e53e3d919))
+
+
+### Smaller
+
+* **sidebar:** even spacing in groups and below New Tab ([89da3f4](https://github.com/steeven-th/flux/commit/89da3f44c211fc7ca272cdc7a58ebd4dbc8bb9a5))
+
 ## [0.3.0](https://github.com/steeven-th/flux/compare/v0.2.1...v0.3.0) (2026-11-16)
 
 
