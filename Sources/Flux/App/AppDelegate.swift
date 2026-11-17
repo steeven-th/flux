@@ -9,7 +9,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowController: MainWindowController? {
         activeWindow ?? windows.first
     }
-    private var state: BrowserState? {
+    private weak var recentTabCycleState: BrowserState?
+        private var state: BrowserState? {
         windowController?.state
     }
     /// The active window's state, or a regular window's when it is private: links from other apps
@@ -65,6 +66,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = menu
         Shortcuts.install(in: menu, database: try? database.get())
         dialogFixer = ChromiumDialogFixer()
+        // ⌃⇥ walks through recent tabs until the keys held with it are let go.
+        NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+            if event.modifierFlags.isDisjoint(with: [.control, .option, .command]) {
+                self?.recentTabCycleState?.endRecentTabCycle()
+                self?.recentTabCycleState = nil
+            }
+            return event
+        }
 
         let database: AppDatabase
         do {
@@ -419,6 +428,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         finder?.findSelection()
     }
 
+    @objc func showRecentTab(_ sender: Any?) {
+        recentTabCycleState = state
+        state?.selectRecentTab(step: 1)
+    }
+
+    @objc func showLessRecentTab(_ sender: Any?) {
+        recentTabCycleState = state
+        state?.selectRecentTab(step: -1)
+    }
+
     // Not selectNextTab(_:): windows answer that one first, for their own tabs, and disable it.
     @objc func showNextTab(_ sender: Any?) {
         state?.selectTab(after: 1)
@@ -639,7 +658,10 @@ extension AppDelegate: NSMenuDelegate, NSMenuItemValidation {
         if menuItem.action == #selector(reopenClosedTab(_:)) {
             return state?.archivedTabsInSelectedSpace.isEmpty == false
         }
-        if [#selector(showNextTab(_:)), #selector(showPreviousTab(_:)), #selector(selectTabNumber(_:)), #selector(duplicateTab(_:))].contains(menuItem.action) {
+        if [
+            #selector(showRecentTab(_:)), #selector(showLessRecentTab(_:)), #selector(showNextTab(_:)),
+            #selector(showPreviousTab(_:)), #selector(selectTabNumber(_:)), #selector(duplicateTab(_:)),
+        ].contains(menuItem.action) {
             return state?.selectedTab != nil
         }
         if menuItem.action == #selector(copyAddress(_:)) {

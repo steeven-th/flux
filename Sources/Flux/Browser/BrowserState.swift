@@ -1155,6 +1155,38 @@ final class BrowserState {
         return [SidebarNode.Section.pinned, .favorites, .today].flatMap { tabs(in: $0, parentID: nil) }
     }
 
+    /// Tabs by last use while ⌃⇥ is held: the order taken at the first press, the step reached,
+    /// and when the tabs passed through were used before.
+    private var recentTabCycle: (tabs: [Tab], index: Int, lastActive: [ObjectIdentifier: Date?])?
+
+    /// Steps through the space's tabs from the most recently used, as in Arc, until
+    /// `endRecentTabCycle()`. Wraps around at either end.
+    func selectRecentTab(step: Int) {
+        if recentTabCycle == nil {
+            let selected = selectedTab
+            let others = tabsInSidebarOrder()
+                .filter { $0 !== selected }
+                .sorted { ($0.node.lastActiveAt ?? .distantPast) > ($1.node.lastActiveAt ?? .distantPast) }
+            let tabs = (selected.map { [$0] } ?? []) + others
+            guard tabs.count > 1 else { return }
+            recentTabCycle = (tabs, 0, Dictionary(uniqueKeysWithValues: tabs.map { (ObjectIdentifier($0), $0.node.lastActiveAt) }))
+        }
+        guard var cycle = recentTabCycle else { return }
+        cycle.index = ((cycle.index + step) % cycle.tabs.count + cycle.tabs.count) % cycle.tabs.count
+        recentTabCycle = cycle
+        select(cycle.tabs[cycle.index])
+    }
+
+    /// Only the tab left and the tab chosen count as used, so the next ⌃⇥ goes back to the first.
+    func endRecentTabCycle() {
+        guard let cycle = recentTabCycle else { return }
+        recentTabCycle = nil
+        let chosen = cycle.tabs[cycle.index]
+        for tab in cycle.tabs.dropFirst() where tab !== chosen {
+            if let lastActive = cycle.lastActive[ObjectIdentifier(tab)] { tab.setLastActive(lastActive) }
+        }
+    }
+
     /// Wraps around at either end.
     func selectTab(after offset: Int) {
         let tabs = tabsInSidebarOrder()

@@ -85,8 +85,10 @@ enum MainMenu {
             optionCommand(NSMenuItem(title: String(localized: "Inspect Element"), action: #selector(AppDelegate.inspectElement(_:)), keyEquivalent: "c")),
         ]) + arrowNavigationItems() + [zoomInWithoutShiftItem()]))
         menu.addItem(submenu(title: String(localized: "Tab"), items: customizable([
-            control(NSMenuItem(title: String(localized: "Select Next Tab"), action: #selector(AppDelegate.showNextTab(_:)), keyEquivalent: "\t")),
-            controlShift(NSMenuItem(title: String(localized: "Select Previous Tab"), action: #selector(AppDelegate.showPreviousTab(_:)), keyEquivalent: "\t")),
+            control(NSMenuItem(title: String(localized: "Select Recent Tab"), action: #selector(AppDelegate.showRecentTab(_:)), keyEquivalent: "\t")),
+            controlShift(NSMenuItem(title: String(localized: "Select Less Recent Tab"), action: #selector(AppDelegate.showLessRecentTab(_:)), keyEquivalent: "\t")),
+            optionCommand(NSMenuItem(title: String(localized: "Select Next Tab"), action: #selector(AppDelegate.showNextTab(_:)), keyEquivalent: arrowKey(NSDownArrowFunctionKey))),
+            optionCommand(NSMenuItem(title: String(localized: "Select Previous Tab"), action: #selector(AppDelegate.showPreviousTab(_:)), keyEquivalent: arrowKey(NSUpArrowFunctionKey))),
             .separator(),
             NSMenuItem(title: String(localized: "Duplicate Tab"), action: #selector(AppDelegate.duplicateTab(_:)), keyEquivalent: ""),
             shifted(NSMenuItem(title: String(localized: "Copy Address"), action: #selector(AppDelegate.copyAddress(_:)), keyEquivalent: "c")),
@@ -180,6 +182,10 @@ enum MainMenu {
     }
 
     static let arrowNavigationTag = 1
+
+    private static func arrowKey(_ key: Int) -> String {
+        String(UnicodeScalar(UInt16(key))!)
+    }
 
     /// ⌘= zooms in too, as in Chrome, so the key under + needs no Shift. AppKit must not move it:
     /// on a French keyboard it would put it on another key.

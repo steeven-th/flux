@@ -391,6 +391,11 @@ final class Tab: NSObject, Identifiable {
         onChange?(self)
     }
 
+    func setLastActive(_ date: Date?) {
+        node.lastActiveAt = date
+        onChange?(self)
+    }
+
     /// For a tab heading a group.
     func setExpanded(_ isExpanded: Bool) {
         node.isExpanded = isExpanded

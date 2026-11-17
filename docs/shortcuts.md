@@ -44,8 +44,10 @@ shortcuts and can't be taken. Minimize acts on the window the page belongs to.
 | Developer Tools (shows or hides them) | ⌥⌘I |
 | JavaScript Console | ⌥⌘J |
 | Inspect Element | ⌥⌘C |
-| Select Next Tab | ⌃⇥ |
-| Select Previous Tab | ⌃⇧⇥ |
+| Select Recent Tab (the tab used before, then the ones before it while ⌃ is held) | ⌃⇥ |
+| Select Less Recent Tab (back through those tabs) | ⌃⇧⇥ |
+| Select Next Tab (in the sidebar) | ⌥⌘↓ |
+| Select Previous Tab (in the sidebar) | ⌥⌘↑ |
 | Select Tab 1 to 8 | ⌘1 to ⌘8 |
 | Select Last Tab | ⌘9 |
 | Copy Address (without tracking parameters such as `utm_*` or `fbclid`) | ⇧⌘C |

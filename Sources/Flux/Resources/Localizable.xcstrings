@@ -3751,6 +3751,16 @@
         }
       }
     },
+    "Select Less Recent Tab" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onglet moins récent"
+          }
+        }
+      }
+    },
     "Select Next Tab" : {
       "localizations" : {
         "fr" : {
@@ -3767,6 +3777,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Onglet précédent"
+          }
+        }
+      }
+    },
+    "Select Recent Tab" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onglet récent"
           }
         }
       }
