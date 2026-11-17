@@ -53,6 +53,16 @@ Chrome, so that it keeps the page that opened it as its `window.opener`. Sign-in
 link to send their result back. The bridge hands the new page to Flux, which shows it in a Peek or
 a tab like any other new window. ⌘-click and middle click still only pass the URL.
 
+## Process names
+
+Chromium runs each site, the GPU and its services in helper processes, which Activity Monitor lists
+by their helper app's name. Patch 0109 names those apps "Flux Helper", so pages show up as
+"Flux Helper (Renderer)" and the GPU and services as "Flux Helper", not "Chromium Helper".
+
+Chrome keeps its crash reports in `~/Library/Application Support/Chromium/Crashpad`, whatever
+`--user-data-dir` says. Patch 0110 keeps them in the user data directory Flux passes, so each
+instance of Flux keeps its own, next to its profiles.
+
 ## Building
 
 `scripts/engine.env` pins the Chromium version, a build name, and the SHA-256 of the archive.

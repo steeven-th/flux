@@ -1100,6 +1100,9 @@ void AskToOpenExternalApp(const GURL& url,
     return;
   }
   base::WeakPtr<content::WebContents> contents = web_contents->GetWeakPtr();
+  // A block captures a reference parameter as a reference, which no longer
+  // points at the URL once the user answers.
+  GURL target = url;
   // Taken by the first answer, so the app opens at most once.
   auto document = std::make_shared<std::optional<content::WeakDocumentPtr>>(
       std::move(initiator_document));
@@ -1117,7 +1120,7 @@ void AskToOpenExternalApp(const GURL& url,
               content::WeakDocumentPtr initiator = std::move(**document);
               document->reset();
               ExternalProtocolHandler::LaunchUrlWithoutSecurityCheck(
-                  url, contents.get(), std::move(initiator));
+                  target, contents.get(), std::move(initiator));
             }];
 }
 

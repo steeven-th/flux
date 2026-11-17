@@ -1,0 +1,50 @@
+Subject: [PATCH] Name the helper processes for Flux
+
+Activity Monitor lists the renderer, GPU and utility processes by their
+helper app's name, "Chromium Helper (Renderer)" and so on, which says
+nothing of the app they belong to. The helper apps, their bundle names
+and the paths Chrome launches them from are named for Flux instead.
+---
+diff --git a/chrome/BUILD.gn b/chrome/BUILD.gn
+--- a/chrome/BUILD.gn
++++ b/chrome/BUILD.gn
+@@ -485,7 +485,7 @@
+     outputs = [ "$root_out_dir/First Run" ]
+   }
+ } else if (is_mac) {
+-  chrome_helper_name = chrome_product_full_name + " Helper"
++  chrome_helper_name = "Flux Helper"
+   chrome_framework_name = "EngineCore"
+   chrome_framework_version = chrome_version_full
+ 
+@@ -787,7 +787,7 @@
+ 
+       extra_substitutions = [
+         "CHROMIUM_BUNDLE_ID=$chrome_mac_bundle_id",
+-        "CHROMIUM_SHORT_NAME=$chrome_product_short_name",
++        "CHROMIUM_SHORT_NAME=Flux",
+         "CHROMIUM_HELPER_SUFFIX=${invoker.helper_name_suffix}",
+         "CHROMIUM_HELPER_BUNDLE_ID_SUFFIX=${invoker.helper_bundle_id_suffix}",
+       ]
+diff --git a/chrome/common/chrome_constants.cc b/chrome/common/chrome_constants.cc
+--- a/chrome/common/chrome_constants.cc
++++ b/chrome/common/chrome_constants.cc
+@@ -39,7 +39,7 @@
+ const base::FilePath::CharType kBrowserProcessExecutableName[] =
+     FPL(PRODUCT_FULLNAME_STRING);
+ const base::FilePath::CharType kHelperProcessExecutableName[] =
+-    FPL(PRODUCT_FULLNAME_STRING " Helper");
++    FPL("Flux Helper");
+ #elif BUILDFLAG(IS_ANDROID)
+ // NOTE: Keep it synced with the process names defined in AndroidManifest.xml.
+ const base::FilePath::CharType kBrowserProcessExecutableName[] = FPL("chrome");
+@@ -69,8 +69,7 @@
+ const base::FilePath::CharType kChromiumBrowserProcessExecutablePath[] =
+     FPL("Chromium.app/Contents/MacOS/Chromium");
+ const base::FilePath::CharType kHelperProcessExecutablePath[] =
+-    FPL(PRODUCT_FULLNAME_STRING
+-        " Helper.app/Contents/MacOS/" PRODUCT_FULLNAME_STRING " Helper");
++    FPL("Flux Helper.app/Contents/MacOS/Flux Helper");
+ #elif BUILDFLAG(IS_ANDROID)
+ const base::FilePath::CharType kBrowserProcessExecutablePath[] = FPL("chrome");
+ const base::FilePath::CharType kHelperProcessExecutablePath[] = FPL("chrome");

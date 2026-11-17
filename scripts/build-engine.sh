@@ -145,6 +145,9 @@ ARGS
 build() {
     apply_engine
     cd "$SRC"
+    # Ninja never removes a helper app a patch renamed, so a resumed build would ship both. The
+    # helpers are only copied into the framework, which makes them cheap to copy again.
+    rm -rf "$OUT/EngineCore.framework/Versions/$ENGINE_CHROMIUM_VERSION/Helpers"
     if [[ -n "${1:-}" ]]; then
         # siso stops cleanly on SIGINT and the next build resumes from there.
         gtimeout --signal INT --kill-after 10m "$1" autoninja -C "$OUT" chrome_framework

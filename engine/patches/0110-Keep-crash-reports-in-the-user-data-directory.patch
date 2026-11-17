@@ -1,0 +1,44 @@
+Subject: [PATCH] Keep crash reports in the user data directory
+
+Chrome keeps its Crashpad database in the default user data directory,
+~/Library/Application Support/Chromium, whatever --user-data-dir says,
+because the exception handler starts before the profile directory is
+known. The command line is already parsed by then on the Mac, so
+EngineCore keeps the reports in the directory its embedder passes, with
+the rest of that app's data.
+---
+diff --git a/chrome/common/chrome_paths.cc b/chrome/common/chrome_paths.cc
+--- a/chrome/common/chrome_paths.cc
++++ b/chrome/common/chrome_paths.cc
+@@ -6,6 +6,7 @@
+ 
+ #include <optional>
+ 
++#include "base/command_line.h"
+ #include "base/files/file_path.h"
+ #include "base/files/file_util.h"
+ #include "base/no_destructor.h"
+@@ -220,10 +221,23 @@
+       // override the location of the app's profile directory.
+       // TODO(scottmg): Consider supporting --user-data-dir. See
+       // https://crbug.com/40447560.
++#if BUILDFLAG(IS_MAC)
++      // EngineCore's embedder always passes --user-data-dir, and the command
++      // line is parsed before Crashpad starts, so its reports stay with the
++      // rest of its data.
++      if (base::CommandLine::InitializedForCurrentProcess()) {
++        cur = base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
++            "user-data-dir");
++      }
++      if (cur.empty() && !GetDefaultUserDataDirectory(&cur)) {
++        return false;
++      }
++#else
+       if (!GetDefaultUserDataDirectory(&cur)) {
+         return false;
+       }
+ #endif
++#endif
+ #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
+       cur = cur.Append(FILE_PATH_LITERAL("Crashpad"));
+ #else
