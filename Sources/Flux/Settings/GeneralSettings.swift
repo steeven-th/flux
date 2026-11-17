@@ -7,6 +7,7 @@ struct GeneralSettings: View {
     @State private var warnsBeforeQuitting = false
     @State private var confirmsTabRemoval = true
     @State private var tabSleepDelay = TabSleepDelay.standard
+    @State private var spaceBarLayout = BrowserState.SpaceBarLayout.dots
     @State private var language = AppLanguage.current
     @State private var asksToRelaunch = false
     @State private var isDefaultBrowser = DefaultBrowser.isFlux
@@ -37,6 +38,17 @@ struct GeneralSettings: View {
                 Toggle("Ask before closing a pinned tab or a favorite", isOn: $confirmsTabRemoval)
             }
             Section {
+                Picker("When spaces don't fit", selection: $spaceBarLayout) {
+                    ForEach(BrowserState.SpaceBarLayout.allCases) { layout in
+                        Text(layout.name).tag(layout)
+                    }
+                }
+            } footer: {
+                Text("How the bar at the bottom of the sidebar shows spaces when their icons don't fit in its width. Past what dots can show, arrows scroll them.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section {
                 Picker("Put inactive tabs to sleep after", selection: $tabSleepDelay) {
                     ForEach(TabSleepDelay.allCases) { delay in
                         Text(delay.name).tag(delay)
@@ -62,8 +74,10 @@ struct GeneralSettings: View {
             warnsBeforeQuitting = state.warnsBeforeQuitting
             confirmsTabRemoval = state.confirmsTabRemoval
             tabSleepDelay = state.tabSleepDelay
+            spaceBarLayout = state.spaceBarLayout
         }
         .onChange(of: tabSleepDelay) { state.tabSleepDelay = tabSleepDelay }
+        .onChange(of: spaceBarLayout) { state.spaceBarLayout = spaceBarLayout }
         .onChange(of: warnsBeforeQuitting) { state.warnsBeforeQuitting = warnsBeforeQuitting }
         .onChange(of: confirmsTabRemoval) { state.confirmsTabRemoval = confirmsTabRemoval }
         .onChange(of: language) {

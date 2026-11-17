@@ -29,6 +29,7 @@ final class BrowserState {
     private static let importedExtensionsCardHiddenKey = "importedExtensionsCardHidden"
     private static let passwordExportKey = "passwordExport"
     private static let tabSleepDelayKey = "tabSleepDelay"
+    private static let spaceBarLayoutKey = "spaceBarLayout"
     private static let archiveDelayKey = "archiveDelay"
     private static let linkTargetsOpenPeekKey = "linkTargetsOpenPeek"
     private static let shiftClickOpensPeekKey = "shiftClickOpensPeek"
@@ -690,6 +691,32 @@ final class BrowserState {
         } else {
             selectedTabIDs[tab.spaceID] = nil
             saveWindows()
+        }
+    }
+
+    /// How the space bar shows spaces whose icons don't fit.
+    enum SpaceBarLayout: String, CaseIterable, Identifiable {
+        case dots, arrows, rows
+
+        var id: Self { self }
+
+        var name: LocalizedStringResource {
+            switch self {
+            case .dots: "Dots"
+            case .arrows: "Arrows to scroll"
+            case .rows: "Rows above the buttons"
+            }
+        }
+    }
+
+    var spaceBarLayout: SpaceBarLayout {
+        get {
+            _ = settingsRevision
+            return (try? appDatabase.setting(Self.spaceBarLayoutKey)).flatMap(SpaceBarLayout.init) ?? .dots
+        }
+        set {
+            save { try appDatabase.setSetting(Self.spaceBarLayoutKey, to: newValue == .dots ? nil : newValue.rawValue) }
+            settingsRevision += 1
         }
     }
 

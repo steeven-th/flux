@@ -501,6 +501,16 @@
         }
       }
     },
+    "Arrows to scroll" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flèches pour faire défiler"
+          }
+        }
+      }
+    },
     "As" : {
       "localizations" : {
         "fr" : {
@@ -1221,6 +1231,16 @@
         }
       }
     },
+    "Dots" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pastilles"
+          }
+        }
+      }
+    },
     "Download several files" : {
       "localizations" : {
         "fr" : {
@@ -1797,6 +1817,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Maintenez ⌥ en faisant ⌘-clic ou clic molette sur un lien pour l'ouvrir dans un onglet à part. Clic droit sur un onglet d'un groupe pour l'en sortir."
+          }
+        }
+      }
+    },
+    "How the bar at the bottom of the sidebar shows spaces when their icons don't fit in its width. Past what dots can show, arrows scroll them." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment la barre en bas de la sidebar montre les espaces quand leurs icônes ne tiennent pas dans sa largeur. Au-delà de ce que les pastilles peuvent montrer, des flèches les font défiler."
           }
         }
       }
@@ -3441,6 +3471,16 @@
         }
       }
     },
+    "Rows above the buttons" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lignes au-dessus des boutons"
+          }
+        }
+      }
+    },
     "Rules for links from other apps" : {
       "localizations" : {
         "fr" : {
@@ -4807,6 +4847,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bienvenue dans Flux"
+          }
+        }
+      }
+    },
+    "When spaces don't fit" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quand les espaces ne tiennent pas"
           }
         }
       }
