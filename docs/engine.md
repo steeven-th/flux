@@ -59,6 +59,10 @@ Chromium runs each site, the GPU and its services in helper processes, which Act
 by their helper app's name. Patch 0109 names those apps "Flux Helper", so they show up as
 "Flux Helper (Renderer)", "Flux Helper (GPU)" and so on, not "Chromium Helper".
 
+Chrome keeps its crash reports in `~/Library/Application Support/Chromium/Crashpad`, whatever
+`--user-data-dir` says. Patch 0110 keeps them in the user data directory Flux passes, so each
+instance of Flux keeps its own, next to its profiles.
+
 ## Building
 
 `scripts/engine.env` pins the Chromium version, a build name, and the SHA-256 of the archive.
