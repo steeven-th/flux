@@ -53,6 +53,12 @@ Chrome, so that it keeps the page that opened it as its `window.opener`. Sign-in
 link to send their result back. The bridge hands the new page to Flux, which shows it in a Peek or
 a tab like any other new window. ⌘-click and middle click still only pass the URL.
 
+## Process names
+
+Chromium runs each site, the GPU and its services in helper processes, which Activity Monitor lists
+by their helper app's name. Patch 0109 names those apps "Flux Helper", so they show up as
+"Flux Helper (Renderer)", "Flux Helper (GPU)" and so on, not "Chromium Helper".
+
 ## Building
 
 `scripts/engine.env` pins the Chromium version, a build name, and the SHA-256 of the archive.
