@@ -115,6 +115,24 @@ list may need to change.
 
 ## New Chromium versions
 
-Set `ENGINE_CHROMIUM_VERSION` and reset `ENGINE_BUILD`, then check that the patches still apply,
-with `git apply --check` in a Chromium checkout of that version. Sailfish updates its patches
-for new versions too, and they can be taken from there.
+Chrome's stable updates carry its security fixes, and the engine should follow them. Every day,
+the Chromium versions workflow compares `ENGINE_CHROMIUM_VERSION` with the latest stable Chrome
+for macOS, and keeps an issue labelled `chromium-update` open while a newer one is out, with
+whether the patches apply to it.
+
+`scripts/check-engine-patches.sh VERSION` tells the same in a minute, without a checkout: it
+downloads only the files the patches change, at that version's tag, and applies the patches to
+them in order. To move to a new version:
+
+1. Run `scripts/check-engine-patches.sh VERSION`. For each patch that fails, look at the file at
+   that version on chromium.googlesource.com, where code often moved to another file, and update
+   the patch until the script passes. Sailfish updates its patches for new versions too, and the
+   first twenty can be compared with its own.
+2. Set `ENGINE_CHROMIUM_VERSION`, reset `ENGINE_BUILD` to `flux1`, and push to a branch.
+3. Run the engine build workflow on that branch without `resume_from`: a new version compiles
+   from scratch, in 10 to 14 hours. If `gclient sync` fails, see "When the checkout fails".
+4. Fix what no longer compiles in `engine/src`, bump `ENGINE_BUILD` and resume from the failed run.
+5. Pin the archive's SHA-256, test Flux with it, then merge the branch.
+
+A new patch version of the same major, 156.0.8078.80 to .90 for example, usually only needs steps
+2, 3 and 5.

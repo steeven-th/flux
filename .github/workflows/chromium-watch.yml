@@ -1,0 +1,59 @@
+name: Chromium versions
+
+# Every day, compares the engine's Chromium version with the latest stable Chrome for macOS. When a
+# newer one is out, keeps one issue open about it, labelled chromium-update, saying whether the
+# engine's patches apply to it. See "New Chromium versions" in docs/engine.md.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compare with Chrome stable
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source scripts/engine.env
+          latest="$(curl --fail --silent --show-error \
+            'https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Mac&num=1' |
+            jq -r '.[0].version')"
+          echo "Engine: $ENGINE_CHROMIUM_VERSION, Chrome stable: $latest"
+          newest="$(printf '%s\n%s\n' "$ENGINE_CHROMIUM_VERSION" "$latest" | sort -V | tail -1)"
+          if [[ "$newest" == "$ENGINE_CHROMIUM_VERSION" ]]; then
+            exit 0
+          fi
+
+          if report="$(scripts/check-engine-patches.sh "$latest" 2>&1)"; then
+            summary="All the engine's patches apply to it."
+          else
+            summary="Some of the engine's patches don't apply to it and need updating."
+          fi
+          body="$(cat <<BODY
+          Chrome $latest is the latest stable version for macOS. The engine runs Chromium $ENGINE_CHROMIUM_VERSION.
+
+          $summary
+
+          \`\`\`
+          $report
+          \`\`\`
+
+          Stable updates carry security fixes. "New Chromium versions" in docs/engine.md describes the update.
+          BODY
+          )"
+
+          gh label create chromium-update --color d93f0b \
+            --description "A newer Chromium the engine should move to" 2> /dev/null || true
+          issue="$(gh issue list --state open --label chromium-update --json number --jq '.[0].number')"
+          if [[ -n "$issue" ]]; then
+            gh issue edit "$issue" --title "Chromium $latest is out" --body "$body"
+          else
+            gh issue create --title "Chromium $latest is out" --label chromium-update --body "$body"
+          fi
