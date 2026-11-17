@@ -259,6 +259,8 @@ NS_SWIFT_UI_ACTOR
 - (void)resetSitePermission:(NSString *)permission;
 /// Deletes the cookies and storage of the page's site, subdomains included.
 - (void)clearSiteDataWithCompletion:(void (^)(void))completion;
+/// Deletes what the cache holds for the page's site, keeping its cookies and storage.
+- (void)clearSiteCacheWithCompletion:(void (^)(void))completion;
 
 @property (nonatomic, readonly) BOOL canGoBack;
 @property (nonatomic, readonly) BOOL canGoForward;

@@ -288,6 +288,9 @@ EC_EXPORT
 // subdomains included), as Chrome's page info does. `completion` runs on the
 // main thread once they are gone.
 - (void)clearSiteDataForURL:(NSURL*)url completion:(void (^)(void))completion;
+// Deletes what the HTTP cache holds for the URL's site, redirects included,
+// leaving its cookies and storage.
+- (void)clearSiteCacheForURL:(NSURL*)url completion:(void (^)(void))completion;
 // The host's remembered page zoom as a percentage, 100 at the default, as
 // web contents' zoomPercent shows on its pages; setting it changes the zoom
 // of the host's open pages too.

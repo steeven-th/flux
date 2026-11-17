@@ -72,15 +72,11 @@ struct PageOptions: View {
 
             if URL(string: tab.url)?.host() != nil {
                 SitePermissions(page: tab.browserView)
-                Button(action: clearSiteData) {
-                    HStack(spacing: 10) {
-                        RowIcon(symbol: "trash", tint: nil)
-                        Text("Clear Site Data…").fontWeight(.medium).lineLimit(1)
-                        Spacer(minLength: 0)
-                    }
-                    .contentShape(Rectangle())
+                VStack(alignment: .leading, spacing: 8) {
+                    ActionRow(symbol: "arrow.triangle.2.circlepath", title: "Clear Site Cache", action: clearSiteCache)
+                        .help("Fetches the site's pages, files and redirects again. You stay signed in.")
+                    ActionRow(symbol: "trash", title: "Clear Site Data…", action: clearSiteData)
                 }
-                .buttonStyle(.plain)
             }
 
             Divider()
@@ -121,6 +117,12 @@ struct PageOptions: View {
         SiteCertificate.show(for: tab)
     }
 
+    private func clearSiteCache() {
+        dismiss()
+        let page = tab.browserView
+        ReloadOnce.after(page.clearSiteCache, page: page)
+    }
+
     private func clearSiteData() {
         guard let host = URL(string: tab.url)?.host(), let window = MainWindow.active else { return }
         dismiss()
@@ -132,14 +134,7 @@ struct PageOptions: View {
         let page = tab.browserView
         alert.beginSheetModal(for: window) { response in
             guard response == .alertFirstButtonReturn else { return }
-            // Chromium may take long to report every kind of data gone, while
-            // cookies and storage go at once: the page reloads after at most a second.
-            let reload = ReloadOnce(page: page)
-            page.clearSiteData { MainActor.assumeIsolated { reload.run() } }
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(1))
-                reload.run()
-            }
+            ReloadOnce.after(page.clearSiteData, page: page)
         }
     }
 
@@ -195,13 +190,24 @@ private struct SettingRow: View {
     }
 }
 
+/// Chromium may take long to report every kind of data gone, while what the page needs goes at
+/// once: the page reloads when Chromium is done, or after a second at most.
 @MainActor
 private final class ReloadOnce: Sendable {
     private let page: FLXBrowserView
     private var isDone = false
 
-    init(page: FLXBrowserView) {
+    private init(page: FLXBrowserView) {
         self.page = page
+    }
+
+    static func after(_ clear: (@escaping () -> Void) -> Void, page: FLXBrowserView) {
+        let reload = ReloadOnce(page: page)
+        clear { MainActor.assumeIsolated { reload.run() } }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1))
+            reload.run()
+        }
     }
 
     func run() {
@@ -361,6 +367,24 @@ private struct ZoomRow: View {
                 .buttonStyle(.plain)
                 .help("Zoom In")
         }
+    }
+}
+
+private struct ActionRow: View {
+    let symbol: String
+    let title: LocalizedStringKey
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                RowIcon(symbol: symbol, tint: nil)
+                Text(title).fontWeight(.medium).lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
