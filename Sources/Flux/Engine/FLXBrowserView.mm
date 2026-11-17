@@ -624,6 +624,12 @@ static NSArray<NSString *> *AddressLines(ECAddress *address) {
   [_profile.context clearSiteDataForURL:url completion:completion];
 }
 
+- (void)clearSiteCacheWithCompletion:(void (^)(void))completion {
+  NSURL *url = _contents.URL;
+  if (!url || !_profile.context) return completion();
+  [_profile.context clearSiteCacheForURL:url completion:completion];
+}
+
 - (void)focus {
   if (_contents) [self.window makeFirstResponder:_contents.view];
 }

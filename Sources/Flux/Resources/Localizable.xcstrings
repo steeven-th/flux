@@ -801,6 +801,16 @@
         }
       }
     },
+    "Clear Site Cache" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vider le cache du site"
+          }
+        }
+      }
+    },
     "Clear Site Data…" : {
       "localizations" : {
         "fr" : {
@@ -1417,6 +1427,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Favoris"
+          }
+        }
+      }
+    },
+    "Fetches the site's pages, files and redirects again. You stay signed in." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recharge depuis le site ses pages, fichiers et redirections. Vous restez connecté."
           }
         }
       }

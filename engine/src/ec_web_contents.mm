@@ -277,7 +277,7 @@ void SetSitePermission(Profile* profile,
       ->SetNarrowestContentSetting(url, url, *type, value);
 }
 
-// Runs the completion of clearSiteDataForURL:, then deletes itself.
+// Runs the completion of a site's data removal, then deletes itself.
 class SiteDataRemoval : public content::BrowsingDataRemover::Observer {
  public:
   explicit SiteDataRemoval(void (^completion)(void))
@@ -2903,6 +2903,22 @@ static ECWindowOpenDisposition ECDisposition(WindowOpenDisposition disposition) 
 }
 
 - (void)clearSiteDataForURL:(NSURL*)url completion:(void (^)(void))completion {
+  [self removeData:chrome_browsing_data_remover::DATA_TYPE_SITE_DATA
+            forURL:url
+        completion:completion];
+}
+
+- (void)clearSiteCacheForURL:(NSURL*)url completion:(void (^)(void))completion {
+  [self removeData:content::BrowsingDataRemover::DATA_TYPE_CACHE
+            forURL:url
+        completion:completion];
+}
+
+// For the URL's registrable domain, subdomains included, as Chrome's page
+// info does.
+- (void)removeData:(uint64_t)types
+            forURL:(NSURL*)url
+        completion:(void (^)(void))completion {
   GURL site = net::GURLWithNSURL(url);
   std::string host(site.host());
   std::string domain = net::registry_controlled_domains::GetDomainAndRegistry(
@@ -2912,8 +2928,7 @@ static ECWindowOpenDisposition ECDisposition(WindowOpenDisposition disposition) 
           content::BrowsingDataFilterBuilder::Mode::kDelete);
   filter->AddRegisterableDomain(domain.empty() ? host : domain);
   self.profile->GetBrowsingDataRemover()->RemoveWithFilterAndReply(
-      base::Time(), base::Time::Max(),
-      chrome_browsing_data_remover::DATA_TYPE_SITE_DATA,
+      base::Time(), base::Time::Max(), types,
       content::BrowsingDataRemover::ORIGIN_TYPE_UNPROTECTED_WEB,
       std::move(filter), new SiteDataRemoval(completion));
 }
