@@ -1261,6 +1261,16 @@
         }
       }
     },
+    "Drag a tab here to pin it" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Glissez un onglet ici pour l'épingler"
+          }
+        }
+      }
+    },
     "Duplicate" : {
       "localizations" : {
         "fr" : {

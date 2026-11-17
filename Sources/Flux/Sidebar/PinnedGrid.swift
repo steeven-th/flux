@@ -27,10 +27,9 @@ struct PinnedGrid: NSViewRepresentable {
         return max(min(count, fitting), 1)
     }
 
-    /// Height for the current number of tiles. Kept a few points tall when empty so tabs can be
-    /// dropped there.
+    /// Height for the current number of tiles. When empty, a dashed tile shows where tabs pin.
     static func height(for count: Int, width: CGFloat) -> CGFloat {
-        guard count > 0 else { return 8 }
+        guard count > 0 else { return tileHeight }
         let columns = columns(for: count, width: width)
         let rows = CGFloat((count + columns - 1) / columns)
         return rows * tileHeight + (rows - 1) * spacing
@@ -521,5 +520,21 @@ struct PinnedTile: View {
             }
         }
         .help(tab.displayTitle)
+    }
+}
+
+/// Stands for the pinned tiles while there are none, and takes tabs dropped on it like they do.
+struct EmptyPinnedTile: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .strokeBorder(Color.primary.opacity(0.18), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+            .overlay {
+                Label("Drag a tab here to pin it", systemImage: "pin")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .padding(.horizontal, 8)
+            }
+            .allowsHitTesting(false)
     }
 }

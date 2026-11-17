@@ -30,7 +30,6 @@ struct SidebarView: View {
         .padding(.top, 2)
         .padding(.bottom, 12)
         .onHover { isHovered = $0 }
-        .onGeometryChange(for: CGFloat.self) { $0.size.width - 24 } action: { width = $0 }
     }
 
     private var content: some View {
@@ -39,8 +38,19 @@ struct SidebarView: View {
                 showCommandBar(.selectedTab)
             }
 
-            PinnedGrid(state: state, width: width)
+            // The grid gets the width of the column it sits in, like the address bar, and can't
+            // widen it.
+            Color.clear
+                .frame(maxWidth: .infinity)
                 .frame(height: PinnedGrid.height(for: pinnedCount, width: width))
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+                .background {
+                    if pinnedCount == 0 { EmptyPinnedTile() }
+                }
+                .overlay(alignment: .topLeading) {
+                    PinnedGrid(state: state, width: width)
+                        .frame(width: width, height: PinnedGrid.height(for: pinnedCount, width: width))
+                }
 
             SidebarDivider()
 
