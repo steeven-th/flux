@@ -630,6 +630,16 @@ static NSArray<NSString *> *AddressLines(ECAddress *address) {
   [_profile.context clearSiteCacheForURL:url completion:completion];
 }
 
+- (BOOL)blocksContentOnSite {
+  NSURL *url = _contents.URL;
+  return url && _profile.context ? [_profile.context blocksContentForURL:url] : NO;
+}
+
+- (void)setBlocksContentOnSite:(BOOL)blocks {
+  NSURL *url = _contents.URL;
+  if (url && _profile.context) [_profile.context setBlocksContent:blocks forURL:url];
+}
+
 - (void)focus {
   if (_contents) [self.window makeFirstResponder:_contents.view];
 }

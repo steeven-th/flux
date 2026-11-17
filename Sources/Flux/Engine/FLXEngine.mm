@@ -33,6 +33,15 @@ void AskBeforeTerminating(Class applicationClass) {
 
 @implementation FLXEngine
 
++ (NSURL *)rulesetConverterURL {
+  NSBundle *engine = [NSBundle bundleForClass:ECEngine.class];
+  return [engine.bundleURL URLByAppendingPathComponent:@"Versions/Current/Helpers/ruleset_converter"];
+}
+
++ (void)useContentBlockingRulesAtURL:(NSURL *)url version:(NSString *)version {
+  [ECEngine useContentBlockingRulesAtPath:url.path licenseAtPath:nil version:version];
+}
+
 + (NSInteger)chromiumMajorVersion {
   return 156;
 }

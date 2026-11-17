@@ -67,6 +67,10 @@ NS_SWIFT_UI_ACTOR
 /// Whether downloads open a save panel instead of going straight to the Downloads folder.
 @property (nonatomic) BOOL asksWhereToSaveDownloads;
 
+/// Whether the content blocking rules apply to this profile's pages. Applied once the profile has
+/// loaded, without loading it.
+@property (nonatomic) BOOL blocksContent;
+
 /// Called each time a download of this profile starts, progresses or ends.
 @property (nonatomic, copy, nullable) void (^downloadHandler)(FLXDownload *download);
 

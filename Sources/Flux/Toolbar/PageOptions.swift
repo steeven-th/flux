@@ -66,6 +66,12 @@ struct PageOptions: View {
                     state.setDeveloperMode(!isDeveloperMode, for: tab.url)
                 }
                 .disabled(URL(string: tab.url)?.host() == nil)
+                if URL(string: tab.url)?.host() != nil {
+                    let blocksContent = state.blocksContent(on: tab)
+                    SettingRow(symbol: "hand.raised.fill", title: "Block Ads and Trackers", isOn: blocksContent) {
+                        state.setBlocksContent(!blocksContent, on: tab)
+                    }
+                }
                 SleepRow(tab: tab, standard: state.tabSleepDelay)
                 ZoomRow(percent: Int((tab.zoomFactor * 100).rounded()), zoom: zoom)
             }

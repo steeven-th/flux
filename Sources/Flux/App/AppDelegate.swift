@@ -112,6 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state.startArchiving()
         state.startSavingScrollPositions()
         state.startSleepingTabs()
+        ContentBlocker.shared.start()
         firstState = state
         let windowController = openWindow(state)
         if state.isWindowFullScreen { windowController.window?.toggleFullScreen(nil) }

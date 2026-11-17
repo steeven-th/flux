@@ -581,6 +581,26 @@
         }
       }
     },
+    "Block Ads and Trackers" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bloquer pubs et pisteurs"
+          }
+        }
+      }
+    },
+    "Block ads and trackers" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bloquer les publicités et les pisteurs"
+          }
+        }
+      }
+    },
     "Blocked by macOS" : {
       "localizations" : {
         "fr" : {
@@ -4817,6 +4837,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nom d'utilisateur"
+          }
+        }
+      }
+    },
+    "Uses the EasyList and EasyPrivacy lists, updated every few days. Turn it off for one site from the page menu." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilise les listes EasyList et EasyPrivacy, mises à jour tous les quelques jours. Désactivez-le pour un site depuis le menu de la page."
           }
         }
       }

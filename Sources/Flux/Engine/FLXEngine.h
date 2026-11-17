@@ -21,6 +21,14 @@ NS_SWIFT_UI_ACTOR
 /// Asked before quitting. Chrome then closes every page and quits.
 @property (class, nonatomic, copy, nullable) NSApplicationTerminateReply (^terminationHandler)(void);
 
+/// Chromium's tool that turns filter lists such as EasyList into content blocking rules, inside
+/// the engine's framework.
+@property (class, nonatomic, readonly) NSURL *rulesetConverterURL;
+
+/// Blocks the requests of every page that match the rules the converter wrote. The same version
+/// is only indexed once.
++ (void)useContentBlockingRulesAtURL:(NSURL *)url version:(NSString *)version;
+
 /// Links from other apps, and HTML files opened with Flux.
 @property (class, nonatomic, copy, nullable) void (^openURLsHandler)(NSArray<NSURL *> *urls);
 

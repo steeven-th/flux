@@ -30,6 +30,7 @@ final class BrowserState {
     private static let passwordExportKey = "passwordExport"
     private static let tabSleepDelayKey = "tabSleepDelay"
     private static let spaceBarLayoutKey = "spaceBarLayout"
+    private static let blocksContentKey = "blocksContent"
     private static let archiveDelayKey = "archiveDelay"
     private static let linkTargetsOpenPeekKey = "linkTargetsOpenPeek"
     private static let shiftClickOpensPeekKey = "shiftClickOpensPeek"
@@ -309,6 +310,7 @@ final class BrowserState {
             downloadLists[profile.path] = list
         }
         profile.asksWhereToSaveDownloads = asksWhereToSaveDownloads(forProfile: space.profileFolder)
+        profile.blocksContent = blocksContent
         // Chromium's translation needs Google keys Flux doesn't have, so its offers would lead
         // nowhere.
         profile.setPreference("translate.enabled", boolValue: false)
@@ -692,6 +694,31 @@ final class BrowserState {
             selectedTabIDs[tab.spaceID] = nil
             saveWindows()
         }
+    }
+
+    /// Whether ads and trackers are blocked, in every profile. A site can be an exception.
+    var blocksContent: Bool {
+        get {
+            _ = settingsRevision
+            return (try? appDatabase.setting(Self.blocksContentKey)) != "false"
+        }
+        set {
+            save { try appDatabase.setSetting(Self.blocksContentKey, to: newValue ? nil : "false") }
+            profiles.values.forEach { $0.blocksContent = newValue }
+            settingsRevision += 1
+        }
+    }
+
+    func blocksContent(on tab: Tab) -> Bool {
+        _ = settingsRevision
+        return tab.browserView.blocksContentOnSite
+    }
+
+    /// Takes effect as the page loads again.
+    func setBlocksContent(_ blocks: Bool, on tab: Tab) {
+        tab.browserView.blocksContentOnSite = blocks
+        settingsRevision += 1
+        tab.browserView.reload()
     }
 
     /// How the space bar shows spaces whose icons don't fit.

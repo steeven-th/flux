@@ -261,6 +261,9 @@ NS_SWIFT_UI_ACTOR
 - (void)clearSiteDataWithCompletion:(void (^)(void))completion;
 /// Deletes what the cache holds for the page's site, keeping its cookies and storage.
 - (void)clearSiteCacheWithCompletion:(void (^)(void))completion;
+/// Whether the content blocking rules apply to the page's site, an exception to the profile's
+/// choice when they differ.
+@property (nonatomic) BOOL blocksContentOnSite;
 
 @property (nonatomic, readonly) BOOL canGoBack;
 @property (nonatomic, readonly) BOOL canGoForward;

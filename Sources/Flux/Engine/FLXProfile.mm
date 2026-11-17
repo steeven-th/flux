@@ -89,6 +89,7 @@ void ShowPageWindow(ECBrowserContext *context, NSString *url, NSString *title) {
   NSMutableDictionary<NSString *, id> *_observedValues;
   NSTimer *_preferenceTimer;
   BOOL _private;
+  BOOL _blocksContent;
 }
 
 static NSString *_Nullable (^g_languages_provider)(NSString *) = nil;
@@ -206,6 +207,25 @@ static NSString *_Nullable (^g_languages_provider)(NSString *) = nil;
 
 - (void)window:(ECWindow *)window closeTab:(ECWebContents *)contents {
   [[_pages objectForKey:contents] close];
+}
+
+#pragma mark - Content blocking
+
+- (BOOL)blocksContent {
+  return _blocksContent;
+}
+
+- (void)setBlocksContent:(BOOL)blocksContent {
+  _blocksContent = blocksContent;
+  if (_context) {
+    _context.blocksContent = blocksContent;
+    return;
+  }
+  __weak FLXProfile *weakSelf = self;
+  [_loadedBlocks addObject:^{
+    FLXProfile *profile = weakSelf;
+    if (profile) profile->_context.blocksContent = profile->_blocksContent;
+  }];
 }
 
 #pragma mark - Downloads
