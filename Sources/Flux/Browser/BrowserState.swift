@@ -711,14 +711,16 @@ final class BrowserState {
         let inactive = tabs.filter { tab in
             guard let interval = (tab.sleepDelay ?? tabSleepDelay).interval else { return false }
             return tab.isLoaded && tab.devTools == nil && !shown.contains { $0 === tab }
+                && !tab.isPlayingAudio && tab.media?.isPlaying != true
                 && (tab.node.lastActiveAt ?? tab.node.createdAt) < now.addingTimeInterval(-interval)
         }
         for tab in inactive {
-            // A page playing sound or a video keeps playing.
+            // A page playing a video keeps playing, even without sound. Chromium hears the rest,
+            // audio a script made without putting it in the page or played in a frame included.
             tab.browserView.evaluateJavaScript(
                 "String([...document.querySelectorAll('audio, video')].some(m => !m.paused && !m.ended))"
             ) { [weak self, weak tab] value in
-                guard let self, let tab, value as? String != "true", tab.isLoaded,
+                guard let self, let tab, value as? String != "true", tab.isLoaded, !tab.isPlayingAudio,
                       !self.tabsShownInAnyWindow.contains(where: { $0 === tab }) else { return }
                 self.unload(tab)
             }
