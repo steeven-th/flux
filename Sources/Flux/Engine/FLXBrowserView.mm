@@ -433,6 +433,7 @@ static NSArray<NSString *> *AddressLines(ECAddress *address) {
 
 @implementation FLXBrowserView {
   ECWebContents *_contents;
+  NSString *_engineURL;
   NSView *_dimView;
   BOOL _embedded;
   BOOL _audible;
@@ -944,9 +945,18 @@ static NSArray<NSString *> *AddressLines(ECAddress *address) {
 #pragma mark - ECWebContentsDelegate
 
 - (void)webContentsDidUpdate:(ECWebContents *)contents {
+  [self webContentsDidUpdate:contents committed:NO];
+}
+
+// A load reports the page still shown before its own, which mustn't replace the address asked
+// for. Only a change of the engine's address, or a new page, does. A new page at the address
+// shown before, as an http address that ends on its https page, changes nothing else.
+- (void)webContentsDidUpdate:(ECWebContents *)contents committed:(BOOL)committed {
   id<FLXBrowserViewDelegate> delegate = self.delegate;
   NSString *url = contents.URL.absoluteString;
-  if (url.length && ![url isEqualToString:_currentURL]) {
+  BOOL changed = ![url isEqualToString:_engineURL];
+  _engineURL = [url copy];
+  if (url.length && (changed || committed) && ![url isEqualToString:_currentURL]) {
     self.currentURL = url;
     if ([delegate respondsToSelector:@selector(browserView:didChangeURL:)]) [delegate browserView:self didChangeURL:url];
   }
@@ -1344,7 +1354,7 @@ static FLXOpenDisposition FluxDisposition(ECWindowOpenDisposition disposition, B
 - (void)webContents:(ECWebContents *)contents didCommitNavigationIsHistory:(BOOL)isHistory {
   [_mediaStates removeAllObjects];
   [self updateMedia];
-  [self webContentsDidUpdate:contents];
+  [self webContentsDidUpdate:contents committed:YES];
 }
 
 - (void)webContents:(ECWebContents *)contents

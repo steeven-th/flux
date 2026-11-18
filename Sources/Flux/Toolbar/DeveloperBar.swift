@@ -101,7 +101,7 @@ private struct DeveloperAddressField: View {
             .lineLimit(1)
             .focused($isFocused)
             .onAppear { text = tab.url }
-            .onChange(of: tab.url) { if !isFocused { text = tab.url } }
+            .onChange(of: tab.url) { if !isEditing { text = tab.url } }
             .onChange(of: isFocused) {
                 if isFocused {
                     DispatchQueue.main.async {
@@ -125,12 +125,22 @@ private struct DeveloperAddressField: View {
                 let input = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !input.isEmpty else { return }
                 tab.load(BrowserState.looksLikeURL(input) ? BrowserState.normalizedURL(input) : state.searchEngine.url(for: input))
+                isFocused = false
                 tab.browserView.focus()
             }
             .onExitCommand {
                 text = tab.url
+                isFocused = false
                 tab.browserView.focus()
             }
+    }
+
+    /// The focus state stays set once the page takes the keyboard, so a redirect would leave the
+    /// typed address in place.
+    private var isEditing: Bool {
+        guard isFocused else { return false }
+        guard let editor else { return true }
+        return editor.view.window?.firstResponder === editor.view
     }
 }
 
