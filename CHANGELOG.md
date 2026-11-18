@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.5.0](https://github.com/steeven-th/flux/compare/v0.4.0...v0.5.0) (2026-11-18)
+
+
+### New
+
+* **boosts:** zap elements and add a style sheet and a script to a site ([3f9e3e3](https://github.com/steeven-th/flux/commit/3f9e3e3152647cd0d82f9a161e0674a3653bc9c1))
+* **command-bar:** run menu actions and tab actions by name ([bb4056b](https://github.com/steeven-th/flux/commit/bb4056b27ef10115dc00e2c869fa56e914ebf9ef))
+* **content-blocking:** block ads and trackers ([17f4dc5](https://github.com/steeven-th/flux/commit/17f4dc50320ef5438383d0799789986c7dffd4f3))
+* **content-blocking:** hide the ads filter lists name with CSS ([31bbfc6](https://github.com/steeven-th/flux/commit/31bbfc6a1897bd551710d17f63a2cae23302ee95))
+* **content-blocking:** show how many requests were blocked on the page ([3225be4](https://github.com/steeven-th/flux/commit/3225be414953ca13c97acf4163535d3ca589e87c))
+* **engine:** block content with the subresource filter on every site ([12ba05c](https://github.com/steeven-th/flux/commit/12ba05cc317da001e91701f069c88bc18ccd6dfa))
+* **engine:** count the requests content blocking stops on a page ([bf94e8b](https://github.com/steeven-th/flux/commit/bf94e8b90cc7f114ea6e181b4bf49eb90ea00a70))
+* **sidebar:** show pinned tiles in every space ([f9a1e52](https://github.com/steeven-th/flux/commit/f9a1e527021bc8a91ce5f05bcf0c3089cf533a46))
+* **sidebar:** show spaces as dots, between arrows or on rows when they don't fit ([009f307](https://github.com/steeven-th/flux/commit/009f307ffab1f881c28cf050badddbb9d75a6589))
+
+
+### Fixed
+
+* **address:** show the address a page ends on after a redirect ([51f6ef4](https://github.com/steeven-th/flux/commit/51f6ef43b77679c47d0038e3c28554c61f1a6547))
+* **sidebar:** keep pinned tiles within the sidebar, and show where tabs pin ([e790fe7](https://github.com/steeven-th/flux/commit/e790fe7edaaea0261c7e1c2cae871b3305dff7f7))
+
 ## [0.4.0](https://github.com/steeven-th/flux/compare/v0.3.0...v0.4.0) (2026-11-17)
 
 
