@@ -137,4 +137,6 @@ them in order. To move to a new version:
 5. Pin the archive's SHA-256, test Flux with it, then merge the branch.
 
 A new patch version of the same major, 156.0.8078.80 to .90 for example, usually only needs steps
-2, 3 and 5.
+2, 3 and 5. Google publishes no source tarball for Extended Stable releases: set
+`ENGINE_TARBALL_VERSION` to a release of the same major that has one, and the build takes the
+dependencies it needs from the tarball of that release.

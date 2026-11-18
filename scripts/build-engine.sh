@@ -44,7 +44,8 @@ GCLIENT
 }
 
 extract_tarball_deps() {
-    local name="chromium-$ENGINE_CHROMIUM_VERSION.tar.xz"
+    local version="${ENGINE_TARBALL_VERSION:-$ENGINE_CHROMIUM_VERSION}"
+    local name="chromium-$version.tar.xz"
     local url="https://commondatastorage.googleapis.com/chromium-browser-official/$name"
     local expected
     expected="$(curl --fail --silent --show-error --location "$url.hashes" | awk '$1 == "sha256" { print $2 }')"
@@ -54,7 +55,7 @@ extract_tarball_deps() {
         exit 1
     fi
     tar -xJf "$BUILD_DIR/$name" -C "$SRC" --strip-components 1 \
-        "${TARBALL_DEPS[@]/#/chromium-$ENGINE_CHROMIUM_VERSION/}"
+        "${TARBALL_DEPS[@]/#/chromium-$version/}"
     rm "$BUILD_DIR/$name"
 }
 
