@@ -254,6 +254,10 @@ class SiteSearchActivator : public TemplateURLServiceObserver {
     if (profile->IsOffTheRecord()) {
       profile->GetPrefs()->SetBoolean(prefs::kPromptForDownload, false);
     }
+    // Chrome's print preview needs a browser window to host its dialog, and
+    // crashes without one when a page calls window.print(). Renderers read
+    // this when they start, so pages then print with the system dialog.
+    profile->GetPrefs()->SetBoolean(prefs::kPrintPreviewDisabled, true);
     ObserveExtensions(self);
   }
   return self;
