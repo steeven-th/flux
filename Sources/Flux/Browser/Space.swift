@@ -4,8 +4,7 @@ struct Space: Identifiable, Hashable {
     let id: UUID
     var name: String
     var icon: String?
-    /// "#RRGGBB"
-    var colorHex: String
+    var theme: SpaceTheme
     /// The Chromium profile folder. Several spaces can share one.
     var profileFolder: URL
 
@@ -13,9 +12,12 @@ struct Space: Identifiable, Hashable {
         id = record.id
         name = record.name
         icon = record.icon
-        colorHex = record.color
+        theme = SpaceTheme.decoded(record.theme, color: record.color)
         profileFolder = AppPaths.profileFolder(named: record.profileFolder)
     }
+
+    /// "#RRGGBB"
+    var colorHex: String { theme.color }
 
     var color: Color {
         Color(hex: colorHex)

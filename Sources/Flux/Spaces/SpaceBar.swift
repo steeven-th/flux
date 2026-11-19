@@ -175,19 +175,22 @@ struct SpaceBar: View {
         .onTapGesture { state.selectedSpaceID = space.id }
         .help(index < 9 ? "\(space.name) (⌃\(index + 1))" : space.name)
         .contextMenu {
-            Button("Edit Space…") { editedSpaceID = space.id }
+            Button("Customize Space…") { editedSpaceID = space.id }
             Button("Delete Space…", role: .destructive) { spaceToDelete = space }
                 .disabled(state.spaces.count == 1)
         }
-        .popover(isPresented: editingBinding(for: space.id), arrowEdge: .top) {
+        // Beside the sidebar, which shows the new look as it's chosen.
+        .popover(isPresented: editingBinding(for: space.id), arrowEdge: .trailing) {
             SpaceEditor(
-                title: "Edit Space", space: space,
+                title: "Customize Space", space: space,
                 sharesProfileWith: state.spaces(sharingProfileOf: space.id).filter { $0.id != space.id }.map(\.name)
-            ) { name, icon, color, _ in
-                state.updateSpace(space.id, name: name, icon: icon, color: color)
+            ) { name, icon, theme, _ in
+                state.updateSpace(space.id, name: name, icon: icon, theme: theme)
                 editedSpaceID = nil
             } onCancel: {
                 editedSpaceID = nil
+            } onPreview: { theme in
+                state.previewTheme(theme, of: space.id)
             }
         }
     }
@@ -202,9 +205,12 @@ struct SpaceBar: View {
         }
         .buttonStyle(.borderless)
         .help("New Space")
-        .popover(isPresented: $isCreating, arrowEdge: .top) {
-            SpaceEditor(title: "New Space", space: nil, profiles: state.profilesInUse) { name, icon, color, other in
-                state.createSpace(name: name, icon: icon, color: color, sharingProfileOf: other)
+        .popover(isPresented: Binding(get: { isCreating }, set: {
+            if !$0 { SpaceEditor.closeColorPanel() }
+            isCreating = $0
+        }), arrowEdge: .top) {
+            SpaceEditor(title: "New Space", space: nil, profiles: state.profilesInUse) { name, icon, theme, other in
+                state.createSpace(name: name, icon: icon, color: theme.color, theme: theme, sharingProfileOf: other)
                 isCreating = false
             } onCancel: {
                 isCreating = false
@@ -221,7 +227,11 @@ struct SpaceBar: View {
     }
 
     private func editingBinding(for id: UUID) -> Binding<Bool> {
-        Binding(get: { editedSpaceID == id }, set: { if !$0 { editedSpaceID = nil } })
+        Binding(get: { editedSpaceID == id }, set: {
+            guard !$0 else { return }
+            SpaceEditor.closeColorPanel()
+            editedSpaceID = nil
+        })
     }
 }
 

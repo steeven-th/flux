@@ -36,7 +36,7 @@ struct WelcomeView: View {
         // From the first space on, the window takes the space's color, as Flux's window will.
         .background {
             Color(hex: model.color)
-                .opacity(model.step.rawValue >= WelcomeModel.Step.space.rawValue ? SpaceBackground.tintOpacity : 0)
+                .opacity(model.step.rawValue >= WelcomeModel.Step.space.rawValue ? SpaceTheme.defaultTint : 0)
                 .ignoresSafeArea()
                 .animation(.easeInOut(duration: 0.3), value: model.color)
                 .animation(.easeInOut(duration: 0.3), value: model.step)

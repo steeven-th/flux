@@ -10,6 +10,8 @@ struct SpaceRecord: Codable, Identifiable, FetchableRecord, PersistableRecord {
     var icon: String?
     /// Hex color, "#RRGGBB".
     var color: String
+    /// SpaceTheme as JSON, once the space was customized.
+    var theme: String? = nil
     var position: String
     /// Name of the Chromium profile folder, inside the Chromium root folder. Several spaces can
     /// share one.
@@ -59,6 +61,11 @@ final class AppDatabase: Sendable {
                 t.column("sourceAppName", .text)
                 t.column("spaceID", .blob).references("space", onDelete: .cascade)
                 t.column("opensLittleWindow", .boolean).notNull()
+            }
+        }
+        migrator.registerMigration("v4 space theme") { db in
+            try db.alter(table: "space") { t in
+                t.add(column: "theme", .text)
             }
         }
         return migrator

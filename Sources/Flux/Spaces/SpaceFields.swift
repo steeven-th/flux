@@ -40,7 +40,14 @@ struct SpaceFields: View {
                         }
                         .onTapGesture { color = hex }
                 }
+                ColorPicker("Other Color", selection: anyColor, supportsOpacity: false)
+                    .labelsHidden()
+                    .help("Other Color")
             }
         }
+    }
+
+    private var anyColor: Binding<Color> {
+        Binding(get: { Color(hex: color) }, set: { color = NSColor($0).hexString })
     }
 }

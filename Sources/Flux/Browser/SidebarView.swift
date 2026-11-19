@@ -90,12 +90,10 @@ struct SidebarView: View {
 
 /// The selected space's tint behind the whole window, sidebar and page margins included.
 struct SpaceBackground: View {
-    static let tintOpacity = 0.12
-
     let state: BrowserState
 
     var body: some View {
-        state.selectedSpace.color.opacity(Self.tintOpacity)
+        state.selectedSpace.color.opacity(state.selectedSpace.theme.tint)
             .ignoresSafeArea()
     }
 }

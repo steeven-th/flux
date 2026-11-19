@@ -357,14 +357,14 @@ final class BrowserState {
     /// to share another space's.
     @discardableResult
     func createSpace(
-        name: String, icon: String?, color: String, sharingProfileOf other: UUID? = nil,
+        name: String, icon: String?, color: String, theme: SpaceTheme? = nil, sharingProfileOf other: UUID? = nil,
         preparingProfile prepare: ((URL) -> Void)? = nil
     ) -> UUID {
         let id = UUID()
         guard !isPrivate else { return selectedSpaceID }
         let lastPosition = spaces.last.flatMap { spaceRecords[$0.id]?.position }
         let record = SpaceRecord(
-            id: id, name: name, icon: icon, color: color,
+            id: id, name: name, icon: icon, color: theme?.color ?? color, theme: theme?.json,
             position: FractionalIndex.between(lastPosition, nil),
             profileFolder: other.flatMap { spaceRecords[$0]?.profileFolder } ?? "Profile \(id.uuidString)",
             selectedTabID: nil, createdAt: Date()
@@ -378,14 +378,21 @@ final class BrowserState {
         return id
     }
 
-    func updateSpace(_ id: UUID, name: String, icon: String?, color: String) {
+    func updateSpace(_ id: UUID, name: String, icon: String?, theme: SpaceTheme) {
         guard !isPrivate, var record = spaceRecords[id], let index = spaces.firstIndex(where: { $0.id == id }) else { return }
         record.name = name
         record.icon = icon
-        record.color = color
+        record.color = theme.color
+        record.theme = theme.json
         spaceRecords[id] = record
         spaces[index] = Space(record: record)
         save { try appDatabase.save(record) }
+    }
+
+    /// Shows a theme on a space while it's being customized, without keeping it.
+    func previewTheme(_ theme: SpaceTheme, of id: UUID) {
+        guard let index = spaces.firstIndex(where: { $0.id == id }), spaces[index].theme != theme else { return }
+        spaces[index].theme = theme
     }
 
     /// True when no other space uses this space's profile, so deleting the space deletes the
