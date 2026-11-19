@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/steeven-th/flux/compare/v0.5.0...v0.5.1) (2026-11-19)
+
+
+### Fixed
+
+* **engine:** print with the system dialog when a page calls window.print() ([08de4fb](https://github.com/steeven-th/flux/commit/08de4fbea48327f5e73c0c2ab62a637918cf9f69))
+
 ## [0.5.0](https://github.com/steeven-th/flux/compare/v0.4.0...v0.5.0) (2026-11-18)
 
 
