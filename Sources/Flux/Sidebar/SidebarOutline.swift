@@ -19,7 +19,7 @@ struct SidebarOutline: NSViewRepresentable {
         outline.selectionHighlightStyle = .none
         outline.backgroundColor = .clear
         outline.rowSizeStyle = .custom
-        outline.rowHeight = 30
+        outline.rowHeight = state.sidebarDensity.rowHeight
         outline.indentationPerLevel = 14
         outline.floatsGroupRows = false
         outline.addTableColumn(NSTableColumn(identifier: .init("main")))
@@ -56,7 +56,13 @@ struct SidebarOutline: NSViewRepresentable {
         _ = state.sidebarRevision
         _ = state.selectedSpaceID
         _ = state.selectedTab
-        (nsView.documentView as? SidebarOutlineView)?.accentColor = NSColor(state.selectedSpace.color)
+        if let outline = nsView.documentView as? SidebarOutlineView {
+            outline.accentColor = NSColor(state.selectedSpace.color)
+            if outline.rowHeight != state.sidebarDensity.rowHeight {
+                outline.rowHeight = state.sidebarDensity.rowHeight
+                outline.noteHeightOfRows(withIndexesChanged: IndexSet(0..<outline.numberOfRows))
+            }
+        }
         context.coordinator.reloadIfNeeded()
     }
 

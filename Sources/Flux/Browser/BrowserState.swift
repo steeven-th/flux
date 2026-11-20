@@ -30,6 +30,10 @@ final class BrowserState {
     private static let passwordExportKey = "passwordExport"
     private static let tabSleepDelayKey = "tabSleepDelay"
     private static let spaceBarLayoutKey = "spaceBarLayout"
+    private static let sidebarSideKey = "sidebarSide"
+    private static let sidebarDensityKey = "sidebarDensity"
+    private static let pageStyleKey = "pageStyle"
+    private static let pinnedTileSizeKey = "pinnedTileSize"
     private static let blocksContentKey = "blocksContent"
     private static let archiveDelayKey = "archiveDelay"
     private static let linkTargetsOpenPeekKey = "linkTargetsOpenPeek"
@@ -766,6 +770,107 @@ final class BrowserState {
             save { try appDatabase.setSetting(Self.tabSleepDelayKey, to: newValue == .standard ? nil : newValue.rawValue) }
             settingsRevision += 1
         }
+    }
+
+    enum SidebarSide: String, CaseIterable, Identifiable {
+        case left, right
+
+        var id: Self { self }
+
+        var name: LocalizedStringResource {
+            switch self {
+            case .left: "Left"
+            case .right: "Right"
+            }
+        }
+    }
+
+    enum SidebarDensity: String, CaseIterable, Identifiable {
+        case compact, standard, spacious
+
+        var id: Self { self }
+
+        var name: LocalizedStringResource {
+            switch self {
+            case .compact: "Compact"
+            case .standard: "Standard"
+            case .spacious: "Spacious"
+            }
+        }
+
+        var rowHeight: CGFloat {
+            switch self {
+            case .compact: 26
+            case .standard: 30
+            case .spacious: 34
+            }
+        }
+    }
+
+    enum PageStyle: String, CaseIterable, Identifiable {
+        case card, edgeToEdge
+
+        var id: Self { self }
+
+        var name: LocalizedStringResource {
+            switch self {
+            case .card: "Card"
+            case .edgeToEdge: "Edge to edge"
+            }
+        }
+    }
+
+    enum PinnedTileSize: String, CaseIterable, Identifiable {
+        case small, medium, large
+
+        var id: Self { self }
+
+        var name: LocalizedStringResource {
+            switch self {
+            case .small: "Small"
+            case .medium: "Medium"
+            case .large: "Large"
+            }
+        }
+
+        var tileHeight: CGFloat {
+            switch self {
+            case .small: 34
+            case .medium: 42
+            case .large: 52
+            }
+        }
+    }
+
+    var sidebarSide: SidebarSide {
+        get { setting(Self.sidebarSideKey, default: .left) }
+        set { setSetting(Self.sidebarSideKey, to: newValue, default: .left) }
+    }
+
+    var sidebarDensity: SidebarDensity {
+        get { setting(Self.sidebarDensityKey, default: .standard) }
+        set { setSetting(Self.sidebarDensityKey, to: newValue, default: .standard) }
+    }
+
+    var pageStyle: PageStyle {
+        get { setting(Self.pageStyleKey, default: .card) }
+        set { setSetting(Self.pageStyleKey, to: newValue, default: .card) }
+    }
+
+    var pinnedTileSize: PinnedTileSize {
+        get { setting(Self.pinnedTileSizeKey, default: .medium) }
+        set { setSetting(Self.pinnedTileSizeKey, to: newValue, default: .medium) }
+    }
+
+    private func setting<Value: RawRepresentable<String>>(_ key: String, default value: Value) -> Value {
+        _ = settingsRevision
+        return (try? appDatabase.setting(key)).flatMap(Value.init) ?? value
+    }
+
+    /// The default value isn't stored, so a later version can change it.
+    private func setSetting<Value: RawRepresentable<String> & Equatable>(_ key: String, to value: Value, default: Value) {
+        save { try appDatabase.setSetting(key, to: value == `default` ? nil : value.rawValue) }
+        settingsRevision += 1
     }
 
     /// Chromium's memory saver only knows its own tab strip, where each of Flux's pages is the

@@ -55,6 +55,7 @@ The first run downloads about 190 MB. Browsing data goes to
 Architecture decisions are recorded in [docs/decisions](docs/decisions).
 [docs/engine.md](docs/engine.md) explains where the engine comes from and how to update it.
 [docs/translation.md](docs/translation.md) explains how to set up page translation.
+[docs/spaces.md](docs/spaces.md) and [docs/appearance.md](docs/appearance.md) cover how spaces and the window look.
 [docs/import.md](docs/import.md) tells what comes over from each browser.
 [docs/extensions.md](docs/extensions.md) covers popups, side panels and their limits.
 [docs/links.md](docs/links.md) explains where links from other apps open.

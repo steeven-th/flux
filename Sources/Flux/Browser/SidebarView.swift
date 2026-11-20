@@ -42,14 +42,14 @@ struct SidebarView: View {
             // widen it.
             Color.clear
                 .frame(maxWidth: .infinity)
-                .frame(height: PinnedGrid.height(for: pinnedCount, width: width))
+                .frame(height: PinnedGrid.height(for: pinnedCount, width: width, tileHeight: state.pinnedTileSize.tileHeight))
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
                 .background {
                     if pinnedCount == 0 { EmptyPinnedTile() }
                 }
                 .overlay(alignment: .topLeading) {
                     PinnedGrid(state: state, width: width)
-                        .frame(width: width, height: PinnedGrid.height(for: pinnedCount, width: width))
+                        .frame(width: width, height: PinnedGrid.height(for: pinnedCount, width: width, tileHeight: state.pinnedTileSize.tileHeight))
                 }
 
             SidebarDivider()

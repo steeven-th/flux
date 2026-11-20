@@ -5,7 +5,6 @@ import SwiftUI
 /// than a SwiftUI grid, so tiles can move out of the way while something is dragged over them.
 struct PinnedGrid: NSViewRepresentable {
     static let spacing: CGFloat = 6
-    static let tileHeight: CGFloat = 42
     /// Same identifier as the sidebar outline's drag type, so items move between the two.
     static let dragType = NSPasteboard.PasteboardType("com.flux-browser.sidebar-item")
 
@@ -28,7 +27,7 @@ struct PinnedGrid: NSViewRepresentable {
     }
 
     /// Height for the current number of tiles. When empty, a dashed tile shows where tabs pin.
-    static func height(for count: Int, width: CGFloat) -> CGFloat {
+    static func height(for count: Int, width: CGFloat, tileHeight: CGFloat) -> CGFloat {
         guard count > 0 else { return tileHeight }
         let columns = columns(for: count, width: width)
         let rows = CGFloat((count + columns - 1) / columns)
@@ -69,6 +68,7 @@ struct PinnedGrid: NSViewRepresentable {
         _ = state.selectedSpaceID
         _ = state.selectedTab
         (collection.collectionViewLayout as? PinnedGridLayout)?.width = width
+        (collection.collectionViewLayout as? PinnedGridLayout)?.tileHeight = state.pinnedTileSize.tileHeight
         context.coordinator.reload()
     }
 
@@ -320,6 +320,9 @@ private final class PinnedGridLayout: NSCollectionViewLayout {
     var width: CGFloat = 0 {
         didSet { if width != oldValue { invalidateLayout() } }
     }
+    var tileHeight: CGFloat = BrowserState.PinnedTileSize.medium.tileHeight {
+        didSet { if tileHeight != oldValue { invalidateLayout() } }
+    }
     private var count = 0
     private var columns = 1
     private var tileWidth: CGFloat = 1
@@ -334,8 +337,8 @@ private final class PinnedGridLayout: NSCollectionViewLayout {
     private func frame(at index: Int) -> NSRect {
         NSRect(
             x: CGFloat(index % columns) * (tileWidth + PinnedGrid.spacing),
-            y: CGFloat(index / columns) * (PinnedGrid.tileHeight + PinnedGrid.spacing),
-            width: tileWidth, height: PinnedGrid.tileHeight
+            y: CGFloat(index / columns) * (tileHeight + PinnedGrid.spacing),
+            width: tileWidth, height: tileHeight
         )
     }
 
@@ -359,7 +362,7 @@ private final class PinnedGridLayout: NSCollectionViewLayout {
     /// Drops land before the tile under the pointer, or after it past its middle.
     override func layoutAttributesForDropTarget(at point: NSPoint) -> NSCollectionViewLayoutAttributes? {
         let column = min(max(Int(point.x / (tileWidth + PinnedGrid.spacing)), 0), columns - 1)
-        let row = max(Int(point.y / (PinnedGrid.tileHeight + PinnedGrid.spacing)), 0)
+        let row = max(Int(point.y / (tileHeight + PinnedGrid.spacing)), 0)
         var index = row * columns + column
         if point.x > frame(at: index).midX { index += 1 }
         return layoutAttributesForInterItemGap(before: IndexPath(item: min(index, count), section: 0))

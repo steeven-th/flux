@@ -37,7 +37,16 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
     private var peekPresenter: PeekPresenter?
     private var sidebarConstraints: [NSLayoutConstraint] = []
     private var pageLeading: NSLayoutConstraint!
+    private var pageTrailing: NSLayoutConstraint!
+    private var pageTop: NSLayoutConstraint!
+    private var pageBottom: NSLayoutConstraint!
     private var handleLeading: NSLayoutConstraint!
+    private var handleTrailing: NSLayoutConstraint!
+    private var revealLeading: NSLayoutConstraint!
+    private var revealTrailing: NSLayoutConstraint!
+    /// The window's buttons, in the sidebar when it is on the right: the page covers the real ones.
+    private var sidebarWindowControls: WindowControls?
+    private var layoutSettings: (BrowserState.SidebarSide, BrowserState.PageStyle)
     private var sidebarWidth: CGFloat
 
     /// `frameName` saves the window's size and place, one per window. Private windows save
@@ -45,6 +54,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
     init(state: BrowserState, frameName: String?) {
         self.state = state
         sidebarWidth = state.sidebarWidth.map { $0.clamped(to: Self.sidebarWidths) } ?? Self.defaultSidebarWidth
+        layoutSettings = (state.sidebarSide, state.pageStyle)
         let window = MainWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1280, height: 820),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -80,26 +90,27 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         window.contentView = content
 
         pageLeading = pageContainer.leadingAnchor.constraint(equalTo: content.leadingAnchor)
+        pageTrailing = pageContainer.trailingAnchor.constraint(equalTo: content.trailingAnchor)
+        pageTop = pageContainer.topAnchor.constraint(equalTo: content.topAnchor)
+        pageBottom = pageContainer.bottomAnchor.constraint(equalTo: content.bottomAnchor)
         handleLeading = resizeHandle.leadingAnchor.constraint(equalTo: content.leadingAnchor)
+        handleTrailing = resizeHandle.leadingAnchor.constraint(equalTo: content.trailingAnchor)
+        revealLeading = revealEdge.leadingAnchor.constraint(equalTo: content.leadingAnchor)
+        revealTrailing = revealEdge.trailingAnchor.constraint(equalTo: content.trailingAnchor)
         NSLayoutConstraint.activate([
             background.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             background.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             background.topAnchor.constraint(equalTo: content.topAnchor),
             background.bottomAnchor.constraint(equalTo: content.bottomAnchor),
             // The page sits in its own window above this one, so the title bar doesn't cover it.
-            pageLeading,
-            pageContainer.topAnchor.constraint(equalTo: content.topAnchor, constant: Self.pageMargin),
-            pageContainer.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -Self.pageMargin),
-            pageContainer.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -Self.pageMargin),
+            pageLeading, pageTrailing, pageTop, pageBottom,
             pageShadow.leadingAnchor.constraint(equalTo: pageContainer.leadingAnchor, constant: -PageShadowView.outset),
             pageShadow.trailingAnchor.constraint(equalTo: pageContainer.trailingAnchor, constant: PageShadowView.outset),
             pageShadow.topAnchor.constraint(equalTo: pageContainer.topAnchor, constant: -PageShadowView.outset),
             pageShadow.bottomAnchor.constraint(equalTo: pageContainer.bottomAnchor, constant: PageShadowView.outset),
-            handleLeading,
             resizeHandle.widthAnchor.constraint(equalToConstant: Self.resizeHandleWidth),
             resizeHandle.topAnchor.constraint(equalTo: content.topAnchor),
             resizeHandle.bottomAnchor.constraint(equalTo: content.bottomAnchor),
-            revealEdge.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             revealEdge.widthAnchor.constraint(equalToConstant: Self.pageMargin),
             revealEdge.topAnchor.constraint(equalTo: content.topAnchor),
             revealEdge.bottomAnchor.constraint(equalTo: content.bottomAnchor),
@@ -143,6 +154,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         observeSelectedTab()
         observeTitle()
         observeAppearance()
+        observeLayoutSettings()
         observePeek()
         observePanes()
         observeDraggedTab()
@@ -217,29 +229,86 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
+    private var isSidebarOnRight: Bool { state.sidebarSide == .right }
+
     private func dock() {
         overlay?.hide(animated: false)
         overlay?.hidesWhenPointerLeaves = true
+        NSLayoutConstraint.deactivate(sidebarConstraints)
         sidebar.removeFromSuperview()
         sidebar.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(sidebar, positioned: .below, relativeTo: pageContainer)
         sidebarConstraints = [
-            sidebar.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            isSidebarOnRight
+                ? sidebar.trailingAnchor.constraint(equalTo: content.trailingAnchor)
+                : sidebar.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             sidebar.topAnchor.constraint(equalTo: content.topAnchor),
             sidebar.bottomAnchor.constraint(equalTo: content.bottomAnchor),
             sidebar.widthAnchor.constraint(equalToConstant: sidebarWidth),
         ]
         NSLayoutConstraint.activate(sidebarConstraints)
-        setWindowButtonsHidden(false)
+        setWindowButtonsHidden(isSidebarOnRight)
+        showSidebarWindowControls(isSidebarOnRight)
         resizeHandle.isHidden = false
+        layoutEdges()
+    }
+
+    /// Where the page, the resize handle and the strip that reveals the collapsed sidebar go, for
+    /// the sidebar's side and the page's style.
+    private func layoutEdges() {
+        let isDocked = !state.isSidebarCollapsed
+        let margin = state.pageStyle == .card ? Self.pageMargin : 0
+        // Collapsed, the page keeps a margin on the sidebar's side and at the top: its window
+        // would cover the strip that reveals the sidebar, and the title bar to move the window.
+        let sidebarMargin = isDocked ? sidebarWidth : max(margin, Self.pageMargin)
+        pageLeading.constant = isSidebarOnRight ? margin : sidebarMargin
+        pageTrailing.constant = -(isSidebarOnRight ? sidebarMargin : margin)
+        pageTop.constant = isDocked ? margin : Self.pageMargin
+        pageBottom.constant = -margin
+        pageShadow.isHidden = state.pageStyle == .edgeToEdge
         handleLeading.constant = sidebarWidth - Self.resizeHandleWidth
-        pageLeading.constant = sidebarWidth
+        handleTrailing.constant = -sidebarWidth
+        NSLayoutConstraint.deactivate(isSidebarOnRight ? [handleLeading, revealLeading] : [handleTrailing, revealTrailing])
+        NSLayoutConstraint.activate(isSidebarOnRight ? [handleTrailing, revealTrailing] : [handleLeading, revealLeading])
+    }
+
+    private func showSidebarWindowControls(_ isShown: Bool) {
+        sidebarWindowControls?.removeFromSuperview()
+        sidebarWindowControls = nil
+        guard isShown, let window else { return }
+        let controls = WindowControls(for: window)
+        controls.translatesAutoresizingMaskIntoConstraints = false
+        content.addSubview(controls, positioned: .above, relativeTo: sidebar)
+        NSLayoutConstraint.activate([
+            controls.leadingAnchor.constraint(equalTo: sidebar.leadingAnchor, constant: 13),
+            controls.topAnchor.constraint(equalTo: content.topAnchor, constant: 8),
+            controls.widthAnchor.constraint(equalToConstant: WindowControls.size.width),
+            controls.heightAnchor.constraint(equalToConstant: WindowControls.size.height),
+        ])
+        sidebarWindowControls = controls
+    }
+
+    private func observeLayoutSettings() {
+        let settings = withObservationTracking {
+            (state.sidebarSide, state.pageStyle)
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeLayoutSettings() }
+        }
+        guard settings != layoutSettings else { return }
+        layoutSettings = settings
+        overlay?.slidesFromRight = isSidebarOnRight
+        if state.isSidebarCollapsed {
+            collapse(animated: false)
+        } else {
+            dock()
+        }
     }
 
     private func collapse(animated: Bool) {
         state.isSidebarCollapsed = true
         NSLayoutConstraint.deactivate(sidebarConstraints)
         sidebarConstraints = []
+        showSidebarWindowControls(false)
         if overlay == nil, let window {
             let overlay = SidebarOverlayWindow(state: state, host: window)
             overlay.keepsShowingIn = { [weak self] in
@@ -249,6 +318,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
             self.overlay = overlay
         }
         guard let overlay else { return }
+        overlay.slidesFromRight = isSidebarOnRight
         overlay.hidesWhenPointerLeaves = true
         overlay.setFrame(overlayFrame, display: false)
         overlay.hold(sidebar)
@@ -256,7 +326,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         setWindowButtonsHidden(true)
         resizeHandle.isHidden = true
         revealEdge.isHidden = false
-        pageLeading.constant = Self.pageMargin
+        layoutEdges()
         if animated {
             overlay.show(frame: overlayFrame, animated: false)
             overlay.hide()
@@ -272,7 +342,9 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         guard let window else { return .zero }
         let area = window.frame
         return NSRect(
-            x: area.minX + SidebarOverlayWindow.inset,
+            x: isSidebarOnRight
+                ? area.maxX - SidebarOverlayWindow.inset - sidebarWidth
+                : area.minX + SidebarOverlayWindow.inset,
             y: area.minY + SidebarOverlayWindow.inset,
             width: sidebarWidth,
             height: area.height - SidebarOverlayWindow.inset * 2
@@ -280,10 +352,9 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
     }
 
     private func resizeSidebar(by delta: CGFloat) {
-        sidebarWidth = (sidebarWidth + delta).clamped(to: Self.sidebarWidths)
+        sidebarWidth = (sidebarWidth + (isSidebarOnRight ? -delta : delta)).clamped(to: Self.sidebarWidths)
         sidebarConstraints.last?.constant = sidebarWidth
-        handleLeading.constant = sidebarWidth - Self.resizeHandleWidth
-        pageLeading.constant = sidebarWidth
+        layoutEdges()
     }
 
     private func setWindowButtonsHidden(_ hidden: Bool) {

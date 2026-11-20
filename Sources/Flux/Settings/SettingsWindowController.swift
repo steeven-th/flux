@@ -31,8 +31,9 @@ final class SettingsWindowController: NSWindowController {
         super.init(window: window)
 
         tabs.addTabViewItem(Self.item("General", symbol: "gearshape", GeneralSettings(state: state) { [weak self] in
-            self?.tabs.selectedTabViewItemIndex = 1
+            self?.tabs.selectedTabViewItemIndex = 2
         }))
+        tabs.addTabViewItem(Self.item("Appearance", symbol: "paintpalette", AppearanceSettings(state: state)))
         tabs.addTabViewItem(Self.item("Profiles", symbol: "person.crop.circle", ProfileSettings(state: state)))
         tabs.addTabViewItem(Self.item("Links", symbol: "rectangle.on.rectangle", LinkSettings(state: state)))
         if let shortcuts = Shortcuts.shared {

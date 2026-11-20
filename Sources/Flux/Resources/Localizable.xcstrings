@@ -211,6 +211,16 @@
         }
       }
     },
+    "A card leaves a margin around the page, with round corners. Edge to edge gives the page all the room." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En carte, la page garde une marge tout autour. Bord à bord, elle prend toute la place."
+          }
+        }
+      }
+    },
     "A few shortcuts to start with:" : {
       "localizations" : {
         "fr" : {
@@ -781,6 +791,26 @@
         }
       }
     },
+    "Card" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carte"
+          }
+        }
+      }
+    },
+    "Change this later in Settings > Appearance, and each space's look from its menu at the bottom of the sidebar." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous pourrez le changer dans Réglages > Apparence, et l'apparence de chaque espace depuis son menu en bas de la sidebar."
+          }
+        }
+      }
+    },
     "Check for Updates…" : {
       "localizations" : {
         "fr" : {
@@ -1057,6 +1087,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vous venez d'un autre navigateur ?"
+          }
+        }
+      }
+    },
+    "Compact" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compact"
           }
         }
       }
@@ -1477,6 +1517,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chaque espace a ses propres connexions, mots de passe, historique et extensions. Ajoutez-en d'autres plus tard avec le + en bas de la barre latérale."
+          }
+        }
+      }
+    },
+    "Each space's color, gradient, grain and light or dark look are in Customize Space, from the space's menu at the bottom of the sidebar." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La couleur, le dégradé, le grain et le mode clair ou sombre de chaque espace se règlent dans Personnaliser l'espace, depuis le menu de l'espace en bas de la sidebar."
+          }
+        }
+      }
+    },
+    "Edge to edge" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bord à bord"
           }
         }
       }
@@ -2301,12 +2361,32 @@
         }
       }
     },
+    "Large" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grandes"
+          }
+        }
+      }
+    },
     "Later" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Plus tard"
+          }
+        }
+      }
+    },
+    "Left" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gauche"
           }
         }
       }
@@ -2511,6 +2591,16 @@
         }
       }
     },
+    "Make it yours" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À votre goût"
+          }
+        }
+      }
+    },
     "Manage" : {
       "localizations" : {
         "fr" : {
@@ -2537,6 +2627,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Médias"
+          }
+        }
+      }
+    },
+    "Medium" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moyennes"
           }
         }
       }
@@ -3181,6 +3281,16 @@
         }
       }
     },
+    "Page" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Page"
+          }
+        }
+      }
+    },
     "Page Translation" : {
       "localizations" : {
         "fr" : {
@@ -3377,6 +3487,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Épingler dans la barre d'adresse"
+          }
+        }
+      }
+    },
+    "Pinned tabs" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onglets épinglés"
           }
         }
       }
@@ -3737,6 +3857,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rétablir les valeurs par défaut"
+          }
+        }
+      }
+    },
+    "Right" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Droite"
           }
         }
       }
@@ -4441,6 +4571,16 @@
         }
       }
     },
+    "Sidebar" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sidebar"
+          }
+        }
+      }
+    },
     "Sign In" : {
       "localizations" : {
         "fr" : {
@@ -4487,6 +4627,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mise en veille"
+          }
+        }
+      }
+    },
+    "Small" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Petites"
           }
         }
       }
@@ -4541,12 +4691,32 @@
         }
       }
     },
+    "Spacious" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aéré"
+          }
+        }
+      }
+    },
     "Split View" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vue partagée"
+          }
+        }
+      }
+    },
+    "Standard" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standard"
           }
         }
       }
@@ -4647,6 +4817,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Onglet"
+          }
+        }
+      }
+    },
+    "Tabs" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Onglets"
           }
         }
       }
@@ -5297,6 +5477,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vos espaces arrivent avec leurs onglets épinglés, favoris, dossiers et vues partagées, et les nouveaux avec leur historique, leurs mots de passe et leurs connexions. %@ lui-même n'est pas modifié."
+          }
+        }
+      }
+    },
+    "Your spaces keep the colors they had." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos espaces gardent les couleurs qu'ils avaient."
           }
         }
       }

@@ -26,6 +26,8 @@ final class SidebarOverlayWindow: NSWindow {
     private(set) var isShown = false
     /// Off while the overlay brings the sidebar back into Flux's window.
     var hidesWhenPointerLeaves = true
+    var slidesFromRight = false
+    private var hiddenX: CGFloat { slidesFromRight ? frame.width : -frame.width }
     /// Where the pointer can be without the overlay hiding, besides the overlay itself.
     var keepsShowingIn: (() -> NSRect)?
     private weak var host: NSWindow?
@@ -92,7 +94,7 @@ final class SidebarOverlayWindow: NSWindow {
         host.removeChildWindow(self)
         host.addChildWindow(self, ordered: .above)
         setFrame(frame, display: true)
-        if !isVisible { container.setFrameOrigin(NSPoint(x: -frame.width, y: 0)) }
+        if !isVisible { container.setFrameOrigin(NSPoint(x: hiddenX, y: 0)) }
         updateTrackingArea()
         orderFront(nil)
         slide(toX: 0, animated: animated, completion: completion)
@@ -102,7 +104,7 @@ final class SidebarOverlayWindow: NSWindow {
         hideWork?.cancel()
         isShown = false
         guard animated, isVisible else { return remove() }
-        slide(toX: -frame.width, animated: true) { [weak self] in
+        slide(toX: hiddenX, animated: true) { [weak self] in
             guard let self, !self.isShown else { return }
             self.remove()
         }
@@ -183,7 +185,7 @@ final class SidebarOverlayWindow: NSWindow {
     }
 }
 
-/// The sidebar's right edge, dragged to resize it.
+/// The sidebar's inner edge, dragged to resize it.
 final class SidebarResizeHandle: NSView {
     var onDrag: ((CGFloat) -> Void)?
     var onEnd: (() -> Void)?
@@ -231,7 +233,8 @@ final class SidebarResizeHandle: NSView {
     }
 }
 
-/// The strip along the window's left edge that brings the collapsed sidebar back.
+/// The strip along the window's edge, on the sidebar's side, that brings the collapsed sidebar
+/// back.
 final class SidebarRevealEdge: NSView {
     var onEnter: (() -> Void)?
 
