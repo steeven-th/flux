@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.6.0](https://github.com/steeven-th/flux/compare/v0.5.1...v0.6.0) (2026-11-20)
+
+
+### New
+
+* **import:** bring each Arc space's whole look ([8189429](https://github.com/steeven-th/flux/commit/81894299dfc3c3ac305d9df35b5211c12e8ddac5))
+* **sidebar:** ask whether a folder's tabs go with it ([a43aa87](https://github.com/steeven-th/flux/commit/a43aa877687ac16c78a98ce133bb48aefa49791f))
+* **sidebar:** fill live folders from a feed or a GitHub search ([11ffce6](https://github.com/steeven-th/flux/commit/11ffce6785df5f29c5f0d9a695e335864a4512a6))
+* **sidebar:** preview pinned tabs, and a calendar's next meeting ([b46628d](https://github.com/steeven-th/flux/commit/b46628da63a1e0bfd5e1d028eb47658a66e4a8d8))
+* **sidebar:** show the selected tab and page loading in the space's color ([14408a6](https://github.com/steeven-th/flux/commit/14408a67d80a560c8bff86f9993afc03a8eec130))
+* **spaces:** blend a space's colors in a gradient ([f78bee5](https://github.com/steeven-th/flux/commit/f78bee5a4b7f92f0d69661fa075e3fa667ba3bc0))
+* **spaces:** choose a space's appearance, grain and SF Symbol icon ([3fe93fe](https://github.com/steeven-th/flux/commit/3fe93fe34c3433ff052ec2a758eaf2911830126f))
+* **spaces:** customize a space's color and tint, with a live preview ([ee80b6b](https://github.com/steeven-th/flux/commit/ee80b6b53332dfdc6d4c64700bfafc423d14f48b))
+* **welcome:** offer to make Flux yours on first launch ([55c144b](https://github.com/steeven-th/flux/commit/55c144bc789712753c2f6b90b6c4f6b87f28b0fd))
+* **window:** place the sidebar, size tabs and tiles, and show pages edge to edge ([c8f32c9](https://github.com/steeven-th/flux/commit/c8f32c96fe9f781daa9e6f583efccc4fd7ebac86))
+
+
+### Fixed
+
+* **command-bar:** go to an address typed in full before anything else ([963a369](https://github.com/steeven-th/flux/commit/963a369939361cd80e621437ed681f8fe3171ded))
+* **sidebar:** clear a tab's hover when the sidebar scrolls under the mouse ([bd54503](https://github.com/steeven-th/flux/commit/bd545037c49eefbe75989fd64e846ed3a5d30b9d))
+
 ## [0.5.1](https://github.com/steeven-th/flux/compare/v0.5.0...v0.5.1) (2026-11-19)
 
 
