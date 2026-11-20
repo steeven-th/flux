@@ -49,7 +49,21 @@ struct AddressBar: View {
             }
         }
         .padding(.trailing, 3)
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.primary.opacity(0.06)))
+        .background {
+            ZStack(alignment: .leading) {
+                Rectangle().fill(.primary.opacity(0.06))
+                if let progress = state.selectedTab?.loadProgress, progress < 1 {
+                    GeometryReader { geometry in
+                        Rectangle()
+                            .fill(state.selectedSpace.color.opacity(0.3))
+                            .frame(width: geometry.size.width * progress)
+                    }
+                    .transition(.opacity)
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .animation(.easeOut(duration: 0.2), value: state.selectedTab?.loadProgress)
+        }
         .popover(isPresented: isAsking, arrowEdge: .bottom) {
             if let tab = state.selectedTab {
                 if let request = tab.permissionRequest {

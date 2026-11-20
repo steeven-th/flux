@@ -981,6 +981,13 @@ static NSArray<NSString *> *AddressLines(ECAddress *address) {
   _loading = contents.isLoading;
 }
 
+- (void)webContents:(ECWebContents *)contents didChangeLoadProgress:(double)progress {
+  id<FLXBrowserViewDelegate> delegate = self.delegate;
+  if ([delegate respondsToSelector:@selector(browserView:didChangeLoadProgress:)]) {
+    [delegate browserView:self didChangeLoadProgress:progress];
+  }
+}
+
 // Chrome's own context menu needs one of its browser windows, so Flux makes its own.
 - (void)webContents:(ECWebContents *)contents showContextMenu:(ECContextMenu *)context {
   NSMenu *menu = [[NSMenu alloc] initWithTitle:@""];

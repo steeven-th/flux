@@ -155,6 +155,8 @@ NS_SWIFT_UI_ACTOR
 - (void)browserViewDidChangeNavigationState:(FLXBrowserView *)browserView;
 /// Sent each time the page has finished loading.
 - (void)browserViewDidFinishLoading:(FLXBrowserView *)browserView;
+/// How far the page has loaded, 0 to 1, and 1 once it finished.
+- (void)browserView:(FLXBrowserView *)browserView didChangeLoadProgress:(double)progress;
 /// Sent when Chromium brings forward the page while Flux doesn't show it, as the back to tab
 /// button of the picture-in-picture window does.
 - (void)browserViewDidRequestShow:(FLXBrowserView *)browserView;

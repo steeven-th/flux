@@ -56,6 +56,7 @@ struct SidebarOutline: NSViewRepresentable {
         _ = state.sidebarRevision
         _ = state.selectedSpaceID
         _ = state.selectedTab
+        (nsView.documentView as? SidebarOutlineView)?.accentColor = NSColor(state.selectedSpace.color)
         context.coordinator.reloadIfNeeded()
     }
 
@@ -593,6 +594,13 @@ private final class HostingCell: NSTableCellView {
 /// A middle click closes the tab under it, like in other browsers. Group rows send no action
 /// when clicked, so a click on a section's title is handled here.
 private final class SidebarOutlineView: NSOutlineView {
+    /// The space's color, for the selected tab.
+    var accentColor: NSColor? {
+        didSet {
+            guard accentColor != oldValue else { return }
+            enumerateAvailableRowViews { rowView, _ in rowView.needsDisplay = true }
+        }
+    }
     var middleClickHandler: ((Any) -> Void)?
     var groupClickHandler: ((Any) -> Void)?
     /// Where the drag is for drops AppKit can't tell apart, such as either side of a group's end.
@@ -744,13 +752,27 @@ private class HoverRowView: NSTableRowView {
     override func drawBackground(in dirtyRect: NSRect) {
         super.drawBackground(in: dirtyRect)
         if isSelected {
-            (isEmphasized ? NSColor.selectedContentBackgroundColor : NSColor.unemphasizedSelectedContentBackgroundColor).setFill()
+            let accent = (superview as? SidebarOutlineView)?.accentColor
+            if isEmphasized {
+                (accent.map(Self.readableUnderWhiteText) ?? .selectedContentBackgroundColor).setFill()
+            } else {
+                NSColor.unemphasizedSelectedContentBackgroundColor.setFill()
+                highlightPath.fill()
+                (accent?.withAlphaComponent(0.18) ?? .clear).setFill()
+            }
         } else if isHovered {
             NSColor.labelColor.withAlphaComponent(0.06).setFill()
         } else {
             return
         }
         highlightPath.fill()
+    }
+
+    /// Light colors darkened until white text on them stays readable.
+    private static func readableUnderWhiteText(_ color: NSColor) -> NSColor {
+        guard let rgb = color.usingColorSpace(.sRGB) else { return color }
+        let luminance = 0.2126 * rgb.redComponent + 0.7152 * rgb.greenComponent + 0.0722 * rgb.blueComponent
+        return luminance > 0.5 ? rgb.blended(withFraction: min((luminance - 0.5) * 1.4 + 0.2, 0.6), of: .black) ?? rgb : rgb
     }
 
     override var isSelected: Bool {

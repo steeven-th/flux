@@ -32,6 +32,7 @@ final class Tab: NSObject, Identifiable {
     private(set) var deviceChooser: FLXDeviceChooser?
     /// 1 at the default size. Chromium keeps it per site, so it changes as the page does.
     private(set) var zoomFactor = 1.0
+    private(set) var loadProgress = 1.0
     /// How long this page stays loaded unseen, instead of the setting for every tab.
     var sleepDelay: TabSleepDelay? {
         didSet {
@@ -621,6 +622,10 @@ extension Tab: FLXBrowserViewDelegate {
 
     func browserViewDidRequestShow(_ browserView: FLXBrowserView) {
         onRequestShow?(self)
+    }
+
+    func browserView(_ browserView: FLXBrowserView, didChangeLoadProgress progress: Double) {
+        loadProgress = progress
     }
 
     func browserViewDidFinishLoading(_ browserView: FLXBrowserView) {
