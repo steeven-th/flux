@@ -217,7 +217,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             if let source, let first = imported.first {
                 let record = try BrowserState.createFirstSpace(
-                    name: first.name, icon: first.icon, color: first.color ?? BrowserState.spaceColors[0], in: database
+                    name: first.name, icon: first.icon, color: first.color ?? BrowserState.spaceColors[0], theme: first.theme,
+                    in: database
                 )
                 source.prepare(AppPaths.profileFolder(named: record.profileFolder), from: first.profileFolder)
             } else {

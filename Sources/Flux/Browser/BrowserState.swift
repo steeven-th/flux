@@ -260,11 +260,14 @@ final class BrowserState {
         save { try appDatabase.setSetting(Self.windowsKey, to: json) }
     }
 
-    static func createFirstSpace(name: String, icon: String?, color: String, in database: AppDatabase) throws -> SpaceRecord {
+    static func createFirstSpace(
+        name: String, icon: String?, color: String, theme: SpaceTheme? = nil, in database: AppDatabase
+    ) throws -> SpaceRecord {
         let id = UUID()
         let record = SpaceRecord(
-            id: id, name: name, icon: icon, color: color, position: FractionalIndex.between(nil, nil),
-            profileFolder: "Profile \(id.uuidString)", selectedTabID: nil, createdAt: Date()
+            id: id, name: name, icon: icon, color: theme?.color ?? color, theme: theme?.json,
+            position: FractionalIndex.between(nil, nil), profileFolder: "Profile \(id.uuidString)",
+            selectedTabID: nil, createdAt: Date()
         )
         try database.save(record)
         return record
@@ -1908,7 +1911,7 @@ final class BrowserState {
         for space in imported {
             // A new profile gets the browser's history, passwords and sign-ins. An open one can't.
             let spaceID = destinations[space.id] ?? createSpace(
-                name: space.name, icon: space.icon, color: space.color ?? Self.spaceColors[0],
+                name: space.name, icon: space.icon, color: space.color ?? Self.spaceColors[0], theme: space.theme,
                 sharingProfileOf: spaceByProfile[space.profileFolder]
             ) { folder in
                 source.prepare(folder, from: space.profileFolder)

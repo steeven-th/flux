@@ -8,6 +8,8 @@ struct ImportedSpace: Identifiable {
     let icon: String?
     /// "#RRGGBB", when the browser has one.
     let color: String?
+    /// The whole look, when the browser has more than a color, as Arc does.
+    var theme: SpaceTheme? = nil
     let profileFolder: URL
     /// For Flux's grid of pinned tabs: Arc's favorites, the icons at the top of its sidebar.
     let pinned: [ImportedItem]
