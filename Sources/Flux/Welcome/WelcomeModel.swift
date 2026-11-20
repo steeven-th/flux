@@ -6,7 +6,7 @@ import Observation
 @Observable
 final class WelcomeModel {
     enum Step: Int, CaseIterable {
-        case welcome, imports, space, searchEngine, passwords, done
+        case welcome, imports, space, look, searchEngine, passwords, done
     }
 
     var step = Step.welcome
@@ -55,7 +55,14 @@ final class WelcomeModel {
     }
     var name = String(localized: "Personal")
     var icon = ""
-    var color = BrowserState.spaceColors[0]
+    /// The first space's look, when it isn't imported.
+    var theme = SpaceTheme(color: BrowserState.spaceColors[0])
+    var color: String {
+        get { theme.color }
+        set { theme.color = newValue }
+    }
+    var sidebarSide = BrowserState.SidebarSide.left
+    var pageStyle = BrowserState.PageStyle.card
     var searchEngine = SearchEngine.google
     /// Nil for Chromium's own password manager.
     var passwordManager: PasswordManagerExtension?
@@ -67,6 +74,14 @@ final class WelcomeModel {
     func goBack() {
         step = Step(rawValue: step.rawValue - 1) ?? step
         if isSkipped(step) { goBack() }
+    }
+
+    /// Leaves the look step as Flux would be without it.
+    func customizeLater() {
+        theme = SpaceTheme(color: theme.color)
+        sidebarSide = .left
+        pageStyle = .card
+        goForward()
     }
 
     func goForward() {

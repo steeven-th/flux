@@ -224,7 +224,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             } else {
                 let name = choices.name.trimmingCharacters(in: .whitespacesAndNewlines)
                 _ = try BrowserState.createFirstSpace(
-                    name: name, icon: choices.icon.isEmpty ? nil : choices.icon, color: choices.color, in: database
+                    name: name, icon: choices.icon.isEmpty ? nil : choices.icon, color: choices.color, theme: choices.theme,
+                    in: database
                 )
             }
         } catch {
@@ -238,6 +239,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             for profile in state.profilesInUse {
                 state.setSearchEngine(choices.searchEngine, forProfile: profile.folder)
             }
+            state.sidebarSide = choices.sidebarSide
+            state.pageStyle = choices.pageStyle
             if let manager = choices.passwordManager {
                 for profile in state.profilesInUse {
                     state.passwordManager(forProfile: profile.folder)?.setEnabled(false)

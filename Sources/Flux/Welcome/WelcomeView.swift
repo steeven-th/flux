@@ -11,6 +11,7 @@ struct WelcomeView: View {
                 case .welcome: IntroStep()
                 case .imports: ImportStep(model: model)
                 case .space: SpaceStep(model: model)
+                case .look: LookStep(model: model)
                 case .searchEngine: SearchEngineStep(model: model)
                 case .passwords: PasswordsStep(model: model)
                 case .done: DoneStep()
@@ -23,6 +24,9 @@ struct WelcomeView: View {
                     Button("Back", action: model.goBack)
                 }
                 Spacer()
+                if model.step == .look {
+                    Button("Later", action: model.customizeLater)
+                }
                 Button(primaryTitle, action: next)
                     .keyboardShortcut(.defaultAction)
                     .disabled(!model.canContinue)
@@ -35,10 +39,10 @@ struct WelcomeView: View {
         .frame(width: 560, height: 520)
         // From the first space on, the window takes the space's color, as Flux's window will.
         .background {
-            Color(hex: model.color)
-                .opacity(model.step.rawValue >= WelcomeModel.Step.space.rawValue ? SpaceTheme.defaultTint : 0)
+            SpaceTint(theme: model.importSource == nil ? model.theme : SpaceTheme(color: model.color))
+                .opacity(model.step.rawValue >= WelcomeModel.Step.space.rawValue ? 1 : 0)
                 .ignoresSafeArea()
-                .animation(.easeInOut(duration: 0.3), value: model.color)
+                .animation(.easeInOut(duration: 0.3), value: model.theme)
                 .animation(.easeInOut(duration: 0.3), value: model.step)
         }
     }
@@ -165,12 +169,59 @@ private struct SidebarPreview: View {
         .padding(12)
         .frame(width: 170, height: 200, alignment: .topLeading)
         .background {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(hex: model.color).opacity(0.2))
-                .animation(.easeInOut(duration: 0.3), value: model.color)
+            SpaceTint(theme: model.theme)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .animation(.easeInOut(duration: 0.3), value: model.theme)
         }
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.primary.opacity(0.1))
+        }
+    }
+}
+
+/// Optional: everything here can be changed later, and Later leaves Flux as it comes.
+private struct LookStep: View {
+    @Bindable var model: WelcomeModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            StepHeader(
+                title: "Make it yours",
+                message: "Change this later in Settings > Appearance, and each space's look from its menu at the bottom of the sidebar."
+            )
+            HStack(alignment: .top, spacing: 32) {
+                Form {
+                    Picker("Sidebar", selection: $model.sidebarSide) {
+                        ForEach(BrowserState.SidebarSide.allCases) { Text($0.name).tag($0) }
+                    }
+                    Picker("Page", selection: $model.pageStyle) {
+                        ForEach(BrowserState.PageStyle.allCases) { Text($0.name).tag($0) }
+                    }
+                    if model.importSource == nil {
+                        Slider(value: $model.theme.tint, in: SpaceTheme.tintRange) {
+                            Text("Intensity")
+                        }
+                        Picker("Appearance", selection: $model.theme.appearance) {
+                            Text("System").tag(SpaceTheme.Appearance.system)
+                            Text("Light").tag(SpaceTheme.Appearance.light)
+                            Text("Dark").tag(SpaceTheme.Appearance.dark)
+                        }
+                        Button {
+                            model.theme.shuffle()
+                        } label: {
+                            Label("Shuffle", systemImage: "shuffle")
+                        }
+                    }
+                }
+                .frame(width: 260)
+                if model.importSource == nil {
+                    SidebarPreview(model: model)
+                } else {
+                    Text("Your spaces keep the colors they had.")
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
     }
 }
