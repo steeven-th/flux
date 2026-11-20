@@ -11,7 +11,9 @@ new look while you choose it, as Arc did:
 - **Color**: one of the eight presets, or any other from the color well. It tints the window and
   is the space's color for its icon.
 - **Intensity**: how strongly the color tints the window, from a hint to a vivid one.
-- **Shuffle** picks a color and an intensity at random, which keep text easy to read.
+- **Gradient**: up to two more colors, and the dial sets the direction they blend in. The first
+  color stays the space's own.
+- **Shuffle** picks colors, a direction and an intensity at random, which keep text easy to read.
 
 Save keeps the new look, and Cancel or Escape brings the old one back. Clicking away from the
 editor after a change asks whether to save it.

@@ -291,6 +291,16 @@
         }
       }
     },
+    "Add a Color" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter une couleur"
+          }
+        }
+      }
+    },
     "Add a style sheet and a script to this site." : {
       "localizations" : {
         "fr" : {
@@ -1331,6 +1341,16 @@
         }
       }
     },
+    "Direction of the Gradient" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Direction du dégradé"
+          }
+        }
+      }
+    },
     "Discard Changes" : {
       "localizations" : {
         "fr" : {
@@ -1807,6 +1827,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Revenir à la page d'origine"
+          }
+        }
+      }
+    },
+    "Gradient" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dégradé"
+          }
+        }
+      }
+    },
+    "Gradient Color" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couleur du dégradé"
           }
         }
       }
@@ -3577,6 +3617,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sortir du groupe"
+          }
+        }
+      }
+    },
+    "Remove the Last Color" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retirer la dernière couleur"
           }
         }
       }

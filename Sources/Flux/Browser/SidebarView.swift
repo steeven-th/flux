@@ -93,7 +93,13 @@ struct SpaceBackground: View {
     let state: BrowserState
 
     var body: some View {
-        state.selectedSpace.color.opacity(state.selectedSpace.theme.tint)
-            .ignoresSafeArea()
+        // A gradient can't morph into another one, so switching spaces fades between them.
+        ZStack {
+            SpaceTint(theme: state.selectedSpace.theme)
+                .id(state.selectedSpace.id)
+                .transition(.opacity)
+        }
+        .animation(.easeInOut(duration: 0.25), value: state.selectedSpace.id)
+        .ignoresSafeArea()
     }
 }

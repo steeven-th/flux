@@ -231,8 +231,9 @@ private struct LittleWindowBackground: View {
     let model: LittleWindowModel
 
     var body: some View {
-        (model.space?.color ?? .clear).opacity(model.space?.theme.tint ?? SpaceTheme.defaultTint)
-            .ignoresSafeArea()
+        if let theme = model.space?.theme {
+            SpaceTint(theme: theme).ignoresSafeArea()
+        }
     }
 }
 

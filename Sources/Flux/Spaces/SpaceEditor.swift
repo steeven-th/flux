@@ -64,6 +64,8 @@ struct SpaceEditor: View {
                     .foregroundStyle(Color(hex: theme.color))
             }
 
+            GradientFields(theme: $theme)
+
             if !profiles.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Picker("Profile", selection: $sharedSpaceID) {
