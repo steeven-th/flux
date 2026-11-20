@@ -101,6 +101,10 @@ final class BrowserState {
         get { store.scrollTimer }
         set { store.scrollTimer = newValue }
     }
+    private var liveFolderTimer: Timer? {
+        get { store.liveFolderTimer }
+        set { store.liveFolderTimer = newValue }
+    }
     private var sleepTimer: Timer? {
         get { store.sleepTimer }
         set { store.sleepTimer = newValue }
@@ -605,6 +609,7 @@ final class BrowserState {
             return
         }
         showsChosenTabsOnly = false
+        tab.setUnread(false)
         guard selectedTabIDs[tab.spaceID] != tab.id else { return }
         selectedTab?.saveScrollPosition()
         // Seen until now: a tab looked at for a long time is not inactive the moment it is left.
@@ -651,8 +656,14 @@ final class BrowserState {
         close(tab, removing: !tab.isKept)
     }
 
-    /// Takes a kept tab out of the sidebar for good.
+    /// Takes a kept tab out of the sidebar for good. A live folder's tab stays out when the folder
+    /// updates.
     func remove(_ tab: Tab) {
+        if let itemID = tab.node.liveItemID, let folder = liveFolder(of: tab), var source = folder.liveSource {
+            source.dismiss(itemID)
+            folder.setLiveSource(source)
+            save { try profileDatabases[folder.spaceID]?.save(folder.node) }
+        }
         close(tab, removing: true)
     }
 
@@ -1531,6 +1542,11 @@ final class BrowserState {
             return isGroupHead(head) && tab !== head && members(of: tab).isEmpty
         }
         guard section == .favorites || parentID == nil else { return false }
+        // A live folder holds its source's items only, in their place.
+        if let parentID, folders.contains(where: { $0.id == parentID && $0.liveSource != nil }) {
+            guard case .tab(let tab) = entry else { return false }
+            return tab.node.parentID == parentID
+        }
         if section == .pinned, case .folder = entry { return false }
         if section == .pinned, case .split = entry { return false }
         if section == .pinned, case .tab(let tab) = entry, !tab.isPinned, pinnedTabs.count >= Self.maxPinnedTabs {
@@ -1623,6 +1639,7 @@ final class BrowserState {
     @discardableResult
     func createFolder(parentID: UUID? = nil) -> Folder? {
         guard canPlace(nil, in: parentID) else { return nil }
+        if let parentID, folders.contains(where: { $0.id == parentID && $0.liveSource != nil }) { return nil }
         let last = entries(in: .favorites, parentID: parentID).last?.node.position
         let node = SidebarNode(
             id: UUID(), spaceID: selectedSpaceID, parentID: parentID, kind: .folder, section: .favorites,
@@ -1635,6 +1652,128 @@ final class BrowserState {
         sidebarRevision += 1
         folder.isEditingTitle = true
         return folder
+    }
+
+    // Live folders: folders filled by a feed or a GitHub search, which update by themselves.
+
+    /// The live folder sheet, for a new folder (nil folder) or an existing one.
+    struct LiveFolderEditing: Identifiable {
+        let id = UUID()
+        let folder: Folder?
+    }
+
+    var liveFolderEditing: LiveFolderEditing?
+
+    func createLiveFolder(title: String, source: LiveSource) {
+        let last = entries(in: .favorites, parentID: nil).last?.node.position
+        var node = SidebarNode(
+            id: UUID(), spaceID: selectedSpaceID, parentID: nil, kind: .folder, section: .favorites,
+            position: FractionalIndex.between(last, nil), title: title, url: nil, originalURL: nil,
+            isExpanded: true, lastActiveAt: nil, createdAt: Date()
+        )
+        node.liveSource = source
+        save { try profileDatabases[selectedSpaceID]?.save(node) }
+        let folder = Folder(node: node)
+        folders.append(folder)
+        sidebarRevision += 1
+        refresh(folder, marksNewUnread: false)
+    }
+
+    func setLiveSource(_ source: LiveSource, title: String, of folder: Folder) {
+        var source = source
+        let isSameSource = source.kind == folder.liveSource?.kind && source.value == folder.liveSource?.value
+        if isSameSource { source.dismissed = folder.liveSource?.dismissed ?? [] }
+        folder.setLiveSource(source)
+        folder.rename(title)
+        save { try profileDatabases[folder.spaceID]?.save(folder.node) }
+        refresh(folder, marksNewUnread: false, replacing: !isSameSource)
+    }
+
+    /// The folder and its tabs stay, as an ordinary folder.
+    func stopUpdating(_ folder: Folder) {
+        markAllRead(in: folder)
+        folder.setLiveSource(nil)
+        save { try profileDatabases[folder.spaceID]?.save(folder.node) }
+        sidebarRevision += 1
+    }
+
+    func liveFolder(of tab: Tab) -> Folder? {
+        folders.first { $0.id == tab.node.parentID && $0.liveSource != nil }
+    }
+
+    func unreadCount(in folder: Folder) -> Int {
+        tabs.filter { $0.node.parentID == folder.id && $0.isUnread }.count
+    }
+
+    func markAllRead(in folder: Folder) {
+        for tab in tabs where tab.node.parentID == folder.id { tab.setUnread(false) }
+    }
+
+    func startUpdatingLiveFolders() {
+        refreshLiveFolders()
+        liveFolderTimer = Timer.scheduledTimer(withTimeInterval: LiveSource.refreshInterval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshLiveFolders() }
+        }
+    }
+
+    func refreshLiveFolders() {
+        for folder in folders where folder.liveSource != nil { refresh(folder) }
+    }
+
+    /// New items go on top, unread unless the folder is being filled for the first time. Items
+    /// gone from the source leave the folder, unless a window shows them. A new source replaces
+    /// them all, shown or not.
+    func refresh(_ folder: Folder, marksNewUnread: Bool = true, replacing: Bool = false) {
+        guard let source = folder.liveSource, !folder.isRefreshing else { return }
+        folder.isRefreshing = true
+        Task { [weak self] in
+            defer { folder.isRefreshing = false }
+            do {
+                let items = try await LiveSourceReader.items(of: source)
+                folder.refreshError = nil
+                self?.apply(items, to: folder, marksNewUnread: marksNewUnread, replacing: replacing)
+            } catch {
+                folder.refreshError = error.localizedDescription
+            }
+        }
+    }
+
+    private func apply(_ items: [LiveItem], to folder: Folder, marksNewUnread: Bool, replacing: Bool) {
+        guard folders.contains(where: { $0 === folder }), folder.liveSource != nil else { return }
+        let inFolder = tabs.filter { $0.node.parentID == folder.id }
+        let ids = Set(items.map(\.id))
+        let shown = replacing ? [] : tabsShownInAnyWindow
+        for tab in inFolder where !ids.contains(tab.node.liveItemID ?? "") && !shown.contains(where: { $0 === tab }) {
+            discard(tab)
+        }
+        // Moved out of the folder by the user, an item doesn't come back.
+        let known = Dictionary(
+            tabs.filter { $0.spaceID == folder.spaceID }.compactMap { tab in tab.node.liveItemID.map { ($0, tab) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let first = entries(in: .favorites, parentID: folder.id, spaceID: folder.spaceID).first?.node.position
+        var previous: String?
+        var added: [SidebarNode] = []
+        for item in items {
+            if let tab = known[item.id] {
+                tab.renameLiveItem(item.title)
+                continue
+            }
+            let position = FractionalIndex.between(previous, first)
+            previous = position
+            var node = SidebarNode(
+                id: UUID(), spaceID: folder.spaceID, parentID: folder.id, kind: .tab, section: .favorites,
+                position: position, title: item.title, url: item.url, originalURL: item.url,
+                isExpanded: false, lastActiveAt: nil, createdAt: Date()
+            )
+            node.liveItemID = item.id
+            node.isUnread = marksNewUnread
+            added.append(node)
+        }
+        guard !added.isEmpty else { return }
+        save { try profileDatabases[folder.spaceID]?.save(added) }
+        tabs.append(contentsOf: added.map { makeTab($0) })
+        sidebarRevision += 1
     }
 
     func rename(_ folder: Folder, to title: String) {
@@ -1669,8 +1808,12 @@ final class BrowserState {
         return Set(values)
     }
 
-    /// The folder's content moves up to where the folder was, nothing is lost.
+    /// The folder's content moves up to where the folder was, nothing is lost. A live folder's
+    /// tabs go with it: its source has them.
     func delete(_ folder: Folder) {
+        if folder.liveSource != nil {
+            for tab in tabs where tab.node.parentID == folder.id { discard(tab) }
+        }
         let content = entries(in: .favorites, parentID: folder.id, spaceID: folder.spaceID)
         let siblings = entries(in: .favorites, parentID: folder.node.parentID, spaceID: folder.spaceID)
         var before = siblings.last { $0.node.position < folder.node.position }?.node.position

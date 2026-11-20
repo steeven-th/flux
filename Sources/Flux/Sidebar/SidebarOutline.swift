@@ -284,7 +284,9 @@ struct SidebarOutline: NSViewRepresentable {
                     self?.state.closePane(tab)
                 })
             case let folder as Folder:
-                row = AnyView(FolderRow(folder: folder) { [weak self] title in
+                row = AnyView(FolderRow(folder: folder, unreadCount: { [weak self] in
+                    self?.state.unreadCount(in: folder) ?? 0
+                }) { [weak self] title in
                     self?.state.rename(folder, to: title)
                 } onBeginEditing: { [weak outlineView] in
                     // The page may have the keyboard. The field needs Flux's window to be key.
@@ -535,6 +537,27 @@ struct SidebarOutline: NSViewRepresentable {
                 menu.addItem(MenuAction.item(split.isVertical ? "Convert to Horizontal Split View" : "Convert to Vertical Split View") { [weak self] in
                     self?.state.toggleOrientation(split)
                 })
+            case let folder as Folder where folder.liveSource != nil:
+                // Tooltips don't show in the outline's rows, so the reason the folder failed to
+                // update is told here.
+                if let error = folder.refreshError {
+                    let item = NSMenuItem(title: error, action: nil, keyEquivalent: "")
+                    item.image = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil)
+                    item.isEnabled = false
+                    menu.addItem(item)
+                    menu.addItem(.separator())
+                }
+                menu.addItem(MenuAction.item("Update Now") { [weak self] in self?.state.refresh(folder) })
+                let read = MenuAction.item("Mark All as Read") { [weak self] in self?.state.markAllRead(in: folder) }
+                read.isEnabled = state.unreadCount(in: folder) > 0
+                menu.addItem(read)
+                menu.addItem(.separator())
+                menu.addItem(MenuAction.item("Edit Live Folder…") { [weak self] in
+                    self?.state.liveFolderEditing = .init(folder: folder)
+                })
+                menu.addItem(MenuAction.item("Stop Updating") { [weak self] in self?.state.stopUpdating(folder) })
+                menu.addItem(.separator())
+                menu.addItem(MenuAction.item("Delete Live Folder") { [weak self] in self?.state.delete(folder) })
             case let folder as Folder:
                 menu.addItem(MenuAction.item("Rename Folder") { folder.isEditingTitle = true })
                 let newFolder = MenuAction.item("New Folder Inside") { [weak self] in
@@ -546,6 +569,9 @@ struct SidebarOutline: NSViewRepresentable {
                 menu.addItem(MenuAction.item("Delete Folder") { [weak self] in self?.state.delete(folder) })
             default:
                 menu.addItem(MenuAction.item("New Folder") { [weak self] in self?.state.createFolder() })
+                menu.addItem(MenuAction.item("New Live Folder…") { [weak self] in
+                    self?.state.liveFolderEditing = .init(folder: nil)
+                })
             }
         }
     }

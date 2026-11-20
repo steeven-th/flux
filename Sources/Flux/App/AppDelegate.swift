@@ -112,6 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state.startArchiving()
         state.startSavingScrollPositions()
         state.startSleepingTabs()
+        state.startUpdatingLiveFolders()
         Boosts.shared.start(database: database)
         PageScripts.install()
         ContentBlocker.shared.start()

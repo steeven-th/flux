@@ -155,6 +155,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         observeTitle()
         observeAppearance()
         observeLayoutSettings()
+        observeLiveFolderEditing()
         observePeek()
         observePanes()
         observeDraggedTab()
@@ -286,6 +287,27 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
             controls.heightAnchor.constraint(equalToConstant: WindowControls.size.height),
         ])
         sidebarWindowControls = controls
+    }
+
+    private var liveFolderSheet: NSWindow?
+
+    private func observeLiveFolderEditing() {
+        let editing = withObservationTracking {
+            state.liveFolderEditing
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeLiveFolderEditing() }
+        }
+        if let sheet = liveFolderSheet {
+            window?.endSheet(sheet)
+            liveFolderSheet = nil
+        }
+        guard let editing, let window else { return }
+        let editor = LiveFolderEditor(state: state, folder: editing.folder) { [weak self] in
+            self?.state.liveFolderEditing = nil
+        }
+        let sheet = NSWindow(contentViewController: NSHostingController(rootView: editor))
+        liveFolderSheet = sheet
+        window.beginSheet(sheet)
     }
 
     private func observeLayoutSettings() {

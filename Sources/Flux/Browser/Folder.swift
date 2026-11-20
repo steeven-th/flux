@@ -10,6 +10,10 @@ final class Folder: NSObject, Identifiable {
     private(set) var title: String
     var isEditingTitle = false
     private(set) var isExpanded: Bool
+    private(set) var liveSource: LiveSource?
+    var isRefreshing = false
+    /// Why the last update failed, until one works.
+    var refreshError: String?
 
     @ObservationIgnored private(set) var node: SidebarNode
 
@@ -18,6 +22,7 @@ final class Folder: NSObject, Identifiable {
         spaceID = node.spaceID
         title = node.title
         isExpanded = node.isExpanded
+        liveSource = node.liveSource
         self.node = node
     }
 
@@ -29,6 +34,11 @@ final class Folder: NSObject, Identifiable {
     func setExpanded(_ isExpanded: Bool) {
         self.isExpanded = isExpanded
         node.isExpanded = isExpanded
+    }
+
+    func setLiveSource(_ source: LiveSource?) {
+        liveSource = source
+        node.liveSource = source
     }
 
     func place(parentID: UUID?, position: String) {

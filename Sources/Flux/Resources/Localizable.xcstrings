@@ -271,6 +271,16 @@
         }
       }
     },
+    "A site's address works too, when its pages name their feed." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'adresse d'un site marche aussi, quand ses pages indiquent leur flux."
+          }
+        }
+      }
+    },
     "A Window" : {
       "localizations" : {
         "fr" : {
@@ -567,6 +577,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Comme"
+          }
+        }
+      }
+    },
+    "As in GitHub's search, @me standing for you. Open ones only, unless it says is:closed or is:merged." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comme dans la recherche de GitHub, @me vous désignant. Seulement ce qui est ouvert, sauf avec is:closed ou is:merged."
           }
         }
       }
@@ -1211,12 +1231,32 @@
         }
       }
     },
+    "Create" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Créer"
+          }
+        }
+      }
+    },
     "Custom" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Personnalisés"
+          }
+        }
+      }
+    },
+    "Custom Search" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recherche personnalisée"
           }
         }
       }
@@ -1317,6 +1357,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Supprimer le dossier"
+          }
+        }
+      }
+    },
+    "Delete Live Folder" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer le Live Folder"
           }
         }
       }
@@ -1571,6 +1621,26 @@
         }
       }
     },
+    "Edit Live Folder" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifier le Live Folder"
+          }
+        }
+      }
+    },
+    "Edit Live Folder…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifier le Live Folder…"
+          }
+        }
+      }
+    },
     "Edit Rule" : {
       "localizations" : {
         "fr" : {
@@ -1667,6 +1737,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Favoris"
+          }
+        }
+      }
+    },
+    "Feed or site address" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse du flux ou du site"
           }
         }
       }
@@ -1887,6 +1967,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Commencer"
+          }
+        }
+      }
+    },
+    "GitHub" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub"
           }
         }
       }
@@ -2221,6 +2311,16 @@
         }
       }
     },
+    "Issues assigned to me" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Issues qui me sont assignées"
+          }
+        }
+      }
+    },
     "It will be removed from “%@”." : {
       "localizations" : {
         "fr" : {
@@ -2237,6 +2337,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Le sien"
+          }
+        }
+      }
+    },
+    "Its tabs come from a feed or a GitHub search, and update by themselves every 30 minutes." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ses onglets viennent d'un flux ou d'une recherche GitHub, et se mettent à jour tout seuls toutes les 30 minutes."
           }
         }
       }
@@ -2461,6 +2571,16 @@
         }
       }
     },
+    "Live Folder" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live Folder"
+          }
+        }
+      }
+    },
     "Location" : {
       "localizations" : {
         "fr" : {
@@ -2617,6 +2737,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gérer les fenêtres sur tous vos écrans"
+          }
+        }
+      }
+    },
+    "Mark All as Read" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout marquer comme lu"
           }
         }
       }
@@ -2791,6 +2921,16 @@
         }
       }
     },
+    "My open pull requests" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mes pull requests ouvertes"
+          }
+        }
+      }
+    },
     "Name" : {
       "localizations" : {
         "fr" : {
@@ -2831,6 +2971,16 @@
         }
       }
     },
+    "New" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau"
+          }
+        }
+      }
+    },
     "New Folder" : {
       "localizations" : {
         "fr" : {
@@ -2847,6 +2997,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nouveau dossier à l'intérieur"
+          }
+        }
+      }
+    },
+    "New Live Folder" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau Live Folder"
+          }
+        }
+      }
+    },
+    "New Live Folder…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau Live Folder…"
           }
         }
       }
@@ -3601,6 +3771,16 @@
         }
       }
     },
+    "Pull requests waiting for my review" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pull requests qui attendent ma revue"
+          }
+        }
+      }
+    },
     "Put inactive tabs to sleep after" : {
       "localizations" : {
         "fr" : {
@@ -3877,6 +4057,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lignes au-dessus des boutons"
+          }
+        }
+      }
+    },
+    "RSS or Atom Feed" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flux RSS ou Atom"
           }
         }
       }
@@ -4601,12 +4791,62 @@
         }
       }
     },
+    "Sign in to GitHub to update this folder." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connectez-vous à GitHub pour mettre à jour ce dossier."
+          }
+        }
+      }
+    },
+    "Sign In to GitHub…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter à GitHub…"
+          }
+        }
+      }
+    },
     "Sign in to the proxy %@" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Se connecter au proxy %@"
+          }
+        }
+      }
+    },
+    "Sign Out" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se déconnecter"
+          }
+        }
+      }
+    },
+    "Signed in as %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecté en tant que %@"
+          }
+        }
+      }
+    },
+    "Signed in to GitHub" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecté à GitHub"
           }
         }
       }
@@ -4637,6 +4877,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Petites"
+          }
+        }
+      }
+    },
+    "Source" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source"
           }
         }
       }
@@ -4757,6 +5007,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Arrêter le chargement"
+          }
+        }
+      }
+    },
+    "Stop Updating" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arrêter les mises à jour"
           }
         }
       }
@@ -4941,6 +5201,26 @@
         }
       }
     },
+    "This address isn't an RSS or Atom feed." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette adresse n'est pas un flux RSS ou Atom."
+          }
+        }
+      }
+    },
+    "This build of Flux can't sign in to GitHub." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette version de Flux ne peut pas se connecter à GitHub."
+          }
+        }
+      }
+    },
     "This card won't come back. Your extensions are in Flux > Extensions." : {
       "localizations" : {
         "fr" : {
@@ -5091,6 +5371,16 @@
         }
       }
     },
+    "Type this code on the GitHub page that opened. It is copied already." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisissez ce code sur la page GitHub qui vient de s'ouvrir. Il est déjà copié."
+          }
+        }
+      }
+    },
     "Undo" : {
       "localizations" : {
         "fr" : {
@@ -5177,6 +5467,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mise à jour disponible…"
+          }
+        }
+      }
+    },
+    "Update Now" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mettre à jour"
           }
         }
       }

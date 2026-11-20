@@ -57,6 +57,7 @@ Architecture decisions are recorded in [docs/decisions](docs/decisions).
 [docs/translation.md](docs/translation.md) explains how to set up page translation.
 [docs/spaces.md](docs/spaces.md) and [docs/appearance.md](docs/appearance.md) cover how spaces and the window look.
 [docs/import.md](docs/import.md) tells what comes over from each browser.
+[docs/live-folders.md](docs/live-folders.md) explains folders filled by a feed or a GitHub search.
 [docs/extensions.md](docs/extensions.md) covers popups, side panels and their limits.
 [docs/links.md](docs/links.md) explains where links from other apps open.
 [docs/media.md](docs/media.md) describes the mini player and how it controls pages.

@@ -33,6 +33,8 @@ final class Tab: NSObject, Identifiable {
     /// 1 at the default size. Chromium keeps it per site, so it changes as the page does.
     private(set) var zoomFactor = 1.0
     private(set) var loadProgress = 1.0
+    /// For a live folder's tab, until it is opened.
+    private(set) var isUnread = false
     /// How long this page stays loaded unseen, instead of the setting for every tab.
     var sleepDelay: TabSleepDelay? {
         didSet {
@@ -93,6 +95,7 @@ final class Tab: NSObject, Identifiable {
         url = node.url ?? ""
         title = node.title
         sleepDelay = node.sleepDelay
+        isUnread = node.isUnread
         self.node = node
         self.profile = profile
         self.favicons = favicons
@@ -391,6 +394,21 @@ final class Tab: NSObject, Identifiable {
 
     func markActive() {
         node.lastActiveAt = Date()
+        onChange?(self)
+    }
+
+    func setUnread(_ isUnread: Bool) {
+        guard isUnread != self.isUnread else { return }
+        self.isUnread = isUnread
+        node.isUnread = isUnread
+        onChange?(self)
+    }
+
+    /// An item renamed in its live folder's source. An open page keeps its own title.
+    func renameLiveItem(_ title: String) {
+        guard !isLoaded, title != self.title else { return }
+        self.title = title
+        node.title = title
         onChange?(self)
     }
 

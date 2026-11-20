@@ -41,5 +41,6 @@ final class BrowserStore {
     @ObservationIgnored var archiveTimer: Timer?
     @ObservationIgnored var scrollTimer: Timer?
     @ObservationIgnored var sleepTimer: Timer?
+    @ObservationIgnored var liveFolderTimer: Timer?
     @ObservationIgnored var onExtensionInstall: ((InstalledExtension, UUID) -> Void)?
 }

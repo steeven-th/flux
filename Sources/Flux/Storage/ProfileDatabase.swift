@@ -44,6 +44,12 @@ struct SidebarNode: Codable, Identifiable, FetchableRecord, PersistableRecord {
     var sleepDelay: TabSleepDelay?
     /// For pinned tabs shown in every space, the tile they stand for in this space.
     var globalTileID: UUID?
+    /// For live folders, where their tabs come from.
+    var liveSource: LiveSource?
+    /// For tabs of a live folder, their item in the source.
+    var liveItemID: String?
+    /// For tabs of a live folder, whether they came since the user last looked.
+    var isUnread = false
 }
 
 /// A tab of Today that was closed or left unseen for too long.
@@ -157,6 +163,13 @@ final class ProfileDatabase: Sendable {
         migrator.registerMigration("v10 global pinned tiles") { db in
             try db.alter(table: "node") { t in
                 t.add(column: "globalTileID", .blob)
+            }
+        }
+        migrator.registerMigration("v11 live folders") { db in
+            try db.alter(table: "node") { t in
+                t.add(column: "liveSource", .text)
+                t.add(column: "liveItemID", .text)
+                t.add(column: "isUnread", .boolean).notNull().defaults(to: false)
             }
         }
         return migrator

@@ -79,6 +79,13 @@ struct TabRow: View {
 
             Spacer(minLength: 0)
 
+            if tab.isUnread, !isHovered {
+                Circle()
+                    .fill(Color.accentColor)
+                    .frame(width: 6, height: 6)
+                    .help("New")
+            }
+
             if let onCloseGroup {
                 if groupHover?.headID == tab.id {
                     Button(action: onCloseGroup) {
@@ -110,6 +117,7 @@ struct TabRow: View {
 
 struct FolderRow: View {
     let folder: Folder
+    var unreadCount: () -> Int = { 0 }
     let onRename: (String) -> Void
     let onBeginEditing: () -> Void
 
@@ -118,10 +126,16 @@ struct FolderRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            FolderIcon(openness: folder.isExpanded ? 1 : 0)
-                .stroke(.secondary, style: StrokeStyle(lineWidth: 1.2, lineJoin: .round))
-                .frame(width: 16, height: 16)
-                .animation(.easeInOut(duration: 0.2), value: folder.isExpanded)
+            if let source = folder.liveSource {
+                Image(systemName: source.kind == .github ? "arrow.triangle.pull" : "dot.radiowaves.up.forward")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 16, height: 16)
+            } else {
+                FolderIcon(openness: folder.isExpanded ? 1 : 0)
+                    .stroke(.secondary, style: StrokeStyle(lineWidth: 1.2, lineJoin: .round))
+                    .frame(width: 16, height: 16)
+                    .animation(.easeInOut(duration: 0.2), value: folder.isExpanded)
+            }
             if folder.isEditingTitle {
                 TextField("Folder name", text: $draft)
                     .textFieldStyle(.plain)
@@ -144,9 +158,35 @@ struct FolderRow: View {
                 Text(folder.title).lineLimit(1)
             }
             Spacer(minLength: 0)
+            if folder.liveSource != nil {
+                LiveFolderStatus(folder: folder, unreadCount: unreadCount())
+            }
         }
         .frame(maxHeight: .infinity)
         .contentShape(Rectangle())
+    }
+}
+
+/// Updating, failing or the number of new tabs, at the end of a live folder's row.
+private struct LiveFolderStatus: View {
+    let folder: Folder
+    let unreadCount: Int
+
+    var body: some View {
+        if folder.isRefreshing {
+            ProgressView().controlSize(.mini)
+        } else if let error = folder.refreshError {
+            Image(systemName: "exclamationmark.triangle")
+                .foregroundStyle(.secondary)
+                .help(error)
+        } else if unreadCount > 0 {
+            Text(verbatim: "\(unreadCount)")
+                .font(.caption2.weight(.semibold))
+                .monospacedDigit()
+                .padding(.horizontal, 6)
+                .padding(.vertical, 1)
+                .background(Capsule().fill(.primary.opacity(0.12)))
+        }
     }
 }
 
