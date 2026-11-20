@@ -155,19 +155,23 @@ final class CommandBarModel {
         // address bar.
         let home = site.flatMap { isOpen($0) ? nil : $0 }
         let newPages = pages.filter { !isOpen($0) && ChromiumHistory.pageKey($0.url) != home.map { ChromiumHistory.pageKey($0.url) } }
+        // An address typed in full goes first, as in Chromium: its home page from the history when
+        // it is that one, the typed address otherwise. A page deeper in the same site doesn't stand
+        // for it.
+        let typedURL = BrowserState.looksLikeURL(text) ? BrowserState.normalizedURL(text) : nil
+        let homeIsTyped = home.map { page in typedURL.map { ChromiumHistory.site(of: page.url) == ChromiumHistory.site(of: $0) } == true } == true
+        let address: Suggestion? = typedURL.flatMap { url in
+            if homeIsTyped, let home { return .site(home) }
+            return home == nil ? .url(url) : nil
+        }
         // A history page only goes before the typed text when its site or title starts with it,
         // so typing a search and pressing return still searches.
-        let bestPage = best == nil ? home ?? newPages.first { ChromiumHistory.startsMatch($0, text: text) } : nil
+        let bestPage = address == nil && best == nil ? home ?? newPages.first { ChromiumHistory.startsMatch($0, text: text) } : nil
 
         var typed: [Suggestion] = [.search(text)]
-        if BrowserState.looksLikeURL(text) {
-            let url = BrowserState.normalizedURL(text)
-            // Typing a domain in full gives its home page above, which already opens it.
-            let isHome = [bestPage, home].contains { page in
-                page.map { ChromiumHistory.site(of: $0.url) == ChromiumHistory.site(of: url) } == true
-            }
-            if !isHome { typed.insert(.url(url), at: 0) }
-        }
+        // Typing the start of a domain: its home page completes it above, the text as typed comes
+        // with the search.
+        if let typedURL, address == nil { typed.insert(.url(typedURL), at: 0) }
 
         // A command whose name starts with three letters typed or more is likely what was meant,
         // as in Arc. Shorter text still searches when return is pressed.
@@ -180,13 +184,14 @@ final class CommandBarModel {
             .sorted { $0.relevance > $1.relevance }.prefix(3).map(\.command)
 
         var list: [Suggestion] = []
+        if let address { list.append(address) }
         if let best { list.append(.tab(best)) }
         if let bestPage { list.append(bestPage == home ? .site(bestPage) : .page(bestPage)) }
         list += first.map(Suggestion.command)
         list += typed
         list += matches.filter { $0 !== best }.map(Suggestion.tab)
         list += others.map(Suggestion.command)
-        list += newPages.filter { $0 != bestPage }.map(Suggestion.page)
+        list += newPages.filter { $0 != bestPage && !(homeIsTyped && $0 == home) }.map(Suggestion.page)
         return Array(list.prefix(Self.maximumSuggestions))
     }
 }
