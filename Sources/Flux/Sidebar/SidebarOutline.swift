@@ -566,7 +566,10 @@ struct SidebarOutline: NSViewRepresentable {
                 newFolder.isEnabled = state.canPlace(nil, in: folder.id)
                 menu.addItem(newFolder)
                 menu.addItem(.separator())
-                menu.addItem(MenuAction.item("Delete Folder") { [weak self] in self?.state.delete(folder) })
+                menu.addItem(MenuAction.item("Delete Folder…") { [weak self] in
+                    guard let self else { return }
+                    FolderDeletion.ask(folder, state: self.state)
+                })
             default:
                 menu.addItem(MenuAction.item("New Folder") { [weak self] in self?.state.createFolder() })
                 menu.addItem(MenuAction.item("New Live Folder…") { [weak self] in

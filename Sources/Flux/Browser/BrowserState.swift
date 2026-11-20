@@ -1808,6 +1808,29 @@ final class BrowserState {
         return Set(values)
     }
 
+    /// Every tab inside the folder, in its subfolders and splits too.
+    func tabCount(in folder: Folder) -> Int {
+        entries(in: .favorites, parentID: folder.id, spaceID: folder.spaceID).reduce(0) { count, entry in
+            switch entry {
+            case .tab: count + 1
+            case .folder(let child): count + tabCount(in: child)
+            case .split(let split): count + panes(of: split).count
+            }
+        }
+    }
+
+    /// The folder goes with everything inside it.
+    func deleteWithContents(_ folder: Folder) {
+        for entry in entries(in: .favorites, parentID: folder.id, spaceID: folder.spaceID) {
+            switch entry {
+            case .tab(let tab): discard(tab)
+            case .folder(let child): deleteWithContents(child)
+            case .split(let split): panes(of: split).forEach(discard)
+            }
+        }
+        delete(folder)
+    }
+
     /// The folder's content moves up to where the folder was, nothing is lost. A live folder's
     /// tabs go with it: its source has them.
     func delete(_ folder: Folder) {

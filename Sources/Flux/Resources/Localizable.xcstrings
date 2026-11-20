@@ -1351,12 +1351,22 @@
         }
       }
     },
-    "Delete Folder" : {
+    "Delete Folder and Tabs" : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Supprimer le dossier"
+            "value" : "Supprimer le dossier et les onglets"
+          }
+        }
+      }
+    },
+    "Delete Folder…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supprimer le dossier…"
           }
         }
       }
@@ -2321,6 +2331,46 @@
         }
       }
     },
+    "It holds %lld tabs. They can go with it, or stay in its place." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "It holds %lld tab. It can go with the folder, or stay in its place."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "It holds %lld tabs. They can go with it, or stay in its place."
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Il contient %lld onglet. Il peut partir avec le dossier, ou rester à sa place."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Il contient %lld onglets. Ils peuvent partir avec lui, ou rester à sa place."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "It will be removed from “%@”." : {
       "localizations" : {
         "fr" : {
@@ -2387,6 +2437,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Continuer"
+          }
+        }
+      }
+    },
+    "Keep the Tabs" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Garder les onglets"
           }
         }
       }
