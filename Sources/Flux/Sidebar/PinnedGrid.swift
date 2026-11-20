@@ -108,8 +108,13 @@ struct PinnedGrid: NSViewRepresentable {
             guard let item = item as? PinnedItem, tiles.indices.contains(index) else { return }
             if let tab = tiles[index], tab.id != draggedTabID {
                 item.show(AnyView(PinnedTile(tab: tab, isSelected: state.selectedTab === tab, hover: item.hover)))
+                item.onHover = { [weak self, weak tab, weak item] isOn in
+                    guard let self, let tab, let view = item?.view else { return }
+                    TilePreview.shared.pointer(isOn: isOn, tab: tab, tile: view, state: self.state)
+                }
             } else {
                 item.show(AnyView(DropSlot()))
+                item.onHover = nil
             }
         }
 
@@ -143,6 +148,7 @@ struct PinnedGrid: NSViewRepresentable {
         }
 
         func collectionView(_ collectionView: NSCollectionView, didSelectItemsAt indexPaths: Set<IndexPath>) {
+            TilePreview.shared.hide()
             if let index = indexPaths.first?.item, let tab = tiles[safe: index] ?? nil {
                 state.select(tab)
             }
@@ -153,6 +159,7 @@ struct PinnedGrid: NSViewRepresentable {
             _ collectionView: NSCollectionView, pasteboardWriterForItemAt indexPath: IndexPath
         ) -> NSPasteboardWriting? {
             guard let tab = tiles[indexPath.item] else { return nil }
+            TilePreview.shared.hide()
             let item = NSPasteboardItem()
             item.setString(tab.id.uuidString, forType: PinnedGrid.dragType)
             return item
@@ -417,11 +424,13 @@ private final class PinnedCollectionView: NSCollectionView {
 private final class PinnedItem: NSCollectionViewItem {
     static let identifier = NSUserInterfaceItemIdentifier("PinnedItem")
     let hover = TileHover()
+    var onHover: ((Bool) -> Void)?
     private let host = NSHostingView(rootView: AnyView(EmptyView()))
 
     override func loadView() {
         let view = ClickThroughView()
         view.hover = hover
+        view.onHover = { [weak self] isOn in self?.onHover?(isOn) }
         self.view = view
         host.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(host)
@@ -448,6 +457,7 @@ final class TileHover {
 /// It also follows the mouse for the tile, whichever window is key, as the outline's rows do.
 private final class ClickThroughView: NSView {
     var hover: TileHover?
+    var onHover: ((Bool) -> Void)?
     private var trackingArea: NSTrackingArea?
 
     override func hitTest(_ point: NSPoint) -> NSView? {
@@ -464,10 +474,12 @@ private final class ClickThroughView: NSView {
 
     override func mouseEntered(with event: NSEvent) {
         hover?.isHovered = true
+        onHover?(true)
     }
 
     override func mouseExited(with event: NSEvent) {
         hover?.isHovered = false
+        onHover?(false)
     }
 }
 

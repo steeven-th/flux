@@ -11,6 +11,16 @@
         }
       }
     },
+    "NSCalendarsFullAccessUsageDescription" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flux affiche votre prochaine réunion quand vous pointez un agenda épinglé."
+          }
+        }
+      }
+    },
     "NSCameraUsageDescription" : {
       "localizations" : {
         "fr" : {

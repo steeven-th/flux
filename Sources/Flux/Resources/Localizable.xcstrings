@@ -461,6 +461,16 @@
         }
       }
     },
+    "Allow…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autoriser…"
+          }
+        }
+      }
+    },
     "Also import Today's tabs" : {
       "localizations" : {
         "fr" : {
@@ -1851,6 +1861,16 @@
         }
       }
     },
+    "Flux can't read your calendars." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flux ne peut pas lire vos calendriers."
+          }
+        }
+      }
+    },
     "Flux Capture %@" : {
       "localizations" : {
         "fr" : {
@@ -2231,6 +2251,16 @@
         }
       }
     },
+    "In %lld min, %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans %lld min, %@"
+          }
+        }
+      }
+    },
     "Inspect" : {
       "localizations" : {
         "fr" : {
@@ -2427,6 +2457,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Console JavaScript"
+          }
+        }
+      }
+    },
+    "Join" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rejoindre"
           }
         }
       }
@@ -3161,6 +3201,16 @@
         }
       }
     },
+    "No more meetings in the next 24 hours." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus de réunion dans les prochaines 24 heures."
+          }
+        }
+      }
+    },
     "No results" : {
       "localizations" : {
         "fr" : {
@@ -3267,6 +3317,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Notifications"
+          }
+        }
+      }
+    },
+    "Now, %@" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maintenant, %@"
           }
         }
       }
@@ -3457,6 +3517,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ouvrir l'adresse…"
+          }
+        }
+      }
+    },
+    "Open Settings…" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir les Réglages…"
           }
         }
       }
@@ -4457,6 +4527,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Voir les textes et images que vous copiez"
+          }
+        }
+      }
+    },
+    "See your next meeting here, from your Mac's calendars." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voyez ici votre prochaine réunion, d'après les calendriers de votre Mac."
           }
         }
       }

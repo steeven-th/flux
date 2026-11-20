@@ -506,6 +506,10 @@ final class BrowserState {
         store.windows.flatMap(\.shownTabs)
     }
 
+    func isShownInAnyWindow(_ tab: Tab) -> Bool {
+        tabsShownInAnyWindow.contains { $0 === tab }
+    }
+
     /// Whether removing a pinned tab or a favorite asks first. On unless the user turned it off.
     var confirmsTabRemoval: Bool {
         get { (try? appDatabase.setting(Self.confirmsTabRemovalKey)) != "false" }
