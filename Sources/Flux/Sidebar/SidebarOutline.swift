@@ -599,6 +599,35 @@ private final class SidebarOutlineView: NSOutlineView {
     var dropZone: ((NSDraggingInfo) -> String?)?
     private var lastDropZone: String?
 
+    override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+        NotificationCenter.default.removeObserver(self, name: NSView.boundsDidChangeNotification, object: nil)
+        guard let clip = superview as? NSClipView else { return }
+        clip.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(didScroll), name: NSView.boundsDidChangeNotification, object: clip
+        )
+    }
+
+    /// Scrolling moves the rows under a mouse that stays still, and AppKit tells neither the row
+    /// it leaves nor the one it reaches.
+    @objc private func didScroll() {
+        var hoveredGroup: UUID?
+        var groupRows: [GroupRowView] = []
+        enumerateAvailableRowViews { rowView, _ in
+            guard let rowView = rowView as? HoverRowView else { return }
+            rowView.updateHover()
+            if let groupRow = rowView as? GroupRowView {
+                groupRows.append(groupRow)
+                if rowView.isHovered { hoveredGroup = groupRow.headID }
+            }
+        }
+        if let hover = groupRows.first?.hover, hover.headID != hoveredGroup {
+            hover.headID = hoveredGroup
+            for row in groupRows { row.needsDisplay = true }
+        }
+    }
+
     // AppKit validates a drop again only when its own proposal changes, which moving sideways
     // below a group doesn't do. Entering again makes it ask.
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
@@ -648,7 +677,7 @@ private final class SeparatorRowView: NSTableRowView {
 private class HoverRowView: NSTableRowView {
     private let padding: () -> RowPadding
     private var trackingArea: NSTrackingArea?
-    private var isHovered = false {
+    private(set) var isHovered = false {
         didSet { if isHovered != oldValue { needsDisplay = true } }
     }
 
@@ -707,6 +736,11 @@ private class HoverRowView: NSTableRowView {
         isHovered = false
     }
 
+    func updateHover() {
+        guard let window, window.isVisible else { return isHovered = false }
+        isHovered = visibleRect.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil))
+    }
+
     override func drawBackground(in dirtyRect: NSRect) {
         super.drawBackground(in: dirtyRect)
         if isSelected {
@@ -761,8 +795,8 @@ private final class GroupRowView: HoverRowView {
         }
     }
 
-    private let headID: UUID
-    private let hover: GroupHover
+    let headID: UUID
+    let hover: GroupHover
     private let part: () -> Part
 
     init(headID: UUID, hover: GroupHover, part: @escaping () -> Part) {
