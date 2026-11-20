@@ -471,6 +471,16 @@
         }
       }
     },
+    "Appearance" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apparence"
+          }
+        }
+      }
+    },
     "Application" : {
       "localizations" : {
         "fr" : {
@@ -1216,7 +1226,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Foncé"
+            "value" : "Sombre"
           }
         }
       }
@@ -1847,6 +1857,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couleur du dégradé"
+          }
+        }
+      }
+    },
+    "Grain" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grain"
           }
         }
       }
@@ -2837,6 +2857,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aucune capture d'écran ni image dans Téléchargements"
+          }
+        }
+      }
+    },
+    "No Symbol" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun symbole"
           }
         }
       }
@@ -4587,6 +4617,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aller à l'onglet"
+          }
+        }
+      }
+    },
+    "Symbol" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Symbole"
           }
         }
       }

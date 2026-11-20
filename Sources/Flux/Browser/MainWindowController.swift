@@ -61,8 +61,6 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         } else {
             window.center()
         }
-        // Dark, so a private window isn't taken for another.
-        if state.isPrivate { window.appearance = NSAppearance(named: .darkAqua) }
         super.init(window: window)
         window.delegate = self
         state.onShowWindow = { [weak self] in
@@ -144,6 +142,7 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         showSelectedTab()
         observeSelectedTab()
         observeTitle()
+        observeAppearance()
         observePeek()
         observePanes()
         observeDraggedTab()
@@ -174,6 +173,17 @@ final class MainWindowController: NSWindowController, NSWindowDelegate {
         paneClickMonitor = nil
         state.closeWindow()
         onClose?()
+    }
+
+    /// Pages follow the Mac's appearance, as in Arc: Chromium reads the app's, not the window's.
+    private func observeAppearance() {
+        let appearance = withObservationTracking {
+            state.selectedSpace.theme.appearance.nsAppearance
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeAppearance() }
+        }
+        // Dark, so a private window isn't taken for another.
+        window?.appearance = state.isPrivate ? NSAppearance(named: .darkAqua) : appearance
     }
 
     /// Hidden in the title bar, but listed in the Window menu.

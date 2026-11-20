@@ -120,7 +120,7 @@ final class LittleWindowController: NSWindowController, NSWindowDelegate {
 
     private init(model: LittleWindowModel) {
         self.model = model
-        let window = NSWindow(
+        let window = SpaceWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1000, height: 700),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
@@ -166,6 +166,7 @@ final class LittleWindowController: NSWindowController, NSWindowDelegate {
         model.onPageChange = { [weak self] in self?.showPage() }
         model.onClose = { [weak self] in self?.close() }
         observeFinder()
+        observeAppearance()
 
         // Each new one a little lower and to the right, like new windows elsewhere.
         window.center()
@@ -200,6 +201,15 @@ final class LittleWindowController: NSWindowController, NSWindowDelegate {
 
     func windowDidResize(_ notification: Notification) {
         placeFindBar()
+    }
+
+    private func observeAppearance() {
+        let appearance = withObservationTracking {
+            model.space?.theme.appearance.nsAppearance
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observeAppearance() }
+        }
+        window?.appearance = appearance
     }
 
     private func observeFinder() {

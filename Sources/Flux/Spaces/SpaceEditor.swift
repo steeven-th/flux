@@ -52,7 +52,7 @@ struct SpaceEditor: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title).font(.headline)
 
-            SpaceFields(name: $name, icon: $icon, color: $theme.color, onSubmit: save)
+            SpaceFields(name: $name, icon: $icon, color: $theme.color, symbol: $theme.symbol, onSubmit: save)
 
             HStack(spacing: 8) {
                 Text("Intensity")
@@ -65,6 +65,19 @@ struct SpaceEditor: View {
             }
 
             GradientFields(theme: $theme)
+
+            HStack(spacing: 8) {
+                Text("Grain")
+                Slider(value: $theme.grain, in: 0...1)
+                    .labelsHidden()
+            }
+
+            Picker("Appearance", selection: $theme.appearance) {
+                Text("System").tag(SpaceTheme.Appearance.system)
+                Text("Light").tag(SpaceTheme.Appearance.light)
+                Text("Dark").tag(SpaceTheme.Appearance.dark)
+            }
+            .pickerStyle(.segmented)
 
             if !profiles.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
@@ -90,7 +103,7 @@ struct SpaceEditor: View {
 
             HStack {
                 Button {
-                    theme = SpaceTheme.random()
+                    theme.shuffle()
                 } label: {
                     Label("Shuffle", systemImage: "shuffle")
                 }

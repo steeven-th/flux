@@ -238,25 +238,31 @@ struct SpaceBar: View {
 struct SpaceIcon: View {
     let name: String
     let icon: String?
+    var symbol: String?
     let color: Color
     let isSelected: Bool
 
-    init(name: String, icon: String?, color: Color, isSelected: Bool) {
+    init(name: String, icon: String?, symbol: String? = nil, color: Color, isSelected: Bool) {
         self.name = name
         self.icon = icon
+        self.symbol = symbol
         self.color = color
         self.isSelected = isSelected
     }
 
     init(space: Space, isSelected: Bool) {
-        self.init(name: space.name, icon: space.icon, color: space.color, isSelected: isSelected)
+        self.init(name: space.name, icon: space.icon, symbol: space.theme.symbol, color: space.color, isSelected: isSelected)
     }
 
     var body: some View {
         ZStack {
             Circle()
                 .fill(color.opacity(isSelected ? 0.9 : 0.35))
-            if let icon, !icon.isEmpty {
+            if let symbol {
+                Image(systemName: symbol)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white)
+            } else if let icon, !icon.isEmpty {
                 Text(icon).font(.system(size: 12))
             } else {
                 Text(name.prefix(1).uppercased())
